@@ -12,6 +12,14 @@ type Error struct {
 	internal error `json:"-"`
 }
 
+func NewError(code int, data any, internal error) *Error {
+	return &Error{
+		Code:     code,
+		Data:     data,
+		internal: internal,
+	}
+}
+
 // Error implements the error interface
 func (e *Error) Error() string {
 	if e.internal != nil {
@@ -20,8 +28,6 @@ func (e *Error) Error() string {
 
 	return fmt.Sprintf("%d: %s", e.Code, e.Data)
 }
-
-// Usefull api error
 
 func ErrorUnprocessableEntity(data any, internal error) *Error {
 	return &Error{
@@ -80,9 +86,6 @@ func ErrorForbidden(data any, internal error) *Error {
 }
 
 func ErrorInternalServerError(data any, internal error) *Error {
-	if data == nil {
-		data = http.StatusText(http.StatusInternalServerError)
-	}
 	return &Error{
 		Code:     http.StatusInternalServerError,
 		Data:     data,
@@ -109,6 +112,22 @@ func ErrorGatewayTimeout(data any, internal error) *Error {
 func ErrorMethodNotAllowed(data any, internal error) *Error {
 	return &Error{
 		Code:     http.StatusMethodNotAllowed,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorNotImplemented(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusNotImplemented,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorBadGateway(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusBadGateway,
 		Data:     data,
 		internal: internal,
 	}

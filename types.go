@@ -33,7 +33,7 @@ type RouteGroup interface {
 	Use(middleware ...Middleware)
 }
 
-type Middleware func(http.Handler) http.Handler
+type Middleware func(Handler) Handler
 
 // Handler is the function signature for route handlers that can return errors
 type Handler func(*Ctx) error

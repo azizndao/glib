@@ -3,10 +3,14 @@ package grouter
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -48,6 +52,26 @@ func (c *Ctx) BodyParser(out any) error {
 	return json.Unmarshal(body, out)
 }
 
+// Body gets the raw request body as bytes
+func (c *Ctx) Body() ([]byte, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Request.Body.Close()
+	return body, nil
+}
+
+// FormValue gets a form value by key
+func (c *Ctx) FormValue(key string) string {
+	return c.Request.FormValue(key)
+}
+
+// FormFile gets a file from multipart form
+func (c *Ctx) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	return c.Request.FormFile(key)
+}
+
 func (c *Ctx) PathValue(key string) string {
 	return c.Request.PathValue(key)
 }
@@ -66,8 +90,60 @@ func (c *Ctx) QueryInt(key string) (int, error) {
 	return strconv.Atoi(value)
 }
 
+// QueryBool gets a query parameter as bool
+func (c *Ctx) QueryBool(key string) bool {
+	value := strings.ToLower(c.Query(key))
+	return value == "true" || value == "1" || value == "yes" || value == "on"
+}
+
+// QueryFloat gets a query parameter as float64
+func (c *Ctx) QueryFloat(key string) (float64, error) {
+	value := c.Query(key)
+	if value == "" {
+		return 0, nil
+	}
+	return strconv.ParseFloat(value, 64)
+}
+
+// QueryDefault gets a query parameter with a default value
+func (c *Ctx) QueryDefault(key, defaultValue string) string {
+	value := c.Query(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+// QueryAll gets all values for a query parameter key
+func (c *Ctx) QueryAll(key string) []string {
+	return c.Request.URL.Query()[key]
+}
+
 func (c *Ctx) Get(key string) string {
 	return c.Request.Header.Get(key)
+}
+
+// SetHeaders sets multiple headers at once
+func (c *Ctx) SetHeaders(headers map[string]string) *Ctx {
+	for key, value := range headers {
+		c.Response.Header().Set(key, value)
+	}
+	return c
+}
+
+// GetHeaders gets all request headers
+func (c *Ctx) GetHeaders() map[string][]string {
+	return c.Request.Header
+}
+
+// Authorization gets the Authorization header
+func (c *Ctx) Authorization() string {
+	return c.Get("Authorization")
+}
+
+// ContentType gets the Content-Type header
+func (c *Ctx) ContentType() string {
+	return c.Get("Content-Type")
 }
 
 // IP returns the client's IP address
@@ -81,17 +157,74 @@ func (c *Ctx) IP() string {
 	return c.Request.RemoteAddr
 }
 
-// Method returns the request method
+func (c *Ctx) UserAgent() string {
+	return c.Request.UserAgent()
+}
+
 func (c *Ctx) Method() string {
 	return c.Request.Method
 }
 
-// Path returns the request path
 func (c *Ctx) Path() string {
 	return c.Request.URL.Path
 }
 
-// Response helpers
+// BaseURL gets the base URL (scheme + host)
+func (c *Ctx) BaseURL() string {
+	return fmt.Sprintf("%s://%s", c.Scheme(), c.Host())
+}
+
+// URL gets the full request URL
+func (c *Ctx) URL() *url.URL {
+	return c.Request.URL
+}
+
+// Scheme gets the request scheme (http or https)
+func (c *Ctx) Scheme() string {
+	if c.Request.TLS != nil {
+		return "https"
+	}
+	if scheme := c.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme
+	}
+	return "http"
+}
+
+// Host gets the request host
+func (c *Ctx) Host() string {
+	if host := c.Get("X-Forwarded-Host"); host != "" {
+		return host
+	}
+	return c.Request.Host
+}
+
+func (c *Ctx) Set(key, value string) *Ctx {
+	c.Response.Header().Set(key, value)
+	return c
+}
+
+func (c *Ctx) GetCookie(name string) (*http.Cookie, error) {
+	return c.Request.Cookie(name)
+}
+
+func (c *Ctx) SetCookie(cookie *http.Cookie) *Ctx {
+	http.SetCookie(c.Response, cookie)
+	return c
+}
+
+// ClearCookie clears a cookie by setting it to expire
+func (c *Ctx) ClearCookie(name string) *Ctx {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   c.IsSecure(),
+		SameSite: http.SameSiteLaxMode,
+	}
+	return c.SetCookie(cookie)
+}
 
 // Status sets the response status code
 func (c *Ctx) Status(code int) *Ctx {
@@ -99,35 +232,26 @@ func (c *Ctx) Status(code int) *Ctx {
 	return c
 }
 
-// Set sets a response header
-func (c *Ctx) Set(key, value string) *Ctx {
-	c.Response.Header().Set(key, value)
-	return c
-}
-
 // JSON sends a JSON response
-func (c *Ctx) JSON(status int, data any) error {
+func (c *Ctx) JSON(data any) error {
 	c.Set("Content-Type", "application/json")
-	c.Status(status)
 	return json.NewEncoder(c.Response).Encode(data)
 }
 
 // SendString sends a plain text response
-func (c *Ctx) SendString(status int, text string) error {
+func (c *Ctx) SendString(text string) error {
 	c.Set("Content-Type", "text/plain")
-	c.Status(status)
 	_, err := c.Response.Write([]byte(text))
 	return err
 }
 
-func (c *Ctx) HTML(status int, data []byte) error {
+func (c *Ctx) HTML(data []byte) error {
 	c.Set("Content-Type", "text/html")
 	_, err := c.Response.Write(data)
-	c.Status(status)
 	return err
 }
 
-func (c *Ctx) File(status int, file string) error {
+func (c *Ctx) File(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -140,7 +264,6 @@ func (c *Ctx) File(status int, file string) error {
 	}
 
 	http.ServeContent(c.Response, c.Request, file, stat.ModTime(), f)
-	c.Status(status)
 	return nil
 }
 
@@ -148,4 +271,21 @@ func (c *Ctx) Redirect(status int, url string) error {
 	http.Redirect(c.Response, c.Request, url, status)
 	c.Status(status)
 	return nil
+}
+
+// IsSecure checks if the request is using HTTPS
+func (c *Ctx) IsSecure() bool {
+	return c.Request.TLS != nil || c.Get("X-Forwarded-Proto") == "https"
+}
+
+// AcceptsJSON checks if the client accepts JSON responses
+func (c *Ctx) AcceptsJSON() bool {
+	accept := strings.ToLower(c.Get("Accept"))
+	return strings.Contains(accept, "application/json") || strings.Contains(accept, "*/*")
+}
+
+// AcceptsHTML checks if the client accepts HTML responses
+func (c *Ctx) AcceptsHTML() bool {
+	accept := strings.ToLower(c.Get("Accept"))
+	return strings.Contains(accept, "text/html") || strings.Contains(accept, "*/*")
 }

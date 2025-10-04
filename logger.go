@@ -56,32 +56,40 @@ func Logger(config ...LoggerConfig) Middleware {
 		cfg = config[0]
 	}
 
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(next Handler) Handler {
+		return func(c *Ctx) error {
 			// Skip if skip function returns true
-			if cfg.Skip != nil && cfg.Skip(r) {
-				next.ServeHTTP(w, r)
-				return
+			if cfg.Skip != nil && cfg.Skip(c.Request) {
+				return next(c)
 			}
 
 			start := time.Now()
 			
 			// Create a response writer wrapper to capture status code and size
 			wrapped := &responseWriter{
-				ResponseWriter: w,
+				ResponseWriter: c.Response,
 				statusCode:     200,
 				size:          0,
 			}
+			
+			// Replace the response writer in context
+			originalWriter := c.Response
+			c.Response = wrapped
 
 			// Process request
-			next.ServeHTTP(wrapped, r)
+			err := next(c)
+
+			// Restore original writer
+			c.Response = originalWriter
 
 			// Calculate duration
 			duration := time.Since(start)
 
 			// Log the request
-			logRequest(cfg, r, wrapped.statusCode, wrapped.size, duration)
-		})
+			logRequest(cfg, c.Request, wrapped.statusCode, wrapped.size, duration)
+
+			return err
+		}
 	}
 }
 

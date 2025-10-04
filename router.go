@@ -28,12 +28,10 @@ func DefaultRouterOptions() RouterOptions {
 	}
 }
 
-// NewRouter creates a new router with default options
 func NewRouter() Router {
 	return NewRouterWithOptions(DefaultRouterOptions())
 }
 
-// NewRouterWithOptions creates a new router with custom options
 func NewRouterWithOptions(options RouterOptions) Router {
 	r := &router{
 		mux:     http.NewServeMux(),
@@ -44,37 +42,30 @@ func NewRouterWithOptions(options RouterOptions) Router {
 	return r
 }
 
-// Get registers a Get route
 func (r *router) Get(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodGet, pattern, handler, middleware...)
 }
 
-// Post registers a Post route
 func (r *router) Post(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPost, pattern, handler, middleware...)
 }
 
-// Put registers a Put route
 func (r *router) Put(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPut, pattern, handler, middleware...)
 }
 
-// Patch registers a Patch route
 func (r *router) Patch(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPatch, pattern, handler, middleware...)
 }
 
-// Delete registers a Delete route
 func (r *router) Delete(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodDelete, pattern, handler, middleware...)
 }
 
-// Option registers an Option route
 func (r *router) Option(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodOptions, pattern, handler, middleware...)
 }
 
-// Head registers a Head route
 func (r *router) Head(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodHead, pattern, handler, middleware...)
 }
@@ -89,20 +80,21 @@ func (r *router) Handle(method, pattern string, handler Handler, middleware ...M
 	// Build full pattern with prefix
 	fullPattern := r.buildPattern(method, pattern)
 
-	// Convert Handler to http.HandlerFunc
-	httpHandler := r.handlerToHTTPHandler(handler)
-
 	// Combine all middleware (global + group + route-specific)
 	allMiddleware := make([]Middleware, 0, len(r.middleware)+len(r.groupMW)+len(middleware))
 	allMiddleware = append(allMiddleware, r.middleware...)
 	allMiddleware = append(allMiddleware, r.groupMW...)
 	allMiddleware = append(allMiddleware, middleware...)
 
-	// Wrap handler with middleware chain
-	finalHandler := r.applyMiddleware(http.Handler(httpHandler), allMiddleware)
+	// Add built-in middleware based on options
+	builtInMiddleware := r.getBuiltInMiddleware()
+	allMiddleware = append(allMiddleware, builtInMiddleware...)
+
+	// Convert Handler to http.HandlerFunc with middleware applied
+	httpHandler := r.handlerToHTTPHandler(handler, allMiddleware)
 
 	// Register with the mux
-	r.mux.Handle(fullPattern, finalHandler)
+	r.mux.Handle(fullPattern, httpHandler)
 
 	// Store route info for introspection
 	r.routes = append(r.routes, RouteInfo{
@@ -116,7 +108,7 @@ func (r *router) Handle(method, pattern string, handler Handler, middleware ...M
 	// Auto-generate HEAD handler from GET if enabled
 	if r.options.AutoHEAD && method == http.MethodGet {
 		headPattern := r.buildPattern(http.MethodHead, pattern)
-		r.mux.Handle(headPattern, finalHandler)
+		r.mux.Handle(headPattern, httpHandler)
 	}
 }
 
@@ -164,17 +156,18 @@ func (r *router) Routes() []RouteInfo {
 }
 
 // handlerToHTTPHandler converts a Handler to http.HandlerFunc with error handling
-func (r *router) handlerToHTTPHandler(handler Handler) http.HandlerFunc {
+func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) http.HandlerFunc {
+	// Apply middleware chain to the handler
+	finalHandler := r.applyCtxMiddleware(handler, middleware)
+
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := NewCtx(w, req)
 
-		if err := handler(ctx); err != nil {
-
+		if err := finalHandler(ctx); err != nil {
 			var grouterErr *Error
 
 			switch t := err.(type) {
 			case *Error:
-
 				if t.Data == nil {
 					t.Data = http.StatusText(http.StatusInternalServerError)
 				}
@@ -184,7 +177,7 @@ func (r *router) handlerToHTTPHandler(handler Handler) http.HandlerFunc {
 				grouterErr = ErrorInternalServerError("Server Error", err)
 			}
 
-			ctx.JSON(grouterErr.Code, grouterErr)
+			ctx.Status(grouterErr.Code).JSON(grouterErr)
 		}
 	}
 }
@@ -212,21 +205,26 @@ func (r *router) buildPattern(method, pattern string) string {
 	return fullPath
 }
 
-// applyMiddleware applies a chain of middleware to a handler
-func (r *router) applyMiddleware(handler http.Handler, middleware []Middleware) http.Handler {
+// applyCtxMiddleware applies a chain of Ctx middleware to a Handler
+func (r *router) applyCtxMiddleware(handler Handler, middleware []Middleware) Handler {
 	// Apply middleware in reverse order so they execute in the correct order
 	for i := len(middleware) - 1; i >= 0; i-- {
 		handler = middleware[i](handler)
 	}
+	return handler
+}
 
-	// Apply built-in middleware based on options
-	handler = Recovery(func(err any, stack []byte) {
-		fmt.Printf("PANIC: %v\n%s\n", err, stack)
-	})(handler)
+// getBuiltInMiddleware returns built-in middleware based on router options
+func (r *router) getBuiltInMiddleware() []Middleware {
+	var builtIn []Middleware
 
+	// Always add recovery middleware
+	builtIn = append(builtIn, Recovery())
+
+	// Add logger if enabled
 	if r.options.EnableLogging {
-		handler = Logger(DefaultLoggerConfig())(handler)
+		builtIn = append(builtIn, Logger(DefaultLoggerConfig()))
 	}
 
-	return handler
+	return builtIn
 }

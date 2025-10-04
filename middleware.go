@@ -1,6 +1,7 @@
 package grouter
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,44 +14,43 @@ import (
 
 // CORS middleware for handling Cross-Origin Resource Sharing
 func CORS(options CORSOptions) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
+	return func(next Handler) Handler {
+		return func(c *Ctx) error {
+			origin := c.Get("Origin")
 
 			// Set CORS headers
 			if len(options.AllowedOrigins) > 0 {
 				for _, allowedOrigin := range options.AllowedOrigins {
 					if allowedOrigin == "*" || allowedOrigin == origin {
-						w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+						c.Set("Access-Control-Allow-Origin", allowedOrigin)
 						break
 					}
 				}
 			}
 
 			if len(options.AllowedMethods) > 0 {
-				w.Header().Set("Access-Control-Allow-Methods", strings.Join(options.AllowedMethods, ", "))
+				c.Set("Access-Control-Allow-Methods", strings.Join(options.AllowedMethods, ", "))
 			}
 
 			if len(options.AllowedHeaders) > 0 {
-				w.Header().Set("Access-Control-Allow-Headers", strings.Join(options.AllowedHeaders, ", "))
+				c.Set("Access-Control-Allow-Headers", strings.Join(options.AllowedHeaders, ", "))
 			}
 
 			if options.AllowCredentials {
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				c.Set("Access-Control-Allow-Credentials", "true")
 			}
 
 			if options.MaxAge > 0 {
-				w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", int(options.MaxAge.Seconds())))
+				c.Set("Access-Control-Max-Age", fmt.Sprintf("%d", int(options.MaxAge.Seconds())))
 			}
 
 			// Handle preflight requests
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusOK)
-				return
+			if c.Method() == http.MethodOptions {
+				return c.Status(http.StatusOK).SendString("")
 			}
 
-			next.ServeHTTP(w, r)
-		})
+			return next(c)
+		}
 	}
 }
 
@@ -75,43 +75,56 @@ func DefaultCORSOptions() CORSOptions {
 
 // Timeout middleware for request timeout handling
 func Timeout(timeout time.Duration) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.TimeoutHandler(next, timeout, "Request Timeout")
+	return func(next Handler) Handler {
+		return func(c *Ctx) error {
+			// Create a context with timeout
+			ctx, cancel := context.WithTimeout(c.Context(), timeout)
+			defer cancel()
+
+			// Replace request context
+			c.Request = c.Request.WithContext(ctx)
+
+			// Execute handler with timeout
+			done := make(chan error, 1)
+			go func() {
+				done <- next(c)
+			}()
+
+			select {
+			case err := <-done:
+				return err
+			case <-ctx.Done():
+				return c.Status(http.StatusRequestTimeout).JSON(Error{
+					Code: http.StatusRequestTimeout,
+					Data: "Request Timeout",
+				})
+			}
+		}
 	}
 }
 
 // Recovery middleware with better error handling and optional callback
-func Recovery(callback func(err any, stack []byte)) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func Recovery() Middleware {
+	return func(next Handler) Handler {
+		return func(c *Ctx) error {
 			defer func() {
 				if err := recover(); err != nil {
 					stack := debug.Stack()
 
-					// Call callback if provided
-					if callback != nil {
-						callback(err, stack)
-					}
-
 					// Log the error
 					slog.Error("PANIC: %v\n%s\n", err, stack)
 
-					// Return 500 error
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					// Return 500 error using Ctx methods
+					c.
+						Status(http.StatusInternalServerError).
+						JSON(Error{
+							Code: http.StatusInternalServerError,
+							Data: "Internal Server Error",
+						})
 				}
 			}()
 
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-// Chain combines multiple middleware into a single middleware
-func Chain(middleware ...Middleware) Middleware {
-	return func(next http.Handler) http.Handler {
-		for i := len(middleware) - 1; i >= 0; i-- {
-			next = middleware[i](next)
+			return next(c)
 		}
-		return next
 	}
 }
