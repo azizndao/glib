@@ -13,16 +13,18 @@ type Router interface {
 
 type RouteGroup interface {
 	// HTTP method routing within the group
-	GET(pattern string, handler Handler, middleware ...Middleware)
-	POST(pattern string, handler Handler, middleware ...Middleware)
-	PUT(pattern string, handler Handler, middleware ...Middleware)
-	PATCH(pattern string, handler Handler, middleware ...Middleware)
-	DELETE(pattern string, handler Handler, middleware ...Middleware)
-	OPTIONS(pattern string, handler Handler, middleware ...Middleware)
-	HEAD(pattern string, handler Handler, middleware ...Middleware)
+	Get(pattern string, handler Handler, middleware ...Middleware)
+	Port(pattern string, handler Handler, middleware ...Middleware)
+	Put(pattern string, handler Handler, middleware ...Middleware)
+	Patch(pattern string, handler Handler, middleware ...Middleware)
+	Delete(pattern string, handler Handler, middleware ...Middleware)
+	Option(pattern string, handler Handler, middleware ...Middleware)
+	Head(pattern string, handler Handler, middleware ...Middleware)
 
 	// Advanced routing within the group
 	Handle(method, pattern string, handler Handler, middleware ...Middleware)
+
+	Route(prefix string, handler http.HandlerFunc)
 
 	// Nested groups
 	Group(prefix string, middleware ...Middleware) RouteGroup

@@ -12,7 +12,6 @@ import (
 type Ctx struct {
 	Request  *http.Request
 	Response http.ResponseWriter
-	params   map[string]string
 }
 
 // NewCtx creates a new Context from request and response

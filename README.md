@@ -42,18 +42,18 @@ func main() {
     }))
 
     // Define routes
-    router.GET("/hello", func(c *grouter.Ctx) error {
+    router.Get("/hello", func(c *grouter.Ctx) error {
         return c.JSON(map[string]string{"message": "Hello World"})
     })
 
-    router.GET("/hello/{name}", func(c *grouter.Ctx) error {
+    router.Get("/hello/{name}", func(c *grouter.Ctx) error {
         return c.JSON(map[string]string{
             "message": fmt.Sprintf("Hello %s", c.PathValue("name")),
             "query":   c.Query("q"),
         })
     })
 
-    slog.Info("Server started on :8080")
+    slog.Default().Info("Server started")
     http.ListenAndServe(":8080", router.Handler())
 }
 ```
@@ -78,16 +78,19 @@ router := grouter.NewRouterWithOptions(grouter.RouterOptions{
 ### HTTP Methods
 
 ```go
-router.GET("/path", handler)
-router.POST("/path", handler)
-router.PUT("/path", handler)
-router.PATCH("/path", handler)
-router.DELETE("/path", handler)
-router.OPTIONS("/path", handler)
-router.HEAD("/path", handler)
+router.Get("/path", handler)
+router.Port("/path", handler)
+router.Put("/path", handler)
+router.Patch("/path", handler)
+router.Delete("/path", handler)
+router.Option("/path", handler)
+router.Head("/path", handler)
 
 // Generic method handler
 router.Handle("METHOD", "/path", handler)
+
+// Direct http.Handler registration
+router.Route("/prefix", httpHandler)
 ```
 
 ### Route Groups
@@ -95,12 +98,12 @@ router.Handle("METHOD", "/path", handler)
 ```go
 // Create a group with prefix
 api := router.Group("/api")
-api.GET("/users", getUsersHandler)
-api.POST("/users", createUserHandler)
+api.Get("/users", getUsersHandler)
+api.Port("/users", createUserHandler)
 
 // Groups with middleware
 admin := router.Group("/admin", authMiddleware, adminMiddleware)
-admin.GET("/dashboard", dashboardHandler)
+admin.Get("/dashboard", dashboardHandler)
 ```
 
 ### Context Methods
@@ -154,29 +157,21 @@ func handler(c *grouter.Ctx) error {
 #### Built-in Middleware
 
 ```go
-// Logger with different formats
-router.Use(grouter.Logger())              // Default format
-router.Use(grouter.LoggerTiny())          // Minimal format
-router.Use(grouter.LoggerShort())         // Short format
-router.Use(grouter.LoggerCombined())      // Apache combined format
+// Logger middleware
+router.Use(grouter.Logger())
 
 // Recovery middleware
 router.Use(grouter.Recovery(func(err any, stack []byte) {
     log.Printf("PANIC: %v\n%s", err, stack)
 }))
 
-// CORS middleware
-router.Use(grouter.CORS(grouter.DefaultCORSOptions()))
-
-// Timeout middleware
-router.Use(grouter.Timeout(30 * time.Second))
-
-// Chain multiple middleware
-router.Use(grouter.Chain(
+// Multiple middleware
+router.Use(
     grouter.Logger(),
-    grouter.Recovery(nil),
-    grouter.CORS(grouter.DefaultCORSOptions()),
-))
+    grouter.Recovery(func(err any, stack []byte) {
+        log.Printf("PANIC: %v\n%s", err, stack)
+    }),
+)
 ```
 
 #### Custom Middleware
@@ -200,53 +195,37 @@ router.Use(customMiddleware)
 
 ### Error Handling
 
-GRouter provides structured error handling with built-in error types:
+GRouter handlers return errors that are automatically logged:
 
 ```go
 func handler(c *grouter.Ctx) error {
     user, err := findUser(id)
     if err != nil {
-        return grouter.ErrorNotFound("User not found", err)
+        return fmt.Errorf("user not found: %w", err)
     }
     
     if !user.IsActive {
-        return grouter.ErrorForbidden("User is inactive", nil)
+        return fmt.Errorf("user is inactive")
     }
     
     return c.JSON(user)
 }
-
-// Available error helpers:
-// ErrorBadRequest(data, internal)
-// ErrorUnauthorized(data, internal) 
-// ErrorForbidden(data, internal)
-// ErrorNotFound(data, internal)
-// ErrorMethodNotAllowed(data, internal)
-// ErrorInternalServerError(data, internal)
-// ErrorServiceUnavailable(data, internal)
-// ErrorGatewayTimeout(data, internal)
 ```
+
+Errors are logged using `slog.Error()` and a 500 Internal Server Error is returned to the client.
 
 ### Logging Formats
 
-GRouter includes beautiful colored logging with multiple formats:
-
-- **Default**: Structured format with method, path, status, duration, and size
-- **Tiny**: Minimal format with just timestamp, method, status, and duration
-- **Short**: Includes method, path, status, and duration
-- **Combined**: Apache combined log format with user agent
+GRouter includes colorful request logging:
 
 ```go
-// Configure custom logger
-config := grouter.LoggerConfig{
-    Format:     grouter.LogFormatDefault,
-    TimeFormat: "15:04:05",
-    Output:     os.Stdout,
-    Skip: func(r *http.Request) bool {
-        return strings.HasPrefix(r.URL.Path, "/health")
-    },
-}
-router.Use(grouter.Logger(config))
+// Use default logger configuration
+router.Use(grouter.Logger())
+
+// Logger is automatically enabled when EnableLogging is true in RouterOptions
+router := grouter.NewRouterWithOptions(grouter.RouterOptions{
+    EnableLogging: true,
+})
 ```
 
 ## Advanced Usage
@@ -276,6 +255,9 @@ func handler(c *grouter.Ctx) error {
     user := c.GetValue("user")
     return c.JSON(user)
 }
+
+// Access underlying context
+ctx := c.Context()
 ```
 
 ## Requirements

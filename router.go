@@ -45,39 +45,44 @@ func NewRouterWithOptions(options RouterOptions) Router {
 	return r
 }
 
-// GET registers a GET route
-func (r *router) GET(pattern string, handler Handler, middleware ...Middleware) {
+// Get registers a Get route
+func (r *router) Get(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodGet, pattern, handler, middleware...)
 }
 
-// POST registers a POST route
-func (r *router) POST(pattern string, handler Handler, middleware ...Middleware) {
+// Port registers a Port route
+func (r *router) Port(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPost, pattern, handler, middleware...)
 }
 
-// PUT registers a PUT route
-func (r *router) PUT(pattern string, handler Handler, middleware ...Middleware) {
+// Put registers a Put route
+func (r *router) Put(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPut, pattern, handler, middleware...)
 }
 
-// PATCH registers a PATCH route
-func (r *router) PATCH(pattern string, handler Handler, middleware ...Middleware) {
+// Patch registers a Patch route
+func (r *router) Patch(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPatch, pattern, handler, middleware...)
 }
 
-// DELETE registers a DELETE route
-func (r *router) DELETE(pattern string, handler Handler, middleware ...Middleware) {
+// Delete registers a Delete route
+func (r *router) Delete(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodDelete, pattern, handler, middleware...)
 }
 
-// OPTIONS registers an OPTIONS route
-func (r *router) OPTIONS(pattern string, handler Handler, middleware ...Middleware) {
+// Option registers an Option route
+func (r *router) Option(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodOptions, pattern, handler, middleware...)
 }
 
-// HEAD registers a HEAD route
-func (r *router) HEAD(pattern string, handler Handler, middleware ...Middleware) {
+// Head registers a Head route
+func (r *router) Head(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodHead, pattern, handler, middleware...)
+}
+
+// Route registers a route with a specific HTTP method
+func (r *router) Route(prefix string, handler http.HandlerFunc) {
+	r.mux.Handle(prefix, handler)
 }
 
 // Handle registers a route with a specific HTTP method
