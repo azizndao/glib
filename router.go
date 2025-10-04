@@ -50,8 +50,8 @@ func (r *router) Get(pattern string, handler Handler, middleware ...Middleware) 
 	r.Handle(http.MethodGet, pattern, handler, middleware...)
 }
 
-// Port registers a Port route
-func (r *router) Port(pattern string, handler Handler, middleware ...Middleware) {
+// Post registers a Post route
+func (r *router) Post(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPost, pattern, handler, middleware...)
 }
 
@@ -81,7 +81,7 @@ func (r *router) Head(pattern string, handler Handler, middleware ...Middleware)
 }
 
 // Route registers a route with a specific HTTP method
-func (r *router) Route(prefix string, handler http.HandlerFunc) {
+func (r *router) Route(prefix string, handler http.Handler) {
 	r.mux.Handle(prefix, handler)
 }
 

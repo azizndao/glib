@@ -14,7 +14,7 @@ type Router interface {
 type RouteGroup interface {
 	// HTTP method routing within the group
 	Get(pattern string, handler Handler, middleware ...Middleware)
-	Port(pattern string, handler Handler, middleware ...Middleware)
+	Post(pattern string, handler Handler, middleware ...Middleware)
 	Put(pattern string, handler Handler, middleware ...Middleware)
 	Patch(pattern string, handler Handler, middleware ...Middleware)
 	Delete(pattern string, handler Handler, middleware ...Middleware)

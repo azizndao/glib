@@ -7,7 +7,7 @@ A minimal HTTP router for Go that leverages Go 1.22+ enhanced routing features w
 - **Clean API**: Intuitive routing interface
 - **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
-- **Error handling**: Built-in error types and graceful error handling
+- **Error handling**: Graceful error handling with automatic logging
 - **Middleware support**: Composable middleware chain with built-in middleware
 - **Route groups**: Organize routes with prefixes and group-specific middleware
 - **Context helpers**: Convenient methods for request/response handling
@@ -79,7 +79,7 @@ router := grouter.NewRouterWithOptions(grouter.RouterOptions{
 
 ```go
 router.Get("/path", handler)
-router.Port("/path", handler)
+router.Post("/path", handler)
 router.Put("/path", handler)
 router.Patch("/path", handler)
 router.Delete("/path", handler)
@@ -99,7 +99,7 @@ router.Route("/prefix", httpHandler)
 // Create a group with prefix
 api := router.Group("/api")
 api.Get("/users", getUsersHandler)
-api.Port("/users", createUserHandler)
+api.Post("/users", createUserHandler)
 
 // Groups with middleware
 admin := router.Group("/admin", authMiddleware, adminMiddleware)
@@ -214,7 +214,7 @@ func handler(c *grouter.Ctx) error {
 
 Errors are logged using `slog.Error()` and a 500 Internal Server Error is returned to the client.
 
-### Logging Formats
+### Logging
 
 GRouter includes colorful request logging:
 
