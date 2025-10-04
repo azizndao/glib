@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"grouter"
+	"github.com/azizndao/grouter"
 )
 
 func main() {

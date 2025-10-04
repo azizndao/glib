@@ -1,3 +1,3 @@
-module githon.com/azizndao/grouter
+module github.com/azizndao/grouter
 
 go 1.25.1

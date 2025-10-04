@@ -17,7 +17,7 @@ A minimal HTTP router for Go that leverages Go 1.22+ enhanced routing features w
 ## Installation
 
 ```bash
-go get githon.com/azizndao/grouter
+go get github.com/azizndao/grouter
 ```
 
 ## Quick Start
@@ -30,7 +30,7 @@ import (
     "log/slog"
     "net/http"
     
-    "githon.com/azizndao/grouter"
+    "github.com/azizndao/grouter"
 )
 
 func main() {
@@ -289,4 +289,3 @@ MIT License
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
