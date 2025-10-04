@@ -24,7 +24,7 @@ type RouteGroup interface {
 	// Advanced routing within the group
 	Handle(method, pattern string, handler Handler, middleware ...Middleware)
 
-	Route(prefix string, handler http.HandlerFunc)
+	Route(prefix string, handler http.Handler)
 
 	// Nested groups
 	Group(prefix string, middleware ...Middleware) RouteGroup
