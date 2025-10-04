@@ -43,11 +43,11 @@ func main() {
 
     // Define routes
     router.Get("/hello", func(c *grouter.Ctx) error {
-        return c.JSON(map[string]string{"message": "Hello World"})
+        return c.JSON(200, map[string]string{"message": "Hello World"})
     })
 
     router.Get("/hello/{name}", func(c *grouter.Ctx) error {
-        return c.JSON(map[string]string{
+        return c.JSON(200, map[string]string{
             "message": fmt.Sprintf("Hello %s", c.PathValue("name")),
             "query":   c.Query("q"),
         })
@@ -142,13 +142,23 @@ func handler(c *grouter.Ctx) error {
 ```go
 func handler(c *grouter.Ctx) error {
     // JSON response
-    return c.JSON(map[string]string{"status": "ok"})
+    return c.JSON(200, map[string]string{"status": "ok"})
     
     // Text response
-    return c.SendString("Hello World")
+    return c.SendString(200, "Hello World")
     
-    // Set status and headers
-    return c.Status(201).Set("Location", "/users/123").JSON(user)
+    // HTML response
+    return c.HTML(200, []byte("<h1>Hello World</h1>"))
+    
+    // File response
+    return c.File(200, "/path/to/file.pdf")
+    
+    // Redirect
+    return c.Redirect(302, "/new-location")
+    
+    // Set status and headers (note: Status() must be called before response methods)
+    c.Status(201).Set("Location", "/users/123")
+    return c.JSON(201, user)
 }
 ```
 
@@ -201,18 +211,33 @@ GRouter handlers return errors that are automatically logged:
 func handler(c *grouter.Ctx) error {
     user, err := findUser(id)
     if err != nil {
-        return fmt.Errorf("user not found: %w", err)
+        return grouter.ErrorNotFound("User not found", err)
     }
     
     if !user.IsActive {
-        return fmt.Errorf("user is inactive")
+        return grouter.ErrorForbidden("User is inactive", nil)
     }
     
-    return c.JSON(user)
+    return c.JSON(200, user)
 }
 ```
 
-Errors are logged using `slog.Error()` and a 500 Internal Server Error is returned to the client.
+GRouter provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
+
+```go
+// Available error helpers:
+grouter.ErrorBadRequest(data, internal)           // 400
+grouter.ErrorUnauthorized(data, internal)         // 401
+grouter.ErrorForbidden(data, internal)            // 403
+grouter.ErrorNotFound(data, internal)             // 404
+grouter.ErrorConflict(data, internal)             // 409
+grouter.ErrorGone(data, internal)                 // 410
+grouter.ErrorUnprocessableEntity(data, internal)  // 422
+grouter.ErrorInternalServerError(data, internal)  // 500
+
+// Standard errors are automatically converted to 500 responses
+return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Data": "Server Error"}
+```
 
 ### Logging
 

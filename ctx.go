@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -105,14 +106,46 @@ func (c *Ctx) Set(key, value string) *Ctx {
 }
 
 // JSON sends a JSON response
-func (c *Ctx) JSON(data any) error {
+func (c *Ctx) JSON(status int, data any) error {
 	c.Set("Content-Type", "application/json")
+	c.Status(status)
 	return json.NewEncoder(c.Response).Encode(data)
 }
 
 // SendString sends a plain text response
-func (c *Ctx) SendString(text string) error {
+func (c *Ctx) SendString(status int, text string) error {
 	c.Set("Content-Type", "text/plain")
+	c.Status(status)
 	_, err := c.Response.Write([]byte(text))
 	return err
+}
+
+func (c *Ctx) HTML(status int, data []byte) error {
+	c.Set("Content-Type", "text/html")
+	_, err := c.Response.Write(data)
+	c.Status(status)
+	return err
+}
+
+func (c *Ctx) File(status int, file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	http.ServeContent(c.Response, c.Request, file, stat.ModTime(), f)
+	c.Status(status)
+	return nil
+}
+
+func (c *Ctx) Redirect(status int, url string) error {
+	http.Redirect(c.Response, c.Request, url, status)
+	c.Status(status)
+	return nil
 }

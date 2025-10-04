@@ -9,3 +9,5 @@ GET http://localhost:8080/hello/Aziz?q=hello HTTP/1.1
 
 
 ### 
+
+GET http://localhost:8080/error HTTP/1.1

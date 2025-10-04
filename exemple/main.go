@@ -18,14 +18,18 @@ func main() {
 		}))
 
 	router.Get("/hello", func(c *grouter.Ctx) error {
-		return c.JSON(map[string]string{"message": "Hello World"})
+		return c.JSON(http.StatusOK, map[string]string{"message": "Hello World"})
 	})
 
 	router.Get("/hello/{name}", func(c *grouter.Ctx) error {
-		return c.JSON(map[string]string{
+		return c.JSON(http.StatusOK, map[string]string{
 			"message": fmt.Sprintf("Hello %s", c.PathValue("name")),
 			"query":   c.Query("q"),
 		})
+	})
+
+	router.Get("/error", func(c *grouter.Ctx) error {
+		return grouter.ErrorBadRequest(nil, nil)
 	})
 
 	slog.Info("Server started")

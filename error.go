@@ -23,6 +23,30 @@ func (e *Error) Error() string {
 
 // Usefull api error
 
+func ErrorUnprocessableEntity(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusUnprocessableEntity,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorConflict(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusConflict,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorGone(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusGone,
+		Data:     data,
+		internal: internal,
+	}
+}
+
 func ErrorNotFound(data any, internal error) *Error {
 	return &Error{
 		Code:     http.StatusNotFound,
@@ -56,6 +80,9 @@ func ErrorForbidden(data any, internal error) *Error {
 }
 
 func ErrorInternalServerError(data any, internal error) *Error {
+	if data == nil {
+		data = http.StatusText(http.StatusInternalServerError)
+	}
 	return &Error{
 		Code:     http.StatusInternalServerError,
 		Data:     data,

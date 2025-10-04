@@ -3,7 +3,6 @@ package grouter
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -170,9 +169,22 @@ func (r *router) handlerToHTTPHandler(handler Handler) http.HandlerFunc {
 		ctx := NewCtx(w, req)
 
 		if err := handler(ctx); err != nil {
-			slog.Error(err.Error())
-			// Default error handling - send 500 with error message
-			http.Error(w, "Server Error", http.StatusInternalServerError)
+
+			var grouterErr *Error
+
+			switch t := err.(type) {
+			case *Error:
+
+				if t.Data == nil {
+					t.Data = http.StatusText(http.StatusInternalServerError)
+				}
+				grouterErr = t
+
+			default:
+				grouterErr = ErrorInternalServerError("Server Error", err)
+			}
+
+			ctx.JSON(grouterErr.Code, grouterErr)
 		}
 	}
 }
