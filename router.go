@@ -28,10 +28,12 @@ func DefaultRouterOptions() RouterOptions {
 	}
 }
 
+// NewRouter creates a new router with default options
 func NewRouter() Router {
 	return NewRouterWithOptions(DefaultRouterOptions())
 }
 
+// NewRouterWithOptions creates a new router with custom options
 func NewRouterWithOptions(options RouterOptions) Router {
 	r := &router{
 		mux:     http.NewServeMux(),
@@ -42,30 +44,37 @@ func NewRouterWithOptions(options RouterOptions) Router {
 	return r
 }
 
+// Get registers a Get route
 func (r *router) Get(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodGet, pattern, handler, middleware...)
 }
 
+// Post registers a Post route
 func (r *router) Post(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPost, pattern, handler, middleware...)
 }
 
+// Put registers a Put route
 func (r *router) Put(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPut, pattern, handler, middleware...)
 }
 
+// Patch registers a Patch route
 func (r *router) Patch(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodPatch, pattern, handler, middleware...)
 }
 
+// Delete registers a Delete route
 func (r *router) Delete(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodDelete, pattern, handler, middleware...)
 }
 
+// Option registers an Option route
 func (r *router) Option(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodOptions, pattern, handler, middleware...)
 }
 
+// Head registers a Head route
 func (r *router) Head(pattern string, handler Handler, middleware ...Middleware) {
 	r.Handle(http.MethodHead, pattern, handler, middleware...)
 }
@@ -136,8 +145,9 @@ func (r *router) Group(prefix string, middleware ...Middleware) RouteGroup {
 }
 
 // Use adds middleware to the router
-func (r *router) Use(middleware ...Middleware) {
+func (r *router) Use(middleware ...Middleware) RouteGroup {
 	r.middleware = append(r.middleware, middleware...)
+	return r
 }
 
 // ServeHTTP implements http.Handler

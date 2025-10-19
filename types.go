@@ -30,7 +30,7 @@ type RouteGroup interface {
 	Group(prefix string, middleware ...Middleware) RouteGroup
 
 	// Group middleware
-	Use(middleware ...Middleware)
+	Use(middleware ...Middleware) RouteGroup
 }
 
 type Middleware func(Handler) Handler

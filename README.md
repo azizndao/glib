@@ -43,11 +43,11 @@ func main() {
 
     // Define routes
     router.Get("/hello", func(c *grouter.Ctx) error {
-        return c.JSON(200, map[string]string{"message": "Hello World"})
+        return c.Status(200).JSON(map[string]string{"message": "Hello World"})
     })
 
     router.Get("/hello/{name}", func(c *grouter.Ctx) error {
-        return c.JSON(200, map[string]string{
+        return c.Status(200).JSON(map[string]string{
             "message": fmt.Sprintf("Hello %s", c.PathValue("name")),
             "query":   c.Query("q"),
         })
@@ -108,31 +108,65 @@ admin.Get("/dashboard", dashboardHandler)
 
 ### Context Methods
 
+The `Ctx` type uses a builder/fluent pattern where setter methods return `*Ctx`, allowing you to chain method calls:
+
+```go
+// Chain multiple operations together
+return c.Status(201).
+    Set("X-Custom-Header", "value").
+    Set("Location", "/users/123").
+    JSON(user)
+```
+
 #### Request Data
 
 ```go
 func handler(c *grouter.Ctx) error {
     // Path parameters (Go 1.22+ routing)
     id := c.PathValue("id")
-    
+
     // Query parameters
     search := c.Query("search")
+    page := c.QueryDefault("page", "1")
     limit, err := c.QueryInt("limit")
-    
+    price, err := c.QueryFloat("price")
+    active := c.QueryBool("active")
+    tags := c.QueryAll("tag") // Get all values for repeated param
+
     // Headers
     auth := c.Get("Authorization")
-    
+    authAlt := c.Authorization()      // Convenience method
+    contentType := c.ContentType()    // Convenience method
+    allHeaders := c.GetHeaders()      // Get all headers
+
     // Request info
     method := c.Method()
     path := c.Path()
     ip := c.IP()
-    
+    userAgent := c.UserAgent()
+    baseURL := c.BaseURL()            // e.g. "https://example.com"
+    scheme := c.Scheme()              // "http" or "https"
+    host := c.Host()                  // "example.com"
+    isSecure := c.IsSecure()          // true if HTTPS
+    acceptsJSON := c.AcceptsJSON()    // Check Accept header
+    acceptsHTML := c.AcceptsHTML()    // Check Accept header
+
     // Parse JSON body
     var user User
     if err := c.BodyParser(&user); err != nil {
         return err
     }
-    
+
+    // Or get raw body
+    bodyBytes, err := c.Body()
+
+    // Form data
+    email := c.FormValue("email")
+    file, header, err := c.FormFile("avatar")
+
+    // Cookies
+    sessionCookie, err := c.GetCookie("session")
+
     return nil
 }
 ```
@@ -141,24 +175,42 @@ func handler(c *grouter.Ctx) error {
 
 ```go
 func handler(c *grouter.Ctx) error {
-    // JSON response
-    return c.JSON(200, map[string]string{"status": "ok"})
-    
-    // Text response
-    return c.SendString(200, "Hello World")
-    
-    // HTML response
-    return c.HTML(200, []byte("<h1>Hello World</h1>"))
-    
+    // JSON response - chain Status() with JSON()
+    return c.Status(200).JSON(map[string]string{"status": "ok"})
+
+    // Text response - chain Status() with SendString()
+    return c.Status(200).SendString("Hello World")
+
+    // HTML response - chain Status() with HTML()
+    return c.Status(200).HTML([]byte("<h1>Hello World</h1>"))
+
     // File response
-    return c.File(200, "/path/to/file.pdf")
-    
+    return c.File("/path/to/file.pdf")
+
     // Redirect
     return c.Redirect(302, "/new-location")
-    
-    // Set status and headers (note: Status() must be called before response methods)
-    c.Status(201).Set("Location", "/users/123")
-    return c.JSON(201, user)
+
+    // Chain multiple setters before response
+    return c.Status(201).
+        Set("Location", "/users/123").
+        Set("X-Custom-Header", "value").
+        JSON(user)
+
+    // Set multiple headers at once using SetHeaders
+    return c.SetHeaders(map[string]string{
+        "X-Custom-Header": "value",
+        "X-Request-ID":    "12345",
+    }).Status(200).JSON(data)
+
+    // Cookie management with chaining
+    return c.SetCookie(&http.Cookie{
+        Name:  "session",
+        Value: "token123",
+    }).Status(200).JSON(map[string]string{"message": "Cookie set"})
+
+    // Clear cookie
+    c.ClearCookie("old-session")
+    return c.Status(200).JSON(map[string]string{"message": "Cookie cleared"})
 }
 ```
 
@@ -186,21 +238,49 @@ router.Use(
 
 #### Custom Middleware
 
+Middleware now works with the `*Ctx` interface, providing cleaner and more powerful middleware composition:
+
 ```go
-func customMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Before request
+// Middleware signature: func(grouter.Handler) grouter.Handler
+// where Handler is: func(*Ctx) error
+
+func customMiddleware(next grouter.Handler) grouter.Handler {
+    return func(c *grouter.Ctx) error {
+        // Before request - access to full Ctx API
         start := time.Now()
-        
-        next.ServeHTTP(w, r)
-        
+        userID := c.Get("X-User-ID")
+
+        // Execute next handler
+        err := next(c)
+
         // After request
         duration := time.Since(start)
-        log.Printf("Request took %v", duration)
-    })
+        log.Printf("User %s - Request took %v", userID, duration)
+
+        return err
+    }
 }
 
 router.Use(customMiddleware)
+
+// Example: Authentication middleware
+func authMiddleware(next grouter.Handler) grouter.Handler {
+    return func(c *grouter.Ctx) error {
+        token := c.Authorization()
+        if token == "" {
+            return c.Status(401).JSON(map[string]string{"error": "Unauthorized"})
+        }
+
+        // Validate token and set user in context
+        user, err := validateToken(token)
+        if err != nil {
+            return c.Status(401).JSON(map[string]string{"error": "Invalid token"})
+        }
+
+        c.Request = c.SetValue("user", user)
+        return next(c)
+    }
+}
 ```
 
 ### Error Handling
@@ -213,12 +293,12 @@ func handler(c *grouter.Ctx) error {
     if err != nil {
         return grouter.ErrorNotFound("User not found", err)
     }
-    
+
     if !user.IsActive {
         return grouter.ErrorForbidden("User is inactive", nil)
     }
-    
-    return c.JSON(200, user)
+
+    return c.Status(200).JSON(user)
 }
 ```
 
@@ -267,18 +347,22 @@ for _, route := range routes {
 
 ### Context Values
 
+Store and retrieve values in the request context:
+
 ```go
-func middleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        ctx := grouter.NewCtx(w, r)
-        r = ctx.SetValue("user", user)
-        next.ServeHTTP(w, r)
-    })
+func authMiddleware(next grouter.Handler) grouter.Handler {
+    return func(c *grouter.Ctx) error {
+        // Authenticate and set user in context
+        user := authenticateUser(c)
+        c.Request = c.SetValue("user", user)
+        return next(c)
+    }
 }
 
 func handler(c *grouter.Ctx) error {
+    // Retrieve user from context
     user := c.GetValue("user")
-    return c.JSON(user)
+    return c.Status(200).JSON(user)
 }
 
 // Access underlying context

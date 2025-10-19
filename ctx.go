@@ -15,15 +15,17 @@ import (
 
 // Ctx provides easy access to request data and response helpers
 type Ctx struct {
-	Request  *http.Request
-	Response http.ResponseWriter
+	Request    *http.Request
+	Response   http.ResponseWriter
+	statusCode int
 }
 
 // NewCtx creates a new Context from request and response
 func NewCtx(w http.ResponseWriter, r *http.Request) *Ctx {
 	return &Ctx{
-		Request:  r,
-		Response: w,
+		Request:    r,
+		Response:   w,
+		statusCode: http.StatusOK, // Default to 200
 	}
 }
 
@@ -50,6 +52,63 @@ func (c *Ctx) BodyParser(out any) error {
 	defer c.Request.Body.Close()
 
 	return json.Unmarshal(body, out)
+}
+
+// Validate validates a struct using the validator from context
+// Automatically detects locale from Accept-Language header
+func (c *Ctx) Validate(data any) error {
+	validator := c.getValidator()
+	if validator == nil {
+		return ErrorInternalServerError("Validator not configured", nil)
+	}
+
+	// Get locale from Accept-Language header
+	locale := c.getLocaleFromHeader()
+	return validator.Validate(data, locale)
+}
+
+// BodyParserWithValidation parses and validates the request body in one call
+func (c *Ctx) BodyParserWithValidation(out any) error {
+	if err := c.BodyParser(out); err != nil {
+		return ErrorBadRequest("Invalid request body", err)
+	}
+	return c.Validate(out)
+}
+
+// getValidator retrieves the validator from the request context
+func (c *Ctx) getValidator() *Validator {
+	if v := c.GetValue("validator"); v != nil {
+		if validator, ok := v.(*Validator); ok {
+			return validator
+		}
+	}
+	return nil
+}
+
+// getLocaleFromHeader extracts the locale from Accept-Language header
+// Returns the first supported locale or "en" as default
+func (c *Ctx) getLocaleFromHeader() string {
+	acceptLang := c.Get("Accept-Language")
+	if acceptLang == "" {
+		return "en"
+	}
+
+	// Parse Accept-Language header (e.g., "en-US,en;q=0.9,fr;q=0.8")
+	// Extract first language code
+	parts := strings.Split(acceptLang, ",")
+	if len(parts) > 0 {
+		lang := strings.TrimSpace(parts[0])
+		// Extract language code before any quality value or variant
+		if idx := strings.Index(lang, ";"); idx != -1 {
+			lang = lang[:idx]
+		}
+		if idx := strings.Index(lang, "-"); idx != -1 {
+			lang = lang[:idx]
+		}
+		return strings.ToLower(strings.TrimSpace(lang))
+	}
+
+	return "en"
 }
 
 // Body gets the raw request body as bytes
@@ -226,27 +285,30 @@ func (c *Ctx) ClearCookie(name string) *Ctx {
 	return c.SetCookie(cookie)
 }
 
-// Status sets the response status code
+// Status sets the response status code (stored until response is sent)
 func (c *Ctx) Status(code int) *Ctx {
-	c.Response.WriteHeader(code)
+	c.statusCode = code
 	return c
 }
 
 // JSON sends a JSON response
 func (c *Ctx) JSON(data any) error {
 	c.Set("Content-Type", "application/json")
+	c.Response.WriteHeader(c.statusCode)
 	return json.NewEncoder(c.Response).Encode(data)
 }
 
 // SendString sends a plain text response
 func (c *Ctx) SendString(text string) error {
 	c.Set("Content-Type", "text/plain")
+	c.Response.WriteHeader(c.statusCode)
 	_, err := c.Response.Write([]byte(text))
 	return err
 }
 
 func (c *Ctx) HTML(data []byte) error {
 	c.Set("Content-Type", "text/html")
+	c.Response.WriteHeader(c.statusCode)
 	_, err := c.Response.Write(data)
 	return err
 }
@@ -269,7 +331,6 @@ func (c *Ctx) File(file string) error {
 
 func (c *Ctx) Redirect(status int, url string) error {
 	http.Redirect(c.Response, c.Request, url, status)
-	c.Status(status)
 	return nil
 }
 
