@@ -67,8 +67,6 @@ func main() {
 	router.Post("/products", createProduct)
 
 	slog.Info("Server started on :8080")
-	slog.Info("Supported languages: English (en), French (fr), Spanish (es)")
-	slog.Info("Use Accept-Language header to get validation errors in your language")
 
 	http.ListenAndServe(":8080", router.Handler())
 }
@@ -76,8 +74,8 @@ func main() {
 func registerUser(c *grouter.Ctx) error {
 	var req RegisterRequest
 
-	// BodyParserWithValidation automatically uses Accept-Language header
-	if err := c.BodyParserWithValidation(&req); err != nil {
+	// ValidateBody automatically uses Accept-Language header
+	if err := c.ValidateBody(&req); err != nil {
 		return err
 	}
 
@@ -95,7 +93,7 @@ func createProduct(c *grouter.Ctx) error {
 	var req CreateProductRequest
 
 	// Parse and validate in one call
-	if err := c.BodyParserWithValidation(&req); err != nil {
+	if err := c.ValidateBody(&req); err != nil {
 		return err
 	}
 

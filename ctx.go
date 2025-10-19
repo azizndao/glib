@@ -43,8 +43,8 @@ func (c *Ctx) GetValue(key string) any {
 	return c.Context().Value(key)
 }
 
-// BodyParser parses the request body into the given struct
-func (c *Ctx) BodyParser(out any) error {
+// ParseBody parses the request body into the given struct
+func (c *Ctx) ParseBody(out any) error {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		return err
@@ -54,9 +54,11 @@ func (c *Ctx) BodyParser(out any) error {
 	return json.Unmarshal(body, out)
 }
 
-// Validate validates a struct using the validator from context
-// Automatically detects locale from Accept-Language header
-func (c *Ctx) Validate(data any) error {
+// ValidateBody parses and validates the request body in one call
+func (c *Ctx) ValidateBody(out any) error {
+	if err := c.ParseBody(out); err != nil {
+		return ErrorBadRequest("Invalid request body", err)
+	}
 	validator := c.getValidator()
 	if validator == nil {
 		return ErrorInternalServerError("Validator not configured", nil)
@@ -64,15 +66,7 @@ func (c *Ctx) Validate(data any) error {
 
 	// Get locale from Accept-Language header
 	locale := c.getLocaleFromHeader()
-	return validator.Validate(data, locale)
-}
-
-// BodyParserWithValidation parses and validates the request body in one call
-func (c *Ctx) BodyParserWithValidation(out any) error {
-	if err := c.BodyParser(out); err != nil {
-		return ErrorBadRequest("Invalid request body", err)
-	}
-	return c.Validate(out)
+	return validator.Validate(out, locale)
 }
 
 // getValidator retrieves the validator from the request context

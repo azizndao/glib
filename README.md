@@ -410,7 +410,7 @@ func createUser(c *grouter.Ctx) error {
 
     // Parse and validate in one call
     // Validation errors returned in user's language from Accept-Language header
-    if err := c.BodyParserWithValidation(&req); err != nil {
+    if err := c.ValidateBody(&req); err != nil {
         return err
     }
 
