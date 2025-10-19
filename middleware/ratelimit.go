@@ -57,7 +57,7 @@ func DefaultRateLimitConfig() RateLimitConfig {
 			return c.IP()
 		},
 		Handler: func(c *grouter.Ctx) error {
-			return errors.ErrorTooManyRequests("Too many requests, please try again later", nil)
+			return errors.TooManyRequests("Too many requests, please try again later", nil)
 		},
 		SkipFailedRequests:     false,
 		SkipSuccessfulRequests: false,

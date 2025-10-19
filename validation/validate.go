@@ -118,7 +118,7 @@ func (v *Validator) GetValidate() *validator.Validate {
 func (v *Validator) formatValidationErrors(err error, locale string) error {
 	validationErrors, ok := err.(validator.ValidationErrors)
 	if !ok {
-		return errors.ErrorBadRequest("Validation failed", err)
+		return errors.BadRequest("Validation failed", err)
 	}
 
 	trans, ok := v.uni.GetTranslator(locale)
@@ -133,7 +133,7 @@ func (v *Validator) formatValidationErrors(err error, locale string) error {
 		errs[fieldError.Field()] = fieldError.Translate(trans)
 	}
 
-	return errors.ErrorUnprocessableEntity(errs, err)
+	return errors.UnprocessableEntity(errs, err)
 }
 
 // AddLocale adds a new locale to the validator with the given translation registrar
@@ -145,7 +145,7 @@ func (v *Validator) AddLocale(locale locales.Translator, registrar TranslationRe
 	// Get the translator for this locale
 	trans, ok := v.uni.GetTranslator(locale.Locale())
 	if !ok {
-		return errors.ErrorInternalServerError("Failed to get translator", nil)
+		return errors.InternalServerError("Failed to get translator", nil)
 	}
 
 	// Register translations

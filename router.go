@@ -181,7 +181,7 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 				grouterErr = t
 
 			default:
-				grouterErr = errors.ErrorInternalServerError("Server Error", err)
+				grouterErr = errors.InternalServerError("Server Error", err)
 			}
 
 			ctx.Status(grouterErr.Code).JSON(grouterErr)

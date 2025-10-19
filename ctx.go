@@ -59,11 +59,11 @@ func (c *Ctx) ParseBody(out any) error {
 // ValidateBody parses and validates the request body in one call
 func (c *Ctx) ValidateBody(out any) error {
 	if err := c.ParseBody(out); err != nil {
-		return errors.ErrorBadRequest("Invalid request body", err)
+		return errors.BadRequest("Invalid request body", err)
 	}
 	validator := c.getValidator()
 	if validator == nil {
-		return errors.ErrorInternalServerError("Validator not configured", nil)
+		return errors.InternalServerError("Validator not configured", nil)
 	}
 
 	// Get locale from Accept-Language header

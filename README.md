@@ -405,11 +405,11 @@ import "github.com/azizndao/grouter/errors"
 func handler(c *grouter.Ctx) error {
     user, err := findUser(id)
     if err != nil {
-        return errors.ErrorNotFound("User not found", err)
+        return errors.NotFound("User not found", err)
     }
 
     if !user.IsActive {
-        return errors.ErrorForbidden("User is inactive", nil)
+        return errors.Forbidden("User is inactive", nil)
     }
 
     return c.Status(200).JSON(user)
@@ -422,14 +422,14 @@ GRouter provides structured error handling with built-in error types that return
 import "github.com/azizndao/grouter/errors"
 
 // Available error helpers:
-errors.ErrorBadRequest(data, internal)           // 400
-errors.ErrorUnauthorized(data, internal)         // 401
-errors.ErrorForbidden(data, internal)            // 403
-errors.ErrorNotFound(data, internal)             // 404
-errors.ErrorConflict(data, internal)             // 409
-errors.ErrorGone(data, internal)                 // 410
-errors.ErrorUnprocessableEntity(data, internal)  // 422
-errors.ErrorInternalServerError(data, internal)  // 500
+errors.BadRequest(data, internal)           // 400
+errors.Unauthorized(data, internal)         // 401
+errors.Forbidden(data, internal)            // 403
+errors.NotFound(data, internal)             // 404
+errors.Conflict(data, internal)             // 409
+errors.Gone(data, internal)                 // 410
+errors.UnprocessableEntity(data, internal)  // 422
+errors.InternalServerError(data, internal)  // 500
 
 // Standard errors are automatically converted to 500 responses
 return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Data": "Server Error"}

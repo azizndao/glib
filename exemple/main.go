@@ -65,7 +65,7 @@ func main() {
 
 	// Error example
 	router.Get("/error", func(c *grouter.Ctx) error {
-		return errors.ErrorBadRequest("Bad request example", nil)
+		return errors.BadRequest("Bad request example", nil)
 	})
 
 	// User registration with validation

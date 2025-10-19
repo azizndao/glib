@@ -30,7 +30,7 @@ func DefaultBodyLimitConfig() BodyLimitConfig {
 		MaxSize:  4 * 1024 * 1024, // 4MB
 		SkipFunc: nil,
 		ErrorHandler: func(c *grouter.Ctx) error {
-			return errors.ErrorRequestEntityTooLarge(
+			return errors.RequestEntityTooLarge(
 				fmt.Sprintf("Request body too large. Maximum size is %d bytes", 4*1024*1024),
 				nil,
 			)
@@ -105,7 +105,7 @@ func BodyLimitWithSize(maxSize int64) grouter.Middleware {
 	config := DefaultBodyLimitConfig()
 	config.MaxSize = maxSize
 	config.ErrorHandler = func(c *grouter.Ctx) error {
-		return errors.ErrorRequestEntityTooLarge(
+		return errors.RequestEntityTooLarge(
 			fmt.Sprintf("Request body too large. Maximum size is %d bytes", maxSize),
 			nil,
 		)
