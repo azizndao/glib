@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -73,6 +74,36 @@ func DefaultCORSOptions() CORSOptions {
 	}
 }
 
+// timeoutWriter wraps http.ResponseWriter to prevent writes after timeout
+type timeoutWriter struct {
+	http.ResponseWriter
+	mu            *sync.Mutex
+	timedOut      bool
+	headerWritten bool
+}
+
+func (tw *timeoutWriter) WriteHeader(code int) {
+	tw.mu.Lock()
+	defer tw.mu.Unlock()
+	if tw.timedOut || tw.headerWritten {
+		return
+	}
+	tw.headerWritten = true
+	tw.ResponseWriter.WriteHeader(code)
+}
+
+func (tw *timeoutWriter) Write(b []byte) (int, error) {
+	tw.mu.Lock()
+	defer tw.mu.Unlock()
+	if tw.timedOut {
+		return 0, http.ErrHandlerTimeout
+	}
+	if !tw.headerWritten {
+		tw.headerWritten = true
+	}
+	return tw.ResponseWriter.Write(b)
+}
+
 // Timeout middleware for request timeout handling
 func Timeout(timeout time.Duration) Middleware {
 	return func(next Handler) Handler {
@@ -81,7 +112,20 @@ func Timeout(timeout time.Duration) Middleware {
 			ctx, cancel := context.WithTimeout(c.Context(), timeout)
 			defer cancel()
 
-			// Replace request context
+			// Create a mutex for synchronizing response writes
+			mu := &sync.Mutex{}
+
+			// Wrap the response writer to prevent writes after timeout
+			tw := &timeoutWriter{
+				ResponseWriter: c.Response,
+				mu:             mu,
+				timedOut:       false,
+				headerWritten:  false,
+			}
+
+			// Replace the response writer and request context
+			originalWriter := c.Response
+			c.Response = tw
 			c.Request = c.Request.WithContext(ctx)
 
 			// Execute handler with timeout
@@ -92,12 +136,25 @@ func Timeout(timeout time.Duration) Middleware {
 
 			select {
 			case err := <-done:
+				// Handler completed before timeout
+				c.Response = originalWriter
 				return err
 			case <-ctx.Done():
-				return c.Status(http.StatusRequestTimeout).JSON(Error{
-					Code: http.StatusRequestTimeout,
-					Data: "Request Timeout",
-				})
+				// Timeout occurred - mark writer as timed out to prevent further writes
+				mu.Lock()
+				tw.timedOut = true
+				alreadyWritten := tw.headerWritten
+				mu.Unlock()
+
+				// Only send timeout response if handler hasn't written anything yet
+				c.Response = originalWriter
+				if !alreadyWritten {
+					return c.Status(http.StatusRequestTimeout).JSON(Error{
+						Code: http.StatusRequestTimeout,
+						Data: "Request Timeout",
+					})
+				}
+				return nil
 			}
 		}
 	}
@@ -111,8 +168,11 @@ func Recovery() Middleware {
 				if err := recover(); err != nil {
 					stack := debug.Stack()
 
-					// Log the error
-					slog.Error("PANIC: %v\n%s\n", err, stack)
+					// Log the error with structured logging
+					slog.Error("panic recovered",
+						"error", err,
+						"stack", string(stack),
+					)
 
 					// Return 500 error using Ctx methods
 					c.
