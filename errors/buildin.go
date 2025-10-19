@@ -1,24 +1,9 @@
-package grouter
+package errors
 
 import (
 	"fmt"
 	"net/http"
 )
-
-// Error represents an error returned by a handler
-type Error struct {
-	Code     int   `json:"code"`
-	Data     any   `json:"data,omitempty"`
-	internal error `json:"-"`
-}
-
-func NewError(code int, data any, internal error) *Error {
-	return &Error{
-		Code:     code,
-		Data:     data,
-		internal: internal,
-	}
-}
 
 // Error implements the error interface
 func (e *Error) Error() string {
@@ -128,6 +113,22 @@ func ErrorNotImplemented(data any, internal error) *Error {
 func ErrorBadGateway(data any, internal error) *Error {
 	return &Error{
 		Code:     http.StatusBadGateway,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorTooManyRequests(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusTooManyRequests,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+func ErrorRequestEntityTooLarge(data any, internal error) *Error {
+	return &Error{
+		Code:     http.StatusRequestEntityTooLarge,
 		Data:     data,
 		internal: internal,
 	}

@@ -54,6 +54,4 @@ type RouterOptions struct {
 	AutoHEAD bool
 
 	TrailingSlashRedirect bool
-
-	EnableLogging bool
 }

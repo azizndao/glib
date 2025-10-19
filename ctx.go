@@ -11,6 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/azizndao/grouter/errors"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -57,11 +59,11 @@ func (c *Ctx) ParseBody(out any) error {
 // ValidateBody parses and validates the request body in one call
 func (c *Ctx) ValidateBody(out any) error {
 	if err := c.ParseBody(out); err != nil {
-		return ErrorBadRequest("Invalid request body", err)
+		return errors.ErrorBadRequest("Invalid request body", err)
 	}
 	validator := c.getValidator()
 	if validator == nil {
-		return ErrorInternalServerError("Validator not configured", nil)
+		return errors.ErrorInternalServerError("Validator not configured", nil)
 	}
 
 	// Get locale from Accept-Language header
@@ -69,10 +71,14 @@ func (c *Ctx) ValidateBody(out any) error {
 	return validator.Validate(out, locale)
 }
 
+type Validator interface {
+	Validate(out any, locale ...string) error
+}
+
 // getValidator retrieves the validator from the request context
-func (c *Ctx) getValidator() *Validator {
+func (c *Ctx) getValidator() Validator {
 	if v := c.GetValue("validator"); v != nil {
-		if validator, ok := v.(*Validator); ok {
+		if validator, ok := v.(Validator); ok {
 			return validator
 		}
 	}

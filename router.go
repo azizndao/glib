@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/azizndao/grouter/errors"
 )
 
 // router implements the Router interface using Go's enhanced net/http features
@@ -24,7 +26,6 @@ func DefaultRouterOptions() RouterOptions {
 		AutoOPTIONS:           true,
 		AutoHEAD:              true,
 		TrailingSlashRedirect: true,
-		EnableLogging:         true,
 	}
 }
 
@@ -94,10 +95,6 @@ func (r *router) Handle(method, pattern string, handler Handler, middleware ...M
 	allMiddleware = append(allMiddleware, r.middleware...)
 	allMiddleware = append(allMiddleware, r.groupMW...)
 	allMiddleware = append(allMiddleware, middleware...)
-
-	// Add built-in middleware based on options
-	builtInMiddleware := r.getBuiltInMiddleware()
-	allMiddleware = append(allMiddleware, builtInMiddleware...)
 
 	// Convert Handler to http.HandlerFunc with middleware applied
 	httpHandler := r.handlerToHTTPHandler(handler, allMiddleware)
@@ -174,17 +171,17 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 		ctx := NewCtx(w, req)
 
 		if err := finalHandler(ctx); err != nil {
-			var grouterErr *Error
+			var grouterErr *errors.Error
 
 			switch t := err.(type) {
-			case *Error:
+			case *errors.Error:
 				if t.Data == nil {
 					t.Data = http.StatusText(http.StatusInternalServerError)
 				}
 				grouterErr = t
 
 			default:
-				grouterErr = ErrorInternalServerError("Server Error", err)
+				grouterErr = errors.ErrorInternalServerError("Server Error", err)
 			}
 
 			ctx.Status(grouterErr.Code).JSON(grouterErr)
@@ -222,19 +219,4 @@ func (r *router) applyCtxMiddleware(handler Handler, middleware []Middleware) Ha
 		handler = middleware[i](handler)
 	}
 	return handler
-}
-
-// getBuiltInMiddleware returns built-in middleware based on router options
-func (r *router) getBuiltInMiddleware() []Middleware {
-	var builtIn []Middleware
-
-	// Always add recovery middleware
-	builtIn = append(builtIn, Recovery())
-
-	// Add logger if enabled
-	if r.options.EnableLogging {
-		builtIn = append(builtIn, Logger(DefaultLoggerConfig()))
-	}
-
-	return builtIn
 }

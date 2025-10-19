@@ -1,10 +1,11 @@
-package grouter
+// Package validation provides request validation with multi-language error messages.
+package validation
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/azizndao/grouter/errors"
 	"github.com/go-playground/locales"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -117,7 +118,7 @@ func (v *Validator) GetValidate() *validator.Validate {
 func (v *Validator) formatValidationErrors(err error, locale string) error {
 	validationErrors, ok := err.(validator.ValidationErrors)
 	if !ok {
-		return ErrorBadRequest("Validation failed", err)
+		return errors.ErrorBadRequest("Validation failed", err)
 	}
 
 	trans, ok := v.uni.GetTranslator(locale)
@@ -126,13 +127,13 @@ func (v *Validator) formatValidationErrors(err error, locale string) error {
 		trans, _ = v.uni.GetTranslator("en")
 	}
 
-	errors := make(map[string]string)
+	errs := make(map[string]string)
 	for _, fieldError := range validationErrors {
 		// Use the translator for user-friendly messages
-		errors[fieldError.Field()] = fieldError.Translate(trans)
+		errs[fieldError.Field()] = fieldError.Translate(trans)
 	}
 
-	return ErrorUnprocessableEntity(errors, err)
+	return errors.ErrorUnprocessableEntity(errs, err)
 }
 
 // AddLocale adds a new locale to the validator with the given translation registrar
@@ -144,35 +145,9 @@ func (v *Validator) AddLocale(locale locales.Translator, registrar TranslationRe
 	// Get the translator for this locale
 	trans, ok := v.uni.GetTranslator(locale.Locale())
 	if !ok {
-		return ErrorInternalServerError("Failed to get translator", nil)
+		return errors.ErrorInternalServerError("Failed to get translator", nil)
 	}
 
 	// Register translations
 	return registrar(v.validate, trans)
-}
-
-// ValidatorMiddleware creates a middleware that injects the validator into the request context
-// Accepts optional locale configurations to register additional languages
-// Example: ValidatorMiddleware(Locale(fr.New(), fr_translations.RegisterDefaultTranslations))
-func ValidatorMiddleware(locales ...LocaleConfig) Middleware {
-	// Create validator with default configuration
-	validator := NewValidator()
-
-	// Register additional locales
-	for _, locale := range locales {
-		if err := validator.AddLocale(locale.Locale, locale.Registrar); err != nil {
-			// Log error but don't fail - continue with other locales
-			// The validator will fall back to English for this locale
-			fmt.Printf("Warning: Failed to register locale %s: %v\n", locale.Locale.Locale(), err)
-			continue
-		}
-	}
-
-	return func(next Handler) Handler {
-		return func(c *Ctx) error {
-			// Store validator in context
-			c.Request = c.SetValue("validator", validator)
-			return next(c)
-		}
-	}
 }

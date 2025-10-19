@@ -1,10 +1,12 @@
-package grouter
+package middleware
 
 import (
 	"fmt"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/azizndao/grouter"
 )
 
 // ANSI color codes
@@ -33,10 +35,10 @@ type LoggerConfig struct {
 type LogFormat string
 
 const (
-	LogFormatDefault   LogFormat = "default"
-	LogFormatCombined  LogFormat = "combined"
-	LogFormatShort     LogFormat = "short"
-	LogFormatTiny      LogFormat = "tiny"
+	LogFormatDefault  LogFormat = "default"
+	LogFormatCombined LogFormat = "combined"
+	LogFormatShort    LogFormat = "short"
+	LogFormatTiny     LogFormat = "tiny"
 )
 
 // DefaultLoggerConfig returns default logger configuration
@@ -50,28 +52,28 @@ func DefaultLoggerConfig() LoggerConfig {
 }
 
 // Logger creates a logging middleware with custom configuration
-func Logger(config ...LoggerConfig) Middleware {
+func Logger(config ...LoggerConfig) grouter.Middleware {
 	cfg := DefaultLoggerConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return func(next Handler) Handler {
-		return func(c *Ctx) error {
+	return func(next grouter.Handler) grouter.Handler {
+		return func(c *grouter.Ctx) error {
 			// Skip if skip function returns true
 			if cfg.Skip != nil && cfg.Skip(c.Request) {
 				return next(c)
 			}
 
 			start := time.Now()
-			
+
 			// Create a response writer wrapper to capture status code and size
 			wrapped := &responseWriter{
 				ResponseWriter: c.Response,
 				statusCode:     200,
-				size:          0,
+				size:           0,
 			}
-			
+
 			// Replace the response writer in context
 			originalWriter := c.Response
 			c.Response = wrapped
@@ -114,13 +116,13 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 // logRequest logs the HTTP request with colors based on status code
 func logRequest(cfg LoggerConfig, r *http.Request, status, size int, duration time.Duration) {
 	timestamp := time.Now().Format(cfg.TimeFormat)
-	
+
 	// Color based on status code
 	statusColor := getStatusColor(status)
 	methodColor := getMethodColor(r.Method)
-	
+
 	var logLine string
-	
+
 	switch cfg.Format {
 	case LogFormatTiny:
 		logLine = fmt.Sprintf("%s%s%s %s%s%s %s%d%s %s%s%s\n",
@@ -129,7 +131,7 @@ func logRequest(cfg LoggerConfig, r *http.Request, status, size int, duration ti
 			statusColor, status, Reset,
 			Cyan, formatDuration(duration), Reset,
 		)
-		
+
 	case LogFormatShort:
 		logLine = fmt.Sprintf("%s[%s]%s %s%s%s %s%s%s %s%d%s %s%s%s\n",
 			Gray, timestamp, Reset,
@@ -138,13 +140,13 @@ func logRequest(cfg LoggerConfig, r *http.Request, status, size int, duration ti
 			statusColor, status, Reset,
 			Cyan, formatDuration(duration), Reset,
 		)
-		
+
 	case LogFormatCombined:
 		userAgent := r.Header.Get("User-Agent")
 		if len(userAgent) > 50 {
 			userAgent = userAgent[:50] + "..."
 		}
-		
+
 		logLine = fmt.Sprintf("%s[%s]%s %s%s%s %s%s%s %s%d%s %s%dB%s %s%s%s \"%s%s%s\"\n",
 			Gray, timestamp, Reset,
 			methodColor, r.Method, Reset,
@@ -154,7 +156,7 @@ func logRequest(cfg LoggerConfig, r *http.Request, status, size int, duration ti
 			Cyan, formatDuration(duration), Reset,
 			Gray, userAgent, Reset,
 		)
-		
+
 	default: // LogFormatDefault
 		logLine = fmt.Sprintf("%s[%s]%s %s%-6s%s %s%-50s%s %s%3d%s %s%8s%s %s%6dB%s\n",
 			Gray, timestamp, Reset,
@@ -165,7 +167,7 @@ func logRequest(cfg LoggerConfig, r *http.Request, status, size int, duration ti
 			Purple, size, Reset,
 		)
 	}
-	
+
 	fmt.Fprint(cfg.Output, logLine)
 }
 
@@ -230,27 +232,27 @@ func truncate(s string, length int) string {
 // Convenience functions for different log formats
 
 // LoggerTiny returns a tiny logger middleware
-func LoggerTiny() Middleware {
+func LoggerTiny() grouter.Middleware {
 	config := DefaultLoggerConfig()
 	config.Format = LogFormatTiny
 	return Logger(config)
 }
 
 // LoggerShort returns a short logger middleware
-func LoggerShort() Middleware {
+func LoggerShort() grouter.Middleware {
 	config := DefaultLoggerConfig()
 	config.Format = LogFormatShort
 	return Logger(config)
 }
 
 // LoggerCombined returns a combined logger middleware
-func LoggerCombined() Middleware {
+func LoggerCombined() grouter.Middleware {
 	config := DefaultLoggerConfig()
 	config.Format = LogFormatCombined
 	return Logger(config)
 }
 
 // LoggerDefault returns a default logger middleware
-func LoggerDefault() Middleware {
+func LoggerDefault() grouter.Middleware {
 	return Logger(DefaultLoggerConfig())
 }
