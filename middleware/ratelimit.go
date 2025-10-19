@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -107,9 +108,9 @@ func RateLimit(config ...RateLimitConfig) grouter.Middleware {
 			// Check if client is rate limited
 			if !limiter.allow(key) {
 				// Set rate limit headers
-				c.Set("X-RateLimit-Limit", string(rune(cfg.Max)))
+				c.Set("X-RateLimit-Limit", strconv.Itoa(cfg.Max))
 				c.Set("X-RateLimit-Remaining", "0")
-				c.Set("Retry-After", string(rune(int(cfg.Window.Seconds()))))
+				c.Set("Retry-After", strconv.Itoa(int(cfg.Window.Seconds())))
 
 				return cfg.Handler(c)
 			}
@@ -119,8 +120,8 @@ func RateLimit(config ...RateLimitConfig) grouter.Middleware {
 
 			// Update rate limit headers
 			remaining := limiter.getRemaining(key)
-			c.Set("X-RateLimit-Limit", string(rune(cfg.Max)))
-			c.Set("X-RateLimit-Remaining", string(rune(remaining)))
+			c.Set("X-RateLimit-Limit", strconv.Itoa(cfg.Max))
+			c.Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
 
 			return err
 		}

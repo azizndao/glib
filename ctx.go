@@ -20,6 +20,8 @@ type Ctx struct {
 	Request    *http.Request
 	Response   http.ResponseWriter
 	statusCode int
+	body       []byte // Cached request body
+	bodyRead   bool   // Track if body has been read
 }
 
 // NewCtx creates a new Context from request and response
@@ -47,11 +49,10 @@ func (c *Ctx) GetValue(key string) any {
 
 // ParseBody parses the request body into the given struct
 func (c *Ctx) ParseBody(out any) error {
-	body, err := io.ReadAll(c.Request.Body)
+	body, err := c.Body()
 	if err != nil {
 		return err
 	}
-	defer c.Request.Body.Close()
 
 	return json.Unmarshal(body, out)
 }
@@ -112,12 +113,20 @@ func (c *Ctx) getLocaleFromHeader() string {
 }
 
 // Body gets the raw request body as bytes
+// The body is cached after the first read, so this method can be called multiple times
 func (c *Ctx) Body() ([]byte, error) {
+	if c.bodyRead {
+		return c.body, nil
+	}
+
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Request.Body.Close()
+
+	c.body = body
+	c.bodyRead = true
 	return body, nil
 }
 
@@ -206,9 +215,15 @@ func (c *Ctx) ContentType() string {
 }
 
 // IP returns the client's IP address
+// When behind a proxy, it extracts the first IP from X-Forwarded-For header
 func (c *Ctx) IP() string {
-	if ip := c.Request.Header.Get("X-Forwarded-For"); ip != "" {
-		return ip
+	if xff := c.Request.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+		// Extract the first (client) IP
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
 	}
 	if ip := c.Request.Header.Get("X-Real-IP"); ip != "" {
 		return ip

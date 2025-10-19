@@ -98,16 +98,24 @@ func Logger(config ...LoggerConfig) grouter.Middleware {
 // responseWriter wraps http.ResponseWriter to capture status and size
 type responseWriter struct {
 	http.ResponseWriter
-	statusCode int
-	size       int
+	statusCode    int
+	size          int
+	headerWritten bool
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
+	if rw.headerWritten {
+		return // Prevent multiple WriteHeader calls
+	}
+	rw.headerWritten = true
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
 func (rw *responseWriter) Write(b []byte) (int, error) {
+	if !rw.headerWritten {
+		rw.WriteHeader(http.StatusOK)
+	}
 	size, err := rw.ResponseWriter.Write(b)
 	rw.size += size
 	return size, err

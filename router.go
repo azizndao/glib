@@ -176,7 +176,7 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 			switch t := err.(type) {
 			case *errors.Error:
 				if t.Data == nil {
-					t.Data = http.StatusText(http.StatusInternalServerError)
+					t.Data = http.StatusText(t.Code)
 				}
 				grouterErr = t
 
