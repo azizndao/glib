@@ -22,8 +22,12 @@ This framework prioritizes developer experience and clean code over flexibility.
 - **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
 - **Error handling**: Graceful error handling with structured error responses
-- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout
+- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout, RequestID, RateLimit, Compress, BodyLimit
 - **Route groups**: Organize routes with prefixes and group-specific middleware
+- **Request tracking**: Built-in request ID generation and tracking
+- **Rate limiting**: Configurable rate limiting per IP or custom key
+- **Compression**: Automatic gzip compression for responses
+- **Security**: Body size limits, CORS, secure cookie handling
 - **Rich context helpers**: 30+ utility methods for requests, responses, validation, cookies
 - **Type safety**: Full type safety with Go's type system
 - **Production ready**: Battle-tested with comprehensive error handling
@@ -43,15 +47,16 @@ import (
     "fmt"
     "log/slog"
     "net/http"
-    
+
     "github.com/azizndao/grouter"
+    "github.com/azizndao/grouter/middleware"
 )
 
 func main() {
     router := grouter.NewRouter()
 
     // Add middleware
-    router.Use(grouter.Logger(), grouter.Recovery())
+    router.Use(middleware.Logger(), middleware.Recovery())
 
     // Define routes
     router.Get("/hello", func(c *grouter.Ctx) error {
@@ -165,7 +170,7 @@ func handler(c *grouter.Ctx) error {
 
     // Parse JSON body
     var user User
-    if err := c.BodyParser(&user); err != nil {
+    if err := c.ParseBody(&user); err != nil {
         return err
     }
 
@@ -235,22 +240,70 @@ All middleware in GRouter now uses the `*Ctx` interface, providing a cleaner and
 #### Built-in Middleware
 
 ```go
+import (
+    "github.com/azizndao/grouter/middleware"
+    "github.com/azizndao/grouter/validation"
+    "github.com/go-playground/locales/fr"
+    "github.com/go-playground/locales/es"
+    fr_translations "github.com/go-playground/validator/v10/translations/fr"
+    es_translations "github.com/go-playground/validator/v10/translations/es"
+)
+
+// Request ID middleware - generates unique request IDs
+router.Use(middleware.RequestID())
+
+// Access request ID in handlers
+func handler(c *grouter.Ctx) error {
+    requestID := middleware.GetRequestID(c)
+    return c.JSON(map[string]string{"request_id": requestID})
+}
+
 // Logger middleware - colorful request logging
-router.Use(grouter.Logger())
+router.Use(middleware.Logger())
 
 // Logger with custom format
-router.Use(grouter.LoggerTiny())    // Minimal format
-router.Use(grouter.LoggerShort())   // Short format
-router.Use(grouter.LoggerCombined()) // Combined format with user agent
+router.Use(middleware.LoggerTiny())    // Minimal format
+router.Use(middleware.LoggerShort())   // Short format
+router.Use(middleware.LoggerCombined()) // Combined format with user agent
 
 // Recovery middleware - panic recovery
-router.Use(grouter.Recovery())
+router.Use(middleware.Recovery())
+
+// Compression middleware - gzip compression
+router.Use(middleware.Compress())
+
+// Compression with custom config
+router.Use(middleware.Compress(middleware.CompressConfig{
+    Level:     gzip.BestCompression,
+    MinLength: 2048, // Only compress responses > 2KB
+}))
+
+// Body size limit middleware - prevent DoS attacks
+router.Use(middleware.BodyLimit5MB())  // 5MB limit
+router.Use(middleware.BodyLimit10MB()) // 10MB limit
+router.Use(middleware.BodyLimitWithSize(20 * 1024 * 1024)) // 20MB
+
+// Rate limiting middleware - prevent abuse
+router.Use(middleware.RateLimit()) // 100 requests/minute by default
+
+// Rate limiting with custom config
+router.Use(middleware.RateLimit(middleware.RateLimitConfig{
+    Max:    50,
+    Window: time.Minute,
+    KeyGenerator: func(c *grouter.Ctx) string {
+        // Rate limit by user ID if authenticated
+        if userID := c.GetValue("userID"); userID != nil {
+            return userID.(string)
+        }
+        return c.IP()
+    },
+}))
 
 // CORS middleware - cross-origin resource sharing
-router.Use(grouter.CORS(grouter.DefaultCORSOptions()))
+router.Use(middleware.CORS(middleware.DefaultCORSOptions()))
 
 // CORS with custom options
-router.Use(grouter.CORS(grouter.CORSOptions{
+router.Use(middleware.CORS(middleware.CORSOptions{
     AllowedOrigins:   []string{"https://example.com"},
     AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
     AllowedHeaders:   []string{"Authorization", "Content-Type"},
@@ -259,19 +312,24 @@ router.Use(grouter.CORS(grouter.CORSOptions{
 }))
 
 // Timeout middleware - request timeout handling
-router.Use(grouter.Timeout(30 * time.Second))
+router.Use(middleware.Timeout(30 * time.Second))
 
 // Validator middleware - request validation with i18n
-router.Use(grouter.ValidatorMiddleware(
-    grouter.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-    grouter.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+router.Use(validation.Middleware(
+    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 ))
 
-// Combine multiple middleware
+// Combine multiple middleware - recommended production setup
 router.Use(
-    grouter.Logger(),
-    grouter.Recovery(),
-    grouter.CORS(grouter.DefaultCORSOptions()),
+    middleware.RequestID(),              // Request tracking
+    middleware.Recovery(),               // Panic recovery
+    middleware.Logger(),                 // Request logging
+    middleware.Compress(),               // Response compression
+    middleware.BodyLimit5MB(),           // Body size limit
+    middleware.RateLimit(),              // Rate limiting
+    middleware.CORS(middleware.DefaultCORSOptions()), // CORS
+    validation.Middleware(...),          // Validation
 )
 ```
 
@@ -342,14 +400,16 @@ func rateLimiter(requestsPerMinute int) grouter.Middleware {
 GRouter handlers return errors that are automatically logged:
 
 ```go
+import "github.com/azizndao/grouter/errors"
+
 func handler(c *grouter.Ctx) error {
     user, err := findUser(id)
     if err != nil {
-        return grouter.ErrorNotFound("User not found", err)
+        return errors.ErrorNotFound("User not found", err)
     }
 
     if !user.IsActive {
-        return grouter.ErrorForbidden("User is inactive", nil)
+        return errors.ErrorForbidden("User is inactive", nil)
     }
 
     return c.Status(200).JSON(user)
@@ -359,15 +419,17 @@ func handler(c *grouter.Ctx) error {
 GRouter provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
 
 ```go
+import "github.com/azizndao/grouter/errors"
+
 // Available error helpers:
-grouter.ErrorBadRequest(data, internal)           // 400
-grouter.ErrorUnauthorized(data, internal)         // 401
-grouter.ErrorForbidden(data, internal)            // 403
-grouter.ErrorNotFound(data, internal)             // 404
-grouter.ErrorConflict(data, internal)             // 409
-grouter.ErrorGone(data, internal)                 // 410
-grouter.ErrorUnprocessableEntity(data, internal)  // 422
-grouter.ErrorInternalServerError(data, internal)  // 500
+errors.ErrorBadRequest(data, internal)           // 400
+errors.ErrorUnauthorized(data, internal)         // 401
+errors.ErrorForbidden(data, internal)            // 403
+errors.ErrorNotFound(data, internal)             // 404
+errors.ErrorConflict(data, internal)             // 409
+errors.ErrorGone(data, internal)                 // 410
+errors.ErrorUnprocessableEntity(data, internal)  // 422
+errors.ErrorInternalServerError(data, internal)  // 500
 
 // Standard errors are automatically converted to 500 responses
 return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Data": "Server Error"}
@@ -382,6 +444,7 @@ GRouter provides powerful request validation with multi-language support using `
 ```go
 import (
     "github.com/azizndao/grouter"
+    "github.com/azizndao/grouter/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
     fr_translations "github.com/go-playground/validator/v10/translations/fr"
@@ -389,9 +452,9 @@ import (
 )
 
 // Add validator middleware with multiple languages
-router.Use(grouter.ValidatorMiddleware(
-    grouter.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-    grouter.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+router.Use(validation.Middleware(
+    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 ))
 ```
 
@@ -476,13 +539,15 @@ Supports all standard validator tags:
 GRouter includes colorful request logging:
 
 ```go
-// Use default logger configuration
-router.Use(grouter.Logger())
+import "github.com/azizndao/grouter/middleware"
 
-// Logger is automatically enabled when EnableLogging is true in RouterOptions
-router := grouter.NewRouterWithOptions(grouter.RouterOptions{
-    EnableLogging: true,
-})
+// Use default logger configuration
+router.Use(middleware.Logger())
+
+// Or use predefined logger formats
+router.Use(middleware.LoggerTiny())      // Minimal format
+router.Use(middleware.LoggerShort())     // Short format
+router.Use(middleware.LoggerCombined())  // Combined format with user agent
 ```
 
 ## Advanced Usage

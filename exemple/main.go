@@ -1,12 +1,16 @@
-// Package exemple is an example package for grouter
+// Package main is an example package for grouter
 package main
 
 import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/middleware"
+	"github.com/azizndao/grouter/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
 	es_translations "github.com/go-playground/validator/v10/translations/es"
@@ -31,13 +35,18 @@ type CreateProductRequest struct {
 func main() {
 	router := grouter.NewRouter()
 
-	// Add middleware with validator supporting multiple languages
-	// Simply pass locale configurations and the validator is created internally
+	// Add comprehensive middleware stack
 	router.Use(
-		grouter.Logger(),
-		grouter.ValidatorMiddleware(
-			grouter.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-			grouter.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+		middleware.RequestID(),                           // Generate unique request IDs
+		middleware.Recovery(),                            // Panic recovery
+		middleware.Logger(),                              // Request logging
+		middleware.Compress(),                            // Response compression
+		middleware.BodyLimit5MB(),                        // Limit request body size to 5MB
+		middleware.RateLimit(),                           // Rate limiting (100 req/min by default)
+		middleware.CORS(middleware.DefaultCORSOptions()), // CORS support
+		validation.Middleware( // Request validation with i18n
+			validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+			validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 		),
 	)
 
@@ -56,7 +65,7 @@ func main() {
 
 	// Error example
 	router.Get("/error", func(c *grouter.Ctx) error {
-		return grouter.ErrorBadRequest("Bad request example", nil)
+		return errors.ErrorBadRequest("Bad request example", nil)
 	})
 
 	// User registration with validation
@@ -65,6 +74,23 @@ func main() {
 
 	// Product creation with validation
 	router.Post("/products", createProduct)
+
+	// Request ID demonstration
+	router.Get("/request-id", func(c *grouter.Ctx) error {
+		requestID := middleware.GetRequestID(c)
+		return c.Status(200).JSON(map[string]string{
+			"request_id": requestID,
+			"message":    "Request ID is automatically added to all requests",
+		})
+	})
+
+	// Demonstrate timeout with a slow endpoint
+	slowRouter := router.Group("/slow", middleware.Timeout(2*time.Second))
+	slowRouter.Get("/endpoint", func(c *grouter.Ctx) error {
+		// Simulate slow processing
+		time.Sleep(3 * time.Second)
+		return c.Status(200).JSON(map[string]string{"message": "This should timeout"})
+	})
 
 	slog.Info("Server started on :8080")
 
