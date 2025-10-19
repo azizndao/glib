@@ -4,15 +4,17 @@ A minimal HTTP router for Go that leverages Go 1.22+ enhanced routing features w
 
 ## Features
 
-- **Clean API**: Intuitive routing interface
+- **Clean API**: Intuitive routing interface with fluent/builder pattern
 - **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements
+- **Request validation**: Integrated `go-playground/validator` with struct tags
+- **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
-- **Error handling**: Graceful error handling with automatic logging
-- **Middleware support**: Composable middleware chain with built-in middleware
+- **Error handling**: Graceful error handling with structured error responses
+- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout
 - **Route groups**: Organize routes with prefixes and group-specific middleware
-- **Context helpers**: Convenient methods for request/response handling
+- **Rich context helpers**: 30+ utility methods for requests, responses, validation, cookies
 - **Type safety**: Full type safety with Go's type system
-- **Zero dependencies**: Uses only Go standard library
+- **Production ready**: Battle-tested with comprehensive error handling
 
 ## Installation
 
@@ -37,9 +39,7 @@ func main() {
     router := grouter.NewRouter()
 
     // Add middleware
-    router.Use(grouter.Logger(), grouter.Recovery(func(err any, stack []byte) {
-        fmt.Printf("PANIC: %v\n%s\n", err, stack)
-    }))
+    router.Use(grouter.Logger(), grouter.Recovery())
 
     // Define routes
     router.Get("/hello", func(c *grouter.Ctx) error {
@@ -216,34 +216,59 @@ func handler(c *grouter.Ctx) error {
 
 ### Middleware
 
+All middleware in GRouter now uses the `*Ctx` interface, providing a cleaner and more powerful API.
+
+**Middleware signature:** `func(grouter.Handler) grouter.Handler` where `Handler` is `func(*Ctx) error`
+
 #### Built-in Middleware
 
 ```go
-// Logger middleware
+// Logger middleware - colorful request logging
 router.Use(grouter.Logger())
 
-// Recovery middleware
-router.Use(grouter.Recovery(func(err any, stack []byte) {
-    log.Printf("PANIC: %v\n%s", err, stack)
+// Logger with custom format
+router.Use(grouter.LoggerTiny())    // Minimal format
+router.Use(grouter.LoggerShort())   // Short format
+router.Use(grouter.LoggerCombined()) // Combined format with user agent
+
+// Recovery middleware - panic recovery
+router.Use(grouter.Recovery())
+
+// CORS middleware - cross-origin resource sharing
+router.Use(grouter.CORS(grouter.DefaultCORSOptions()))
+
+// CORS with custom options
+router.Use(grouter.CORS(grouter.CORSOptions{
+    AllowedOrigins:   []string{"https://example.com"},
+    AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+    AllowedHeaders:   []string{"Authorization", "Content-Type"},
+    AllowCredentials: true,
+    MaxAge:           24 * time.Hour,
 }))
 
-// Multiple middleware
+// Timeout middleware - request timeout handling
+router.Use(grouter.Timeout(30 * time.Second))
+
+// Validator middleware - request validation with i18n
+router.Use(grouter.ValidatorMiddleware(
+    grouter.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+    grouter.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+))
+
+// Combine multiple middleware
 router.Use(
     grouter.Logger(),
-    grouter.Recovery(func(err any, stack []byte) {
-        log.Printf("PANIC: %v\n%s", err, stack)
-    }),
+    grouter.Recovery(),
+    grouter.CORS(grouter.DefaultCORSOptions()),
 )
 ```
 
 #### Custom Middleware
 
-Middleware now works with the `*Ctx` interface, providing cleaner and more powerful middleware composition:
+Middleware works directly with the `*Ctx` interface for cleaner composition:
 
 ```go
-// Middleware signature: func(grouter.Handler) grouter.Handler
-// where Handler is: func(*Ctx) error
-
+// Basic middleware template
 func customMiddleware(next grouter.Handler) grouter.Handler {
     return func(c *grouter.Ctx) error {
         // Before request - access to full Ctx API
@@ -263,7 +288,7 @@ func customMiddleware(next grouter.Handler) grouter.Handler {
 
 router.Use(customMiddleware)
 
-// Example: Authentication middleware
+// Authentication middleware example
 func authMiddleware(next grouter.Handler) grouter.Handler {
     return func(c *grouter.Ctx) error {
         token := c.Authorization()
@@ -279,6 +304,23 @@ func authMiddleware(next grouter.Handler) grouter.Handler {
 
         c.Request = c.SetValue("user", user)
         return next(c)
+    }
+}
+
+// Rate limiting middleware example
+func rateLimiter(requestsPerMinute int) grouter.Middleware {
+    // Setup rate limiter
+    limiter := rate.NewLimiter(rate.Limit(requestsPerMinute), requestsPerMinute)
+
+    return func(next grouter.Handler) grouter.Handler {
+        return func(c *grouter.Ctx) error {
+            if !limiter.Allow() {
+                return c.Status(429).JSON(map[string]string{
+                    "error": "Too many requests",
+                })
+            }
+            return next(c)
+        }
     }
 }
 ```
@@ -318,6 +360,104 @@ grouter.ErrorInternalServerError(data, internal)  // 500
 // Standard errors are automatically converted to 500 responses
 return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Data": "Server Error"}
 ```
+
+### Validation
+
+GRouter provides powerful request validation with multi-language support using `go-playground/validator`.
+
+#### Setup Validator Middleware
+
+```go
+import (
+    "github.com/azizndao/grouter"
+    "github.com/go-playground/locales/fr"
+    "github.com/go-playground/locales/es"
+    fr_translations "github.com/go-playground/validator/v10/translations/fr"
+    es_translations "github.com/go-playground/validator/v10/translations/es"
+)
+
+// Add validator middleware with multiple languages
+router.Use(grouter.ValidatorMiddleware(
+    grouter.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+    grouter.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+))
+```
+
+#### Using Validation
+
+```go
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8"`
+    Name     string `json:"name" validate:"required,min=2"`
+    Age      int    `json:"age" validate:"required,gte=18"`
+}
+
+func createUser(c *grouter.Ctx) error {
+    var req CreateUserRequest
+
+    // Parse and validate in one call
+    // Validation errors returned in user's language from Accept-Language header
+    if err := c.BodyParserWithValidation(&req); err != nil {
+        return err
+    }
+
+    // req is now validated
+    return c.Status(201).JSON(map[string]string{"message": "User created"})
+}
+```
+
+#### Validation Responses
+
+Validation errors are automatically returned in the user's preferred language:
+
+**English** (`Accept-Language: en`):
+```json
+{
+  "code": 422,
+  "data": {
+    "email": "email must be a valid email address",
+    "password": "password must be at least 8 characters in length",
+    "age": "age must be 18 or greater"
+  }
+}
+```
+
+**French** (`Accept-Language: fr`):
+```json
+{
+  "code": 422,
+  "data": {
+    "email": "email doit être une adresse email valide",
+    "password": "password doit faire au moins 8 caractères",
+    "age": "age doit être 18 ou plus"
+  }
+}
+```
+
+**Spanish** (`Accept-Language: es`):
+```json
+{
+  "code": 422,
+  "data": {
+    "email": "email debe ser una dirección de correo electrónico válida",
+    "password": "password debe tener al menos 8 caracteres",
+    "age": "age debe ser 18 o más"
+  }
+}
+```
+
+#### Validation Tags
+
+Supports all standard validator tags:
+- `required` - Field is required
+- `email` - Valid email address
+- `min=n` - Minimum length/value
+- `max=n` - Maximum length/value
+- `gte=n`, `lte=n`, `gt=n`, `lt=n` - Numeric comparisons
+- `oneof=red green blue` - Value must be one of the specified options
+- `url`, `uri`, `uuid` - Format validation
+- And many more from [go-playground/validator](https://github.com/go-playground/validator)
 
 ### Logging
 
