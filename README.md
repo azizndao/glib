@@ -84,9 +84,9 @@ func main() {
 router := grouter.NewRouter()
 
 // Create router with custom options
-router := grouter.NewRouterWithOptions(grouter.RouterOptions{
+router := grouter.NewRouter(grouter.RouterOptions{
     AutoOPTIONS:           true,
-    AutoHEAD:              true, 
+    AutoHEAD:              true,
     TrailingSlashRedirect: true,
     EnableLogging:         true,
 })
