@@ -22,7 +22,7 @@ This framework prioritizes developer experience and clean code over flexibility.
 - **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
 - **Error handling**: Graceful error handling with structured error responses
-- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout, RequestID, RateLimit, Compress, BodyLimit
+- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout, RequestID, RateLimit, Compress, BodyLimit, Heartbeat, RealIP - all using consistent config pattern
 - **Route groups**: Organize routes with prefixes and group-specific middleware
 - **Request tracking**: Built-in request ID generation and tracking
 - **Rate limiting**: Configurable rate limiting per IP or custom key
@@ -242,6 +242,7 @@ All middleware in GRouter now uses the `*Ctx` interface, providing a cleaner and
 ```go
 import (
     "github.com/azizndao/grouter/middleware"
+    "github.com/azizndao/grouter/ratelimit"
     "github.com/azizndao/grouter/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
@@ -258,36 +259,50 @@ func handler(c *grouter.Ctx) error {
     return c.JSON(map[string]string{"request_id": requestID})
 }
 
-// Logger middleware - colorful request logging
+// Logger middleware - colorful console logging
 router.Use(middleware.Logger())
 
 // Logger with custom format
-router.Use(middleware.LoggerTiny())    // Minimal format
-router.Use(middleware.LoggerShort())   // Short format
-router.Use(middleware.LoggerCombined()) // Combined format with user agent
+router.Use(middleware.Logger(middleware.LoggerConfig{
+    Format: middleware.LogFormatTiny, // Minimal format
+}))
+
+// Structured logging with slog (recommended for production)
+router.Use(middleware.Logger(middleware.LoggerConfig{
+    UseStructuredLogging: true,
+    Logger:               slog.Default(),
+    LogLevel:             slog.LevelInfo,
+}))
 
 // Recovery middleware - panic recovery
 router.Use(middleware.Recovery())
 
-// Compression middleware - gzip compression
-router.Use(middleware.Compress())
-
-// Compression with custom config
-router.Use(middleware.Compress(middleware.CompressConfig{
-    Level:     gzip.BestCompression,
-    MinLength: 2048, // Only compress responses > 2KB
+// Recovery with custom config
+router.Use(middleware.Recovery(middleware.RecoveryConfig{
+    EnableStackTrace: false, // Disable stack traces in production
 }))
 
-// Body size limit middleware - prevent DoS attacks
-router.Use(middleware.BodyLimit5MB())  // 5MB limit
-router.Use(middleware.BodyLimit10MB()) // 10MB limit
-router.Use(middleware.BodyLimitWithSize(20 * 1024 * 1024)) // 20MB
+// Compression middleware - gzip/deflate compression
+router.Use(middleware.Compress())
 
-// Rate limiting middleware - prevent abuse
-router.Use(middleware.RateLimit()) // 100 requests/minute by default
+// Compression with custom level
+router.Use(middleware.Compress(middleware.CompressConfig{
+    Level: gzip.BestCompression,
+}))
+
+// Body size limit middleware - prevent DoS attacks (default 4MB)
+router.Use(middleware.BodyLimit())
+
+// Body limit with custom size
+router.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
+    MaxSize: 10 * middleware.MB, // 10MB
+}))
+
+// Rate limiting middleware - prevent abuse (default 100 req/min by IP)
+router.Use(ratelimit.RateLimit())
 
 // Rate limiting with custom config
-router.Use(middleware.RateLimit(middleware.RateLimitConfig{
+router.Use(ratelimit.RateLimit(ratelimit.Config{
     Max:    50,
     Window: time.Minute,
     KeyGenerator: func(c *grouter.Ctx) string {
@@ -299,11 +314,11 @@ router.Use(middleware.RateLimit(middleware.RateLimitConfig{
     },
 }))
 
-// CORS middleware - cross-origin resource sharing
-router.Use(middleware.CORS(middleware.DefaultCORSOptions()))
+// CORS middleware - cross-origin resource sharing (default allows all origins)
+router.Use(middleware.CORS())
 
-// CORS with custom options
-router.Use(middleware.CORS(middleware.CORSOptions{
+// CORS with custom config
+router.Use(middleware.CORS(middleware.CORSConfig{
     AllowedOrigins:   []string{"https://example.com"},
     AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
     AllowedHeaders:   []string{"Authorization", "Content-Type"},
@@ -311,8 +326,31 @@ router.Use(middleware.CORS(middleware.CORSOptions{
     MaxAge:           24 * time.Hour,
 }))
 
-// Timeout middleware - request timeout handling
-router.Use(middleware.Timeout(30 * time.Second))
+// Timeout middleware - request timeout handling (default 30 seconds)
+router.Use(middleware.Timeout())
+
+// Timeout with custom duration
+router.Use(middleware.Timeout(middleware.TimeoutConfig{
+    Timeout: 10 * time.Second,
+}))
+
+// Heartbeat middleware - health check endpoint
+router.Use(middleware.Heartbeat()) // Responds to GET /ping with 200 OK
+
+// Heartbeat with custom config
+router.Use(middleware.Heartbeat(middleware.HeartbeatConfig{
+    Endpoint: "/health",
+    Response: "OK",
+}))
+
+// RealIP middleware - extract real client IP from proxy headers
+router.Use(middleware.RealIP()) // Trusts common private networks by default
+
+// RealIP with custom trusted proxies
+router.Use(middleware.RealIP(middleware.RealIPConfig{
+    TrustedProxies: []string{"10.0.0.0/8"}, // Only trust this network
+    Headers:        []string{"CF-Connecting-IP", "X-Forwarded-For"},
+}))
 
 // Validator middleware - request validation with i18n
 router.Use(validation.Middleware(
@@ -322,14 +360,25 @@ router.Use(validation.Middleware(
 
 // Combine multiple middleware - recommended production setup
 router.Use(
+    middleware.Heartbeat(),              // Health check endpoint
+    middleware.RealIP(),                 // Extract real client IP
     middleware.RequestID(),              // Request tracking
-    middleware.Recovery(),               // Panic recovery
-    middleware.Logger(),                 // Request logging
+    middleware.Recovery(middleware.RecoveryConfig{
+        EnableStackTrace: false,         // Disable stack traces in production
+    }),
+    middleware.Logger(middleware.LoggerConfig{
+        UseStructuredLogging: true,      // Use structured logging
+    }),
     middleware.Compress(),               // Response compression
-    middleware.BodyLimit5MB(),           // Body size limit
-    middleware.RateLimit(),              // Rate limiting
-    middleware.CORS(middleware.DefaultCORSOptions()), // CORS
-    validation.Middleware(...),          // Validation
+    middleware.BodyLimit(middleware.BodyLimitConfig{
+        MaxSize: 5 * middleware.MB,      // 5MB body limit
+    }),
+    ratelimit.RateLimit(),               // Rate limiting
+    middleware.CORS(),                   // CORS with defaults
+    validation.Middleware(               // Validation with i18n
+        validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+        validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+    ),
 )
 ```
 
@@ -536,19 +585,36 @@ Supports all standard validator tags:
 
 ### Logging
 
-GRouter includes colorful request logging:
+GRouter includes colorful request logging with support for both console and structured logging:
 
 ```go
 import "github.com/azizndao/grouter/middleware"
 
-// Use default logger configuration
+// Use default console logger with colors
 router.Use(middleware.Logger())
 
-// Or use predefined logger formats
-router.Use(middleware.LoggerTiny())      // Minimal format
-router.Use(middleware.LoggerShort())     // Short format
-router.Use(middleware.LoggerCombined())  // Combined format with user agent
+// Custom format
+router.Use(middleware.Logger(middleware.LoggerConfig{
+    Format: middleware.LogFormatTiny,    // Minimal format
+}))
+
+router.Use(middleware.Logger(middleware.LoggerConfig{
+    Format: middleware.LogFormatCombined, // Combined format with user agent
+}))
+
+// Structured logging for production (using slog)
+router.Use(middleware.Logger(middleware.LoggerConfig{
+    UseStructuredLogging: true,
+    Logger:               slog.Default(),
+    LogLevel:             slog.LevelInfo,
+}))
 ```
+
+Available log formats:
+- `LogFormatDefault` - Standard format with all details (default)
+- `LogFormatTiny` - Minimal format (timestamp, method, status, duration)
+- `LogFormatShort` - Short format (timestamp, method, path, status, duration)
+- `LogFormatCombined` - Combined format with user agent
 
 ## Advanced Usage
 
