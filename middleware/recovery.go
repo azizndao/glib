@@ -30,13 +30,26 @@ func DefaultRecoveryConfig() RecoveryConfig {
 	}
 }
 
-// Recovery middleware for panic recovery with default configuration
-func Recovery() grouter.Middleware {
-	return RecoveryWithConfig(DefaultRecoveryConfig())
-}
-
-// RecoveryWithConfig creates a recovery middleware with custom configuration
-func RecoveryWithConfig(config RecoveryConfig) grouter.Middleware {
+// Recovery middleware for panic recovery
+//
+// Example usage:
+//
+//	// Use default configuration
+//	router.Use(middleware.Recovery())
+//
+//	// Custom configuration
+//	router.Use(middleware.Recovery(middleware.RecoveryConfig{
+//	    EnableStackTrace: false,
+//	    PanicHandler: func(c *grouter.Ctx, err any) {
+//	        log.Printf("Panic: %v", err)
+//	        c.Status(500).JSON(map[string]string{"error": "internal server error"})
+//	    },
+//	}))
+func Recovery(config ...RecoveryConfig) grouter.Middleware {
+	cfg := DefaultRecoveryConfig()
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) (err error) {
 			defer func() {
@@ -74,7 +87,7 @@ func RecoveryWithConfig(config RecoveryConfig) grouter.Middleware {
 					}
 
 					// Add stack trace if enabled
-					if config.EnableStackTrace {
+					if cfg.EnableStackTrace {
 						attrs = append(attrs, "stack", string(debug.Stack()))
 					}
 
@@ -90,8 +103,8 @@ func RecoveryWithConfig(config RecoveryConfig) grouter.Middleware {
 					}
 
 					// Call custom panic handler if provided
-					if config.PanicHandler != nil {
-						config.PanicHandler(c, rvr)
+					if cfg.PanicHandler != nil {
+						cfg.PanicHandler(c, rvr)
 						return
 					}
 

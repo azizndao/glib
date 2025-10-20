@@ -11,31 +11,68 @@ import (
 	"github.com/azizndao/grouter"
 )
 
+// CORSConfig contains configuration for CORS middleware
+type CORSConfig struct {
+	AllowedOrigins   []string
+	AllowedMethods   []string
+	AllowedHeaders   []string
+	ExposedHeaders   []string // Headers that browsers are allowed to access
+	AllowCredentials bool
+	MaxAge           time.Duration
+}
+
+// DefaultCORSConfig returns sensible default CORS configuration
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "User-Agent", "DNT", "Cache-Control", "X-Mx-ReqToken", "Keep-Alive", "X-Requested-With", "If-Modified-Since"},
+		MaxAge:         24 * time.Hour,
+	}
+}
+
 // CORS middleware for handling Cross-Origin Resource Sharing
-func CORS(options CORSOptions) grouter.Middleware {
+//
+// Example usage:
+//
+//	// Use default configuration
+//	router.Use(middleware.CORS())
+//
+//	// Custom configuration
+//	router.Use(middleware.CORS(middleware.CORSConfig{
+//	    AllowedOrigins: []string{"https://example.com"},
+//	    AllowedMethods: []string{"GET", "POST"},
+//	    AllowCredentials: true,
+//	}))
+func CORS(config ...CORSConfig) grouter.Middleware {
+	cfg := DefaultCORSConfig()
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {
 			origin := c.Get("Origin")
 
 			// Set CORS headers
-			if len(options.AllowedOrigins) > 0 {
+			if len(cfg.AllowedOrigins) > 0 {
 				// Security: Don't allow wildcard origin with credentials
-				if options.AllowCredentials {
+				if cfg.AllowCredentials {
 					// When credentials are allowed, we must specify exact origin
-					hasWildcard := slices.Contains(options.AllowedOrigins, "*")
+					hasWildcard := slices.Contains(cfg.AllowedOrigins, "*")
 
 					if hasWildcard && origin != "" {
 						// Use the specific origin instead of wildcard
 						c.Set("Access-Control-Allow-Origin", origin)
 					} else {
 						// Check if origin is in allowed list
-						if slices.Contains(options.AllowedOrigins, origin) {
+						if slices.Contains(cfg.AllowedOrigins, origin) {
 							c.Set("Access-Control-Allow-Origin", origin)
 						}
 					}
 				} else {
 					// Without credentials, wildcard is acceptable
-					for _, allowedOrigin := range options.AllowedOrigins {
+					for _, allowedOrigin := range cfg.AllowedOrigins {
 						if allowedOrigin == "*" || allowedOrigin == origin {
 							c.Set("Access-Control-Allow-Origin", allowedOrigin)
 							break
@@ -44,24 +81,24 @@ func CORS(options CORSOptions) grouter.Middleware {
 				}
 			}
 
-			if len(options.AllowedMethods) > 0 {
-				c.Set("Access-Control-Allow-Methods", strings.Join(options.AllowedMethods, ", "))
+			if len(cfg.AllowedMethods) > 0 {
+				c.Set("Access-Control-Allow-Methods", strings.Join(cfg.AllowedMethods, ", "))
 			}
 
-			if len(options.AllowedHeaders) > 0 {
-				c.Set("Access-Control-Allow-Headers", strings.Join(options.AllowedHeaders, ", "))
+			if len(cfg.AllowedHeaders) > 0 {
+				c.Set("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ", "))
 			}
 
-			if len(options.ExposedHeaders) > 0 {
-				c.Set("Access-Control-Expose-Headers", strings.Join(options.ExposedHeaders, ", "))
+			if len(cfg.ExposedHeaders) > 0 {
+				c.Set("Access-Control-Expose-Headers", strings.Join(cfg.ExposedHeaders, ", "))
 			}
 
-			if options.AllowCredentials {
+			if cfg.AllowCredentials {
 				c.Set("Access-Control-Allow-Credentials", "true")
 			}
 
-			if options.MaxAge > 0 {
-				c.Set("Access-Control-Max-Age", fmt.Sprintf("%d", int(options.MaxAge.Seconds())))
+			if cfg.MaxAge > 0 {
+				c.Set("Access-Control-Max-Age", fmt.Sprintf("%d", int(cfg.MaxAge.Seconds())))
 			}
 
 			// Handle preflight requests (use 204 No Content as per spec)
@@ -71,25 +108,5 @@ func CORS(options CORSOptions) grouter.Middleware {
 
 			return next(c)
 		}
-	}
-}
-
-// CORSOptions contains configuration for CORS middleware
-type CORSOptions struct {
-	AllowedOrigins   []string
-	AllowedMethods   []string
-	AllowedHeaders   []string
-	ExposedHeaders   []string // Headers that browsers are allowed to access
-	AllowCredentials bool
-	MaxAge           time.Duration
-}
-
-// DefaultCORSOptions returns sensible default CORS options
-func DefaultCORSOptions() CORSOptions {
-	return CORSOptions{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "User-Agent", "DNT", "Cache-Control", "X-Mx-ReqToken", "Keep-Alive", "X-Requested-With", "If-Modified-Since"},
-		MaxAge:         24 * time.Hour,
 	}
 }

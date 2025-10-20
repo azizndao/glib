@@ -68,10 +68,56 @@ func DefaultLoggerConfig() LoggerConfig {
 }
 
 // Logger creates a logging middleware with custom configuration
+//
+// Example usage:
+//
+//	// Use default colored console logging
+//	router.Use(middleware.Logger())
+//
+//	// Custom format
+//	router.Use(middleware.Logger(middleware.LoggerConfig{
+//	    Format: middleware.LogFormatTiny,
+//	}))
+//
+//	// Structured logging with slog
+//	router.Use(middleware.Logger(middleware.LoggerConfig{
+//	    UseStructuredLogging: true,
+//	    Logger: slog.Default(),
+//	    LogLevel: slog.LevelInfo,
+//	}))
 func Logger(config ...LoggerConfig) grouter.Middleware {
 	cfg := DefaultLoggerConfig()
 	if len(config) > 0 {
-		cfg = config[0]
+		// Merge provided config with defaults
+		provided := config[0]
+
+		if provided.Format != "" {
+			cfg.Format = provided.Format
+		}
+		if provided.TimeFormat != "" {
+			cfg.TimeFormat = provided.TimeFormat
+		}
+		if provided.Output != nil {
+			cfg.Output = provided.Output
+		}
+		if provided.Skip != nil {
+			cfg.Skip = provided.Skip
+		}
+		// UseStructuredLogging is a bool, so we need to check if it was explicitly set
+		// We'll accept the provided value since false is a valid setting
+		cfg.UseStructuredLogging = provided.UseStructuredLogging
+
+		if provided.Logger != nil {
+			cfg.Logger = provided.Logger
+		}
+		if provided.LogLevel != 0 {
+			cfg.LogLevel = provided.LogLevel
+		}
+	}
+
+	// If structured logging is enabled, set up slog logger
+	if cfg.UseStructuredLogging && cfg.Logger == nil {
+		cfg.Logger = slog.Default()
 	}
 
 	return func(next grouter.Handler) grouter.Handler {
@@ -103,8 +149,12 @@ func Logger(config ...LoggerConfig) grouter.Middleware {
 			// Calculate duration
 			duration := time.Since(start)
 
-			// Log the request
-			logRequest(cfg, c.Request, wrapped.statusCode, wrapped.size, duration)
+			// Log the request based on configuration
+			if cfg.UseStructuredLogging {
+				logStructuredRequest(cfg, c, wrapped.statusCode, wrapped.size, duration)
+			} else {
+				logRequest(cfg, c.Request, wrapped.statusCode, wrapped.size, duration)
+			}
 
 			return err
 		}
@@ -253,127 +303,39 @@ func truncate(s string, length int) string {
 	return s[:length-3] + "..."
 }
 
-// Convenience functions for different log formats
+// logStructuredRequest logs the request using structured logging (slog)
+func logStructuredRequest(cfg LoggerConfig, c *grouter.Ctx, status, size int, duration time.Duration) {
+	requestID := GetRequestID(c)
 
-// LoggerTiny returns a tiny logger middleware
-func LoggerTiny() grouter.Middleware {
-	config := DefaultLoggerConfig()
-	config.Format = LogFormatTiny
-	return Logger(config)
-}
-
-// LoggerShort returns a short logger middleware
-func LoggerShort() grouter.Middleware {
-	config := DefaultLoggerConfig()
-	config.Format = LogFormatShort
-	return Logger(config)
-}
-
-// LoggerCombined returns a combined logger middleware
-func LoggerCombined() grouter.Middleware {
-	config := DefaultLoggerConfig()
-	config.Format = LogFormatCombined
-	return Logger(config)
-}
-
-// LoggerDefault returns a default logger middleware
-func LoggerDefault() grouter.Middleware {
-	return Logger(DefaultLoggerConfig())
-}
-
-// StructuredLogger creates a middleware that logs HTTP requests using structured logging (slog).
-// This is the recommended logger for production environments.
-//
-// Example usage:
-//
-//	// Use default structured logging
-//	router.Use(middleware.StructuredLogger())
-//
-//	// Custom slog instance and level
-//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-//	router.Use(middleware.StructuredLoggerWithConfig(middleware.LoggerConfig{
-//	    Logger:   logger,
-//	    LogLevel: slog.LevelWarn, // Only log 4xx and 5xx
-//	}))
-func StructuredLogger() grouter.Middleware {
-	return StructuredLoggerWithConfig(LoggerConfig{
-		UseStructuredLogging: true,
-		Logger:               slog.Default(),
-		LogLevel:             slog.LevelInfo,
-	})
-}
-
-// StructuredLoggerWithConfig creates a structured logger with custom configuration
-func StructuredLoggerWithConfig(config LoggerConfig) grouter.Middleware {
-	config.UseStructuredLogging = true
-	if config.Logger == nil {
-		config.Logger = slog.Default()
+	// Determine log level based on status code
+	logLevel := cfg.LogLevel
+	if status >= 500 {
+		logLevel = slog.LevelError
+	} else if status >= 400 {
+		logLevel = slog.LevelWarn
 	}
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
-			// Skip if skip function returns true
-			if config.Skip != nil && config.Skip(c.Request) {
-				return next(c)
-			}
-
-			start := time.Now()
-			requestID := GetRequestID(c)
-
-			// Create a response writer wrapper
-			wrapped := &responseWriter{
-				ResponseWriter: c.Response,
-				statusCode:     200,
-				size:           0,
-			}
-
-			// Replace the response writer in context
-			originalWriter := c.Response
-			c.Response = wrapped
-
-			// Process request
-			err := next(c)
-
-			// Restore original writer
-			c.Response = originalWriter
-
-			// Calculate duration
-			duration := time.Since(start)
-
-			// Determine log level based on status code
-			logLevel := config.LogLevel
-			status := wrapped.statusCode
-
-			if status >= 500 {
-				logLevel = slog.LevelError
-			} else if status >= 400 {
-				logLevel = slog.LevelWarn
-			}
-
-			// Only log if level is appropriate
-			if logLevel >= config.LogLevel {
-				// Build log attributes
-				attrs := []any{
-					"method", c.Method(),
-					"path", c.Path(),
-					"status", status,
-					"duration_ms", duration.Milliseconds(),
-					"size", wrapped.size,
-					"remote_addr", c.IP(),
-				}
-
-				if requestID != "" {
-					attrs = append(attrs, "request_id", requestID)
-				}
-
-				if c.UserAgent() != "" {
-					attrs = append(attrs, "user_agent", c.UserAgent())
-				}
-
-				config.Logger.Log(c.Context(), logLevel, "HTTP request", attrs...)
-			}
-
-			return err
+	// Only log if level is appropriate
+	if logLevel >= cfg.LogLevel {
+		// Build log attributes
+		attrs := []any{
+			"method", c.Method(),
+			"path", c.Path(),
+			"status", status,
+			"duration_ms", duration.Milliseconds(),
+			"size", size,
+			"remote_addr", c.IP(),
 		}
+
+		if requestID != "" {
+			attrs = append(attrs, "request_id", requestID)
+		}
+
+		if c.UserAgent() != "" {
+			attrs = append(attrs, "user_agent", c.UserAgent())
+		}
+
+		cfg.Logger.Log(c.Context(), logLevel, "HTTP request", attrs...)
 	}
 }
+

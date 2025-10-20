@@ -95,50 +95,12 @@ func BodyLimit(config ...BodyLimitConfig) grouter.Middleware {
 	}
 }
 
-// BodyLimitWithSize is a helper function that creates a BodyLimit middleware
-// with a specific size limit using default configuration
-//
-// Example:
-//
-//	router.Use(middleware.BodyLimitWithSize(10 * 1024 * 1024)) // 10MB
-func BodyLimitWithSize(maxSize int64) grouter.Middleware {
-	config := DefaultBodyLimitConfig()
-	config.MaxSize = maxSize
-	config.ErrorHandler = func(c *grouter.Ctx) error {
-		return errors.RequestEntityTooLarge(
-			fmt.Sprintf("Request body too large. Maximum size is %d bytes", maxSize),
-			nil,
-		)
-	}
-	return BodyLimit(config)
-}
-
 // Common size constants for convenience
 const (
 	KB = 1024
 	MB = 1024 * KB
 	GB = 1024 * MB
 )
-
-// BodyLimit1MB creates a middleware with 1MB limit
-func BodyLimit1MB() grouter.Middleware {
-	return BodyLimitWithSize(1 * MB)
-}
-
-// BodyLimit5MB creates a middleware with 5MB limit
-func BodyLimit5MB() grouter.Middleware {
-	return BodyLimitWithSize(5 * MB)
-}
-
-// BodyLimit10MB creates a middleware with 10MB limit
-func BodyLimit10MB() grouter.Middleware {
-	return BodyLimitWithSize(10 * MB)
-}
-
-// BodyLimit50MB creates a middleware with 50MB limit
-func BodyLimit50MB() grouter.Middleware {
-	return BodyLimitWithSize(50 * MB)
-}
 
 // limitedReader wraps io.ReadCloser to enforce size limit
 type limitedReader struct {

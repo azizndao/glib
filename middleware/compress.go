@@ -373,22 +373,65 @@ func isCompressible(contentType string) bool {
 	return false
 }
 
-// Compress creates a default compression middleware with gzip support
-//
-// Example:
-//
-//	router.Use(middleware.Compress())
-func Compress() grouter.Middleware {
-	c := NewCompressor(gzip.DefaultCompression)
-	return c.Middleware()
+// CompressConfig holds configuration for the Compress middleware
+type CompressConfig struct {
+	// Level is the compression level (0-9)
+	// -1 = default compression
+	// 0 = no compression
+	// 1 = best speed
+	// 9 = best compression
+	// Default: gzip.DefaultCompression (-1)
+	Level int
+
+	// Encodings is a list of custom encoders to register
+	// The map key is the encoding name (e.g., "br" for brotli)
+	// Default: gzip and deflate are always registered
+	Encodings map[string]EncoderFunc
 }
 
-// CompressLevel creates a compression middleware with custom compression level
+// DefaultCompressConfig returns default compression configuration
+func DefaultCompressConfig() CompressConfig {
+	return CompressConfig{
+		Level:     gzip.DefaultCompression,
+		Encodings: nil,
+	}
+}
+
+// Compress creates a compression middleware with gzip/deflate support
 //
-// Example:
+// Example usage:
 //
-//	router.Use(middleware.CompressLevel(gzip.BestSpeed))
-func CompressLevel(level int) grouter.Middleware {
-	c := NewCompressor(level)
+//	// Use default compression
+//	router.Use(middleware.Compress())
+//
+//	// Custom compression level
+//	router.Use(middleware.Compress(middleware.CompressConfig{
+//	    Level: gzip.BestSpeed,
+//	}))
+//
+//	// Add brotli support
+//	import "github.com/andybalholm/brotli"
+//	router.Use(middleware.Compress(middleware.CompressConfig{
+//	    Level: gzip.BestCompression,
+//	    Encodings: map[string]middleware.EncoderFunc{
+//	        "br": func(w io.Writer, level int) middleware.Encoder {
+//	            return brotli.NewWriterLevel(w, level)
+//	        },
+//	    },
+//	}))
+func Compress(config ...CompressConfig) grouter.Middleware {
+	cfg := DefaultCompressConfig()
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+
+	// Create compressor with configured level
+	c := NewCompressor(cfg.Level)
+
+	// Register custom encoders if provided
+	for encoding, encoderFunc := range cfg.Encodings {
+		c.SetEncoder(encoding, encoderFunc)
+	}
+
 	return c.Middleware()
 }

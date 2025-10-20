@@ -38,17 +38,21 @@ func main() {
 
 	// Add comprehensive production-ready middleware stack
 	router.Use(
-		middleware.Heartbeat("/ping"),                    // Health check endpoint
-		middleware.RealIP(),                              // Extract real client IP from proxy headers
-		middleware.RequestID(),                           // Generate unique request IDs
-		middleware.RecoveryWithConfig(middleware.RecoveryConfig{ // Panic recovery
+		middleware.Heartbeat(), // Health check endpoint (default: /ping)
+		middleware.RealIP(),    // Extract real client IP from proxy headers
+		middleware.RequestID(), // Generate unique request IDs
+		middleware.Recovery(middleware.RecoveryConfig{ // Panic recovery
 			EnableStackTrace: false, // Disable stack traces in production
 		}),
-		middleware.StructuredLogger(),                    // Structured logging with slog
-		middleware.Compress(),                            // Response compression (gzip/deflate/brotli)
-		middleware.BodyLimit5MB(),                        // Limit request body size to 5MB
-		ratelimit.RateLimit(),                            // Rate limiting (100 req/min by default)
-		middleware.CORS(middleware.DefaultCORSOptions()), // CORS support
+		middleware.Logger(middleware.LoggerConfig{ // Structured logging with slog
+			UseStructuredLogging: false,
+		}),
+		middleware.Compress(), // Response compression (gzip/deflate)
+		middleware.BodyLimit(middleware.BodyLimitConfig{ // Limit request body size to 5MB
+			MaxSize: 5 * middleware.MB,
+		}),
+		ratelimit.RateLimit(), // Rate limiting (100 req/min by default)
+		middleware.CORS(),     // CORS support with default config
 		validation.Middleware( // Request validation with i18n
 			validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
 			validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
@@ -90,7 +94,9 @@ func main() {
 	})
 
 	// Demonstrate timeout with a slow endpoint
-	slowRouter := router.Group("/slow", middleware.Timeout(2*time.Second))
+	slowRouter := router.Group("/slow", middleware.Timeout(middleware.TimeoutConfig{
+		Timeout: 2 * time.Second,
+	}))
 	slowRouter.Get("/endpoint", func(c *grouter.Ctx) error {
 		// Simulate slow processing
 		time.Sleep(3 * time.Second)

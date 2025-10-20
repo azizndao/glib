@@ -11,6 +11,27 @@ import (
 	"github.com/azizndao/grouter/errors"
 )
 
+// TimeoutConfig holds configuration for the Timeout middleware
+type TimeoutConfig struct {
+	// Timeout is the maximum duration for the request
+	// Default: 30 seconds
+	Timeout time.Duration
+
+	// ErrorHandler is called when timeout occurs
+	// Default: returns 504 Gateway Timeout
+	ErrorHandler grouter.Handler
+}
+
+// DefaultTimeoutConfig returns default timeout configuration
+func DefaultTimeoutConfig() TimeoutConfig {
+	return TimeoutConfig{
+		Timeout: 30 * time.Second,
+		ErrorHandler: func(c *grouter.Ctx) error {
+			return errors.New(http.StatusGatewayTimeout, "Gateway Timeout", nil)
+		},
+	}
+}
+
 // timeoutWriter wraps http.ResponseWriter to prevent writes after timeout
 type timeoutWriter struct {
 	http.ResponseWriter
@@ -42,11 +63,34 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 }
 
 // Timeout middleware for request timeout handling
-func Timeout(timeout time.Duration) grouter.Middleware {
+//
+// Example usage:
+//
+//	// Use default configuration (30 seconds)
+//	router.Use(middleware.Timeout())
+//
+//	// Custom timeout duration
+//	router.Use(middleware.Timeout(middleware.TimeoutConfig{
+//	    Timeout: 10 * time.Second,
+//	}))
+//
+//	// Custom timeout with error handler
+//	router.Use(middleware.Timeout(middleware.TimeoutConfig{
+//	    Timeout: 5 * time.Second,
+//	    ErrorHandler: func(c *grouter.Ctx) error {
+//	        return c.Status(504).JSON(map[string]string{"error": "request timeout"})
+//	    },
+//	}))
+func Timeout(config ...TimeoutConfig) grouter.Middleware {
+	cfg := DefaultTimeoutConfig()
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {
 			// Create a context with timeout
-			ctx, cancel := context.WithTimeout(c.Context(), timeout)
+			ctx, cancel := context.WithTimeout(c.Context(), cfg.Timeout)
 			defer cancel()
 
 			// Create a mutex for synchronizing response writes
@@ -103,13 +147,13 @@ func Timeout(timeout time.Duration) grouter.Middleware {
 				slog.Warn("request timeout",
 					"path", c.Path(),
 					"method", c.Method(),
-					"timeout", timeout,
+					"timeout", cfg.Timeout,
 					"headers_written", alreadyWritten,
 				)
 
 				// Only send timeout response if handler hasn't written anything yet
 				if !alreadyWritten {
-					return errors.New(http.StatusGatewayTimeout, "Gateway Timeout", nil)
+					return cfg.ErrorHandler(c)
 				}
 
 				// Headers already written - return error for logging/metrics

@@ -7,6 +7,25 @@ import (
 	"github.com/azizndao/grouter"
 )
 
+// HeartbeatConfig holds configuration for the Heartbeat middleware
+type HeartbeatConfig struct {
+	// Endpoint is the path to respond to
+	// Default: "/ping"
+	Endpoint string
+
+	// Response is the response body to send
+	// Default: "."
+	Response string
+}
+
+// DefaultHeartbeatConfig returns default heartbeat configuration
+func DefaultHeartbeatConfig() HeartbeatConfig {
+	return HeartbeatConfig{
+		Endpoint: "/ping",
+		Response: ".",
+	}
+}
+
 // Heartbeat creates a middleware that responds to health check requests.
 // It intercepts requests to the specified endpoint and returns a 200 OK response
 // without executing the rest of the middleware chain or route handlers.
@@ -18,29 +37,37 @@ import (
 //
 // Example usage:
 //
-//	// Respond to GET /ping with 200 OK
-//	router.Use(middleware.Heartbeat("/ping"))
+//	// Use default configuration (GET /ping returns ".")
+//	router.Use(middleware.Heartbeat())
 //
-//	// Respond to GET /health with custom response
-//	router.Use(middleware.HeartbeatWithResponse("/health", "OK"))
-func Heartbeat(endpoint string) grouter.Middleware {
-	return HeartbeatWithResponse(endpoint, ".")
-}
-
-// HeartbeatWithResponse creates a heartbeat middleware with a custom response body
-func HeartbeatWithResponse(endpoint string, response string) grouter.Middleware {
-	// Normalize endpoint
-	if !strings.HasPrefix(endpoint, "/") {
-		endpoint = "/" + endpoint
+//	// Custom endpoint
+//	router.Use(middleware.Heartbeat(middleware.HeartbeatConfig{
+//	    Endpoint: "/health",
+//	}))
+//
+//	// Custom endpoint and response
+//	router.Use(middleware.Heartbeat(middleware.HeartbeatConfig{
+//	    Endpoint: "/health",
+//	    Response: "OK",
+//	}))
+func Heartbeat(config ...HeartbeatConfig) grouter.Middleware {
+	cfg := DefaultHeartbeatConfig()
+	if len(config) > 0 {
+		cfg = config[0]
 	}
 
-	responseBytes := []byte(response)
+	// Normalize endpoint
+	if !strings.HasPrefix(cfg.Endpoint, "/") {
+		cfg.Endpoint = "/" + cfg.Endpoint
+	}
+
+	responseBytes := []byte(cfg.Response)
 
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {
 			// Only respond to GET or HEAD requests at the specified endpoint
 			if (c.Method() == http.MethodGet || c.Method() == http.MethodHead) &&
-				c.Path() == endpoint {
+				c.Path() == cfg.Endpoint {
 
 				// Set headers
 				c.Set("Content-Type", "text/plain")

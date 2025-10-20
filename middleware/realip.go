@@ -57,34 +57,33 @@ func DefaultRealIPConfig() RealIPConfig {
 //	router.Use(middleware.RealIP())
 //
 //	// Custom configuration
-//	router.Use(middleware.RealIPWithConfig(middleware.RealIPConfig{
+//	router.Use(middleware.RealIP(middleware.RealIPConfig{
 //	    TrustedProxies: []string{
 //	        "10.0.0.0/8",  // Only trust this network
 //	    },
 //	    Headers: []string{"CF-Connecting-IP", "X-Forwarded-For"},
 //	}))
-func RealIP() grouter.Middleware {
-	return RealIPWithConfig(DefaultRealIPConfig())
-}
-
-// RealIPWithConfig creates a RealIP middleware with custom configuration
-func RealIPWithConfig(config RealIPConfig) grouter.Middleware {
+func RealIP(config ...RealIPConfig) grouter.Middleware {
+	cfg := DefaultRealIPConfig()
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	// Parse trusted proxy CIDRs
-	if len(config.TrustedProxies) > 0 {
-		config.trustedNets = make([]*net.IPNet, 0, len(config.TrustedProxies))
-		for _, cidr := range config.TrustedProxies {
+	if len(cfg.TrustedProxies) > 0 {
+		cfg.trustedNets = make([]*net.IPNet, 0, len(cfg.TrustedProxies))
+		for _, cidr := range cfg.TrustedProxies {
 			_, network, err := net.ParseCIDR(cidr)
 			if err != nil {
 				// Skip invalid CIDR
 				continue
 			}
-			config.trustedNets = append(config.trustedNets, network)
+			cfg.trustedNets = append(cfg.trustedNets, network)
 		}
 	}
 
 	// Set default headers if not provided
-	if len(config.Headers) == 0 {
-		config.Headers = DefaultRealIPConfig().Headers
+	if len(cfg.Headers) == 0 {
+		cfg.Headers = DefaultRealIPConfig().Headers
 	}
 
 	return func(next grouter.Handler) grouter.Handler {
@@ -97,13 +96,13 @@ func RealIPWithConfig(config RealIPConfig) grouter.Middleware {
 			}
 
 			// Check if the remote address is from a trusted proxy
-			if len(config.trustedNets) > 0 && !isTrustedProxy(host, config.trustedNets) {
+			if len(cfg.trustedNets) > 0 && !isTrustedProxy(host, cfg.trustedNets) {
 				// Not a trusted proxy, use RemoteAddr as-is
 				return next(c)
 			}
 
 			// Try to get real IP from configured headers
-			realIP := getRealIPFromHeaders(c.Request.Header, config.Headers)
+			realIP := getRealIPFromHeaders(c.Request.Header, cfg.Headers)
 			if realIP != "" {
 				// Update the request's RemoteAddr
 				c.Request.RemoteAddr = realIP
