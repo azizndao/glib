@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -29,6 +30,18 @@ type LoggerConfig struct {
 	TimeFormat string
 	Output     *os.File
 	Skip       func(*http.Request) bool
+
+	// UseStructuredLogging enables structured logging with slog
+	// When enabled, logs are written using slog instead of colored console output
+	UseStructuredLogging bool
+
+	// Logger is the slog.Logger instance to use for structured logging
+	// If nil, the default logger is used
+	Logger *slog.Logger
+
+	// LogLevel determines which requests to log
+	// Info: all requests, Warn: 4xx and 5xx, Error: 5xx only
+	LogLevel slog.Level
 }
 
 // LogFormat defines the format of log output
@@ -44,10 +57,13 @@ const (
 // DefaultLoggerConfig returns default logger configuration
 func DefaultLoggerConfig() LoggerConfig {
 	return LoggerConfig{
-		Format:     LogFormatDefault,
-		TimeFormat: "15:04:05",
-		Output:     os.Stdout,
-		Skip:       nil,
+		Format:               LogFormatDefault,
+		TimeFormat:           "15:04:05",
+		Output:               os.Stdout,
+		Skip:                 nil,
+		UseStructuredLogging: false,
+		Logger:               nil,
+		LogLevel:             slog.LevelInfo,
 	}
 }
 
@@ -263,4 +279,101 @@ func LoggerCombined() grouter.Middleware {
 // LoggerDefault returns a default logger middleware
 func LoggerDefault() grouter.Middleware {
 	return Logger(DefaultLoggerConfig())
+}
+
+// StructuredLogger creates a middleware that logs HTTP requests using structured logging (slog).
+// This is the recommended logger for production environments.
+//
+// Example usage:
+//
+//	// Use default structured logging
+//	router.Use(middleware.StructuredLogger())
+//
+//	// Custom slog instance and level
+//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+//	router.Use(middleware.StructuredLoggerWithConfig(middleware.LoggerConfig{
+//	    Logger:   logger,
+//	    LogLevel: slog.LevelWarn, // Only log 4xx and 5xx
+//	}))
+func StructuredLogger() grouter.Middleware {
+	return StructuredLoggerWithConfig(LoggerConfig{
+		UseStructuredLogging: true,
+		Logger:               slog.Default(),
+		LogLevel:             slog.LevelInfo,
+	})
+}
+
+// StructuredLoggerWithConfig creates a structured logger with custom configuration
+func StructuredLoggerWithConfig(config LoggerConfig) grouter.Middleware {
+	config.UseStructuredLogging = true
+	if config.Logger == nil {
+		config.Logger = slog.Default()
+	}
+
+	return func(next grouter.Handler) grouter.Handler {
+		return func(c *grouter.Ctx) error {
+			// Skip if skip function returns true
+			if config.Skip != nil && config.Skip(c.Request) {
+				return next(c)
+			}
+
+			start := time.Now()
+			requestID := GetRequestID(c)
+
+			// Create a response writer wrapper
+			wrapped := &responseWriter{
+				ResponseWriter: c.Response,
+				statusCode:     200,
+				size:           0,
+			}
+
+			// Replace the response writer in context
+			originalWriter := c.Response
+			c.Response = wrapped
+
+			// Process request
+			err := next(c)
+
+			// Restore original writer
+			c.Response = originalWriter
+
+			// Calculate duration
+			duration := time.Since(start)
+
+			// Determine log level based on status code
+			logLevel := config.LogLevel
+			status := wrapped.statusCode
+
+			if status >= 500 {
+				logLevel = slog.LevelError
+			} else if status >= 400 {
+				logLevel = slog.LevelWarn
+			}
+
+			// Only log if level is appropriate
+			if logLevel >= config.LogLevel {
+				// Build log attributes
+				attrs := []any{
+					"method", c.Method(),
+					"path", c.Path(),
+					"status", status,
+					"duration_ms", duration.Milliseconds(),
+					"size", wrapped.size,
+					"remote_addr", c.IP(),
+				}
+
+				if requestID != "" {
+					attrs = append(attrs, "request_id", requestID)
+				}
+
+				if c.UserAgent() != "" {
+					attrs = append(attrs, "user_agent", c.UserAgent())
+				}
+
+				config.Logger.Log(c.Context(), logLevel, "HTTP request", attrs...)
+			}
+
+			return err
+		}
+	}
 }

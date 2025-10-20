@@ -67,7 +67,14 @@ func Timeout(timeout time.Duration) grouter.Middleware {
 
 			// Execute handler with timeout
 			done := make(chan error, 1)
+			panicChan := make(chan interface{}, 1)
+
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						panicChan <- r
+					}
+				}()
 				done <- next(c)
 			}()
 
@@ -76,6 +83,12 @@ func Timeout(timeout time.Duration) grouter.Middleware {
 				// Handler completed before timeout
 				c.Response = originalWriter
 				return err
+
+			case p := <-panicChan:
+				// Panic in handler
+				c.Response = originalWriter
+				panic(p)
+
 			case <-ctx.Done():
 				// Timeout occurred - mark writer as timed out to prevent further writes
 				mu.Lock()
@@ -96,11 +109,11 @@ func Timeout(timeout time.Duration) grouter.Middleware {
 
 				// Only send timeout response if handler hasn't written anything yet
 				if !alreadyWritten {
-					return errors.New(http.StatusRequestTimeout, "Request Timeout", nil)
+					return errors.New(http.StatusGatewayTimeout, "Gateway Timeout", nil)
 				}
 
 				// Headers already written - return error for logging/metrics
-				return errors.New(http.StatusRequestTimeout, "Request Timeout (headers already sent)", nil)
+				return errors.New(http.StatusGatewayTimeout, "Gateway Timeout (response already started)", nil)
 			}
 		}
 	}

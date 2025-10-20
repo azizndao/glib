@@ -1,156 +1,356 @@
 package middleware
 
 import (
+	"bufio"
+	"compress/flate"
 	"compress/gzip"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/azizndao/grouter"
 )
 
-// CompressConfig holds configuration for the Compress middleware
-type CompressConfig struct {
-	// Level is the compression level (0-9)
-	// 0 = no compression, 1 = best speed, 9 = best compression
-	// Default: gzip.DefaultCompression (-1)
-	Level int
-
-	// MinLength is the minimum response size to compress (in bytes)
-	// Responses smaller than this will not be compressed
-	// Default: 1024 (1KB)
-	MinLength int
-
-	// SkipFunc is a function that determines if compression should be skipped
-	// Default: nil (compress all responses)
-	SkipFunc func(*grouter.Ctx) bool
+// Encoder is an interface that wraps the compression writer
+type Encoder interface {
+	io.Writer
+	Close() error
+	Flush() error
 }
 
-// compressWriter wraps http.ResponseWriter to provide gzip compression
-type compressWriter struct {
-	http.ResponseWriter
-	writer         io.Writer
-	gzipWriter     *gzip.Writer
-	config         CompressConfig
-	headerWritten  bool
-	shouldCompress bool
+// EncoderFunc creates a new compression writer for the given writer and compression level
+type EncoderFunc func(w io.Writer, level int) Encoder
+
+// ioResetterWriter is an interface for encoders that can be reset and reused (poolable)
+type ioResetterWriter interface {
+	io.Writer
+	Reset(w io.Writer)
 }
 
-func (cw *compressWriter) WriteHeader(code int) {
-	cw.headerWritten = true
+// Compressor manages compression encoders and configuration
+type Compressor struct {
+	level              int
+	poolSize           int
+	encoders           map[string]EncoderFunc
+	pools              map[string]*sync.Pool
+	pooledEncoders     map[string]*sync.Pool
+	encodingPrecedence []string
+}
 
-	// Check if we should compress based on content type
-	contentType := cw.ResponseWriter.Header().Get("Content-Type")
-	cw.shouldCompress = isCompressibleContentType(contentType)
-
-	// If we should compress, set the header
-	if cw.shouldCompress {
-		cw.ResponseWriter.Header().Set("Content-Encoding", "gzip")
-		cw.ResponseWriter.Header().Del("Content-Length")
+// NewCompressor creates a new compressor with the specified compression level
+// Level should be between 0-9 where:
+//   - 0 = no compression
+//   - 1 = best speed
+//   - 9 = best compression
+//   - -1 = default compression
+func NewCompressor(level int) *Compressor {
+	c := &Compressor{
+		level:              level,
+		poolSize:           0,
+		encoders:           make(map[string]EncoderFunc),
+		pools:              make(map[string]*sync.Pool),
+		pooledEncoders:     make(map[string]*sync.Pool),
+		encodingPrecedence: make([]string, 0),
 	}
 
-	cw.ResponseWriter.WriteHeader(code)
+	// Register default encoders (gzip has priority over deflate)
+	c.SetEncoder("gzip", func(w io.Writer, level int) Encoder {
+		gw, _ := gzip.NewWriterLevel(w, level)
+		return gw
+	})
+
+	c.SetEncoder("deflate", func(w io.Writer, level int) Encoder {
+		fw, _ := flate.NewWriter(w, level)
+		return &flateEncoder{fw}
+	})
+
+	return c
 }
 
-func (cw *compressWriter) Write(b []byte) (int, error) {
-	if !cw.headerWritten {
-		cw.WriteHeader(http.StatusOK)
-	}
-
-	// If compression is enabled, use gzip writer
-	if cw.shouldCompress {
-		return cw.gzipWriter.Write(b)
-	}
-
-	// Otherwise, write directly
-	return cw.ResponseWriter.Write(b)
-}
-
-// DefaultCompressConfig returns default configuration for compression
-func DefaultCompressConfig() CompressConfig {
-	return CompressConfig{
-		Level:     gzip.DefaultCompression,
-		MinLength: 1024, // 1KB
-		SkipFunc:  nil,
-	}
-}
-
-// Compress creates a middleware that compresses HTTP responses using gzip.
-// It only compresses responses that:
-// - Are larger than the configured minimum length
-// - Have a compressible content type (text/*, application/json, etc.)
-// - Client supports gzip encoding (Accept-Encoding header)
+// SetEncoder registers a custom encoder for the given encoding
+// Common encodings: "gzip", "deflate", "br" (brotli)
 //
-// Example usage:
+// Example with brotli:
 //
-//	// Use default compression
-//	router.Use(middleware.Compress())
+//	import "github.com/andybalholm/brotli"
 //
-//	// Custom configuration
-//	router.Use(middleware.Compress(middleware.CompressConfig{
-//	    Level:     gzip.BestCompression,
-//	    MinLength: 2048, // 2KB
-//	    SkipFunc: func(c *grouter.Ctx) bool {
-//	        // Skip compression for images
-//	        return strings.HasPrefix(c.Path(), "/images")
-//	    },
-//	}))
-func Compress(config ...CompressConfig) grouter.Middleware {
-	cfg := DefaultCompressConfig()
-	if len(config) > 0 {
-		cfg = config[0]
+//	compressor.SetEncoder("br", func(w io.Writer, level int) middleware.Encoder {
+//	    return brotli.NewWriterLevel(w, level)
+//	})
+func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
+	encoding = strings.ToLower(encoding)
+	if encoding == "" {
+		panic("the encoding cannot be empty")
+	}
+	if fn == nil {
+		panic("attempted to set a nil encoder function")
 	}
 
+	// Clear existing entries for this encoding
+	delete(c.pooledEncoders, encoding)
+	delete(c.encoders, encoding)
+	delete(c.pools, encoding)
+
+	// Check if encoder supports Reset (can be pooled)
+	encoder := fn(io.Discard, c.level)
+	if _, ok := encoder.(ioResetterWriter); ok {
+		// Create pool for resettable encoders
+		pool := &sync.Pool{
+			New: func() interface{} {
+				return fn(io.Discard, c.level)
+			},
+		}
+		c.pooledEncoders[encoding] = pool
+	} else {
+		// Non-poolable encoder
+		c.encoders[encoding] = fn
+	}
+
+	// Update precedence list (newer encoders get priority)
+	for i, v := range c.encodingPrecedence {
+		if v == encoding {
+			c.encodingPrecedence = append(c.encodingPrecedence[:i], c.encodingPrecedence[i+1:]...)
+			break
+		}
+	}
+	c.encodingPrecedence = append([]string{encoding}, c.encodingPrecedence...)
+}
+
+// Handler returns the compression middleware
+func (c *Compressor) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoder, encoding, cleanup := c.selectEncoder(r.Header, w)
+		if encoder == nil {
+			// No acceptable encoding found
+			next.ServeHTTP(w, r)
+			return
+		}
+		defer cleanup()
+
+		// Set Vary header to inform caches that response varies by Accept-Encoding
+		w.Header().Add("Vary", "Accept-Encoding")
+
+		// Wrap the response writer
+		cw := &compressResponseWriter{
+			ResponseWriter: w,
+			encoder:        encoder,
+			encoding:       encoding,
+		}
+		defer cw.Close()
+
+		next.ServeHTTP(cw, r)
+	})
+}
+
+// Middleware returns a grouter-compatible middleware
+func (c *Compressor) Middleware() grouter.Middleware {
 	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
-			// Check if client supports gzip
-			if !strings.Contains(c.Get("Accept-Encoding"), "gzip") {
-				return next(c)
+		return func(ctx *grouter.Ctx) error {
+			encoder, encoding, cleanup := c.selectEncoder(ctx.Request.Header, ctx.Response)
+			if encoder == nil {
+				// No acceptable encoding found
+				return next(ctx)
 			}
+			defer cleanup()
 
-			// Check if we should skip compression
-			if cfg.SkipFunc != nil && cfg.SkipFunc(c) {
-				return next(c)
-			}
+			// Set Vary header
+			ctx.Set("Vary", "Accept-Encoding")
 
-			// Create gzip writer
-			gzipWriter, err := gzip.NewWriterLevel(c.Response, cfg.Level)
-			if err != nil {
-				return next(c)
+			// Wrap the response writer
+			cw := &compressResponseWriter{
+				ResponseWriter: ctx.Response,
+				encoder:        encoder,
+				encoding:       encoding,
 			}
-			defer gzipWriter.Close()
-
-			// Wrap response writer
-			cw := &compressWriter{
-				ResponseWriter: c.Response,
-				writer:         gzipWriter,
-				gzipWriter:     gzipWriter,
-				config:         cfg,
-			}
+			defer cw.Close()
 
 			// Replace response writer
-			originalWriter := c.Response
-			c.Response = cw
+			originalWriter := ctx.Response
+			ctx.Response = cw
 
 			// Execute handler
-			err = next(c)
+			err := next(ctx)
 
 			// Restore original writer
-			c.Response = originalWriter
+			ctx.Response = originalWriter
 
 			return err
 		}
 	}
 }
 
-// isCompressibleContentType checks if a content type should be compressed
-func isCompressibleContentType(contentType string) bool {
-	// Empty content type - compress by default
+// selectEncoder picks the best encoder based on Accept-Encoding header
+func (c *Compressor) selectEncoder(h http.Header, w io.Writer) (Encoder, string, func()) {
+	acceptEncoding := h.Get("Accept-Encoding")
+	if acceptEncoding == "" {
+		return nil, "", func() {}
+	}
+
+	// Parse Accept-Encoding header
+	encodings := parseAcceptEncoding(acceptEncoding)
+
+	// Find best match using precedence order
+	for _, name := range c.encodingPrecedence {
+		if contains(encodings, name) {
+			// Check for pooled encoder first
+			if pool, ok := c.pooledEncoders[name]; ok {
+				encoder := pool.Get()
+				if resetter, ok := encoder.(ioResetterWriter); ok {
+					resetter.Reset(w)
+					cleanup := func() {
+						pool.Put(encoder)
+					}
+					if enc, ok := encoder.(Encoder); ok {
+						return enc, name, cleanup
+					}
+					return resetter.(Encoder), name, cleanup
+				}
+			}
+
+			// Fallback to non-pooled encoder
+			if fn, ok := c.encoders[name]; ok {
+				return fn(w, c.level), name, func() {}
+			}
+		}
+	}
+
+	// No encoder found to match the accepted encoding
+	return nil, "", func() {}
+}
+
+// compressResponseWriter wraps http.ResponseWriter to provide compression
+type compressResponseWriter struct {
+	http.ResponseWriter
+	encoder        Encoder
+	encoding       string
+	headerWritten  bool
+	shouldCompress bool
+}
+
+func (cw *compressResponseWriter) WriteHeader(code int) {
+	if cw.headerWritten {
+		return
+	}
+	cw.headerWritten = true
+
+	// Check if we should compress based on content type
+	contentType := cw.ResponseWriter.Header().Get("Content-Type")
+	cw.shouldCompress = isCompressible(contentType)
+
+	if cw.shouldCompress {
+		// Don't compress if already encoded
+		if cw.ResponseWriter.Header().Get("Content-Encoding") != "" {
+			cw.shouldCompress = false
+		}
+	}
+
+	if cw.shouldCompress {
+		cw.ResponseWriter.Header().Set("Content-Encoding", cw.encoding)
+		cw.ResponseWriter.Header().Del("Content-Length")
+	}
+
+	cw.ResponseWriter.WriteHeader(code)
+}
+
+func (cw *compressResponseWriter) Write(p []byte) (int, error) {
+	if !cw.headerWritten {
+		cw.WriteHeader(http.StatusOK)
+	}
+
+	if cw.shouldCompress {
+		return cw.encoder.Write(p)
+	}
+
+	return cw.ResponseWriter.Write(p)
+}
+
+func (cw *compressResponseWriter) Flush() {
+	if cw.shouldCompress {
+		cw.encoder.Flush()
+	}
+
+	if f, ok := cw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (cw *compressResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := cw.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, errors.New("http.Hijacker not implemented")
+}
+
+func (cw *compressResponseWriter) Unwrap() http.ResponseWriter {
+	return cw.ResponseWriter
+}
+
+func (cw *compressResponseWriter) Close() error {
+	if cw.shouldCompress && cw.encoder != nil {
+		return cw.encoder.Close()
+	}
+	return nil
+}
+
+// flateEncoder wraps flate.Writer to implement Encoder interface
+type flateEncoder struct {
+	*flate.Writer
+}
+
+func (fe *flateEncoder) Flush() error {
+	return fe.Writer.Flush()
+}
+
+// parseAcceptEncoding parses the Accept-Encoding header
+func parseAcceptEncoding(s string) []string {
+	var encodings []string
+	for _, enc := range strings.Split(s, ",") {
+		enc = strings.TrimSpace(enc)
+		// Remove quality value if present
+		if idx := strings.Index(enc, ";"); idx != -1 {
+			enc = enc[:idx]
+		}
+		enc = strings.TrimSpace(enc)
+		if enc != "" && enc != "*" {
+			encodings = append(encodings, strings.ToLower(enc))
+		}
+	}
+	return encodings
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// isCompressible checks if the content type should be compressed
+func isCompressible(contentType string) bool {
 	if contentType == "" {
 		return true
 	}
 
-	// List of compressible content types
+	// Don't compress if already compressed
+	ct := strings.ToLower(contentType)
+
+	// Already compressed formats
+	if strings.Contains(ct, "gzip") ||
+		strings.Contains(ct, "zip") ||
+		strings.Contains(ct, "compress") ||
+		strings.HasPrefix(ct, "image/") && !strings.HasPrefix(ct, "image/svg") ||
+		strings.HasPrefix(ct, "video/") ||
+		strings.HasPrefix(ct, "audio/") {
+		return false
+	}
+
+	// Compressible types
 	compressible := []string{
 		"text/",
 		"application/json",
@@ -164,12 +364,31 @@ func isCompressibleContentType(contentType string) bool {
 		"image/svg+xml",
 	}
 
-	contentType = strings.ToLower(contentType)
 	for _, prefix := range compressible {
-		if strings.HasPrefix(contentType, prefix) {
+		if strings.HasPrefix(ct, prefix) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// Compress creates a default compression middleware with gzip support
+//
+// Example:
+//
+//	router.Use(middleware.Compress())
+func Compress() grouter.Middleware {
+	c := NewCompressor(gzip.DefaultCompression)
+	return c.Middleware()
+}
+
+// CompressLevel creates a compression middleware with custom compression level
+//
+// Example:
+//
+//	router.Use(middleware.CompressLevel(gzip.BestSpeed))
+func CompressLevel(level int) grouter.Middleware {
+	c := NewCompressor(level)
+	return c.Middleware()
 }

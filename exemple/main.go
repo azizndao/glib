@@ -10,6 +10,7 @@ import (
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
 	"github.com/azizndao/grouter/middleware"
+	"github.com/azizndao/grouter/ratelimit"
 	"github.com/azizndao/grouter/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
@@ -35,14 +36,18 @@ type CreateProductRequest struct {
 func main() {
 	router := grouter.NewRouter()
 
-	// Add comprehensive middleware stack
+	// Add comprehensive production-ready middleware stack
 	router.Use(
+		middleware.Heartbeat("/ping"),                    // Health check endpoint
+		middleware.RealIP(),                              // Extract real client IP from proxy headers
 		middleware.RequestID(),                           // Generate unique request IDs
-		middleware.Recovery(),                            // Panic recovery
-		middleware.Logger(),                              // Request logging
-		middleware.Compress(),                            // Response compression
+		middleware.RecoveryWithConfig(middleware.RecoveryConfig{ // Panic recovery
+			EnableStackTrace: false, // Disable stack traces in production
+		}),
+		middleware.StructuredLogger(),                    // Structured logging with slog
+		middleware.Compress(),                            // Response compression (gzip/deflate/brotli)
 		middleware.BodyLimit5MB(),                        // Limit request body size to 5MB
-		middleware.RateLimit(),                           // Rate limiting (100 req/min by default)
+		ratelimit.RateLimit(),                            // Rate limiting (100 req/min by default)
 		middleware.CORS(middleware.DefaultCORSOptions()), // CORS support
 		validation.Middleware( // Request validation with i18n
 			validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
@@ -52,12 +57,12 @@ func main() {
 
 	// Simple hello endpoint
 	router.Get("/hello", func(c *grouter.Ctx) error {
-		return c.Status(200).JSON(map[string]string{"message": "Hello World"})
+		return c.JSON(map[string]string{"message": "Hello World"})
 	})
 
 	// Hello with name parameter
 	router.Get("/hello/{name}", func(c *grouter.Ctx) error {
-		return c.Status(200).JSON(map[string]string{
+		return c.JSON(map[string]string{
 			"message": fmt.Sprintf("Hello %s", c.PathValue("name")),
 			"query":   c.Query("q"),
 		})
@@ -78,7 +83,7 @@ func main() {
 	// Request ID demonstration
 	router.Get("/request-id", func(c *grouter.Ctx) error {
 		requestID := middleware.GetRequestID(c)
-		return c.Status(200).JSON(map[string]string{
+		return c.JSON(map[string]string{
 			"request_id": requestID,
 			"message":    "Request ID is automatically added to all requests",
 		})
@@ -89,7 +94,7 @@ func main() {
 	slowRouter.Get("/endpoint", func(c *grouter.Ctx) error {
 		// Simulate slow processing
 		time.Sleep(3 * time.Second)
-		return c.Status(200).JSON(map[string]string{"message": "This should timeout"})
+		return c.JSON(map[string]string{"message": "This should timeout"})
 	})
 
 	slog.Info("Server started on :8080")

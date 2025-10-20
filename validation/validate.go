@@ -104,16 +104,6 @@ func (v *Validator) Validate(data any, locale ...string) error {
 	return nil
 }
 
-// GetTranslator returns the translator for a given locale
-func (v *Validator) GetTranslator(locale string) (ut.Translator, bool) {
-	return v.uni.GetTranslator(locale)
-}
-
-// GetValidate returns the underlying validator instance for custom registrations
-func (v *Validator) GetValidate() *validator.Validate {
-	return v.validate
-}
-
 // formatValidationErrors formats validation errors using the translator
 func (v *Validator) formatValidationErrors(err error, locale string) error {
 	validationErrors, ok := err.(validator.ValidationErrors)
