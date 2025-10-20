@@ -9,6 +9,7 @@ import (
 
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 // RecoveryConfig holds configuration for the Recovery middleware
@@ -46,10 +47,7 @@ func DefaultRecoveryConfig() RecoveryConfig {
 //	    },
 //	}))
 func Recovery(config ...RecoveryConfig) grouter.Middleware {
-	cfg := DefaultRecoveryConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultRecoveryConfig)
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) (err error) {
 			defer func() {

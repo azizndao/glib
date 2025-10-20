@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/util"
 )
 
 // RealIPConfig holds configuration for the RealIP middleware
@@ -64,10 +65,7 @@ func DefaultRealIPConfig() RealIPConfig {
 //	    Headers: []string{"CF-Connecting-IP", "X-Forwarded-For"},
 //	}))
 func RealIP(config ...RealIPConfig) grouter.Middleware {
-	cfg := DefaultRealIPConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultRealIPConfig)
 	// Parse trusted proxy CIDRs
 	if len(cfg.TrustedProxies) > 0 {
 		cfg.trustedNets = make([]*net.IPNet, 0, len(cfg.TrustedProxies))

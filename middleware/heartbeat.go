@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/util"
 )
 
 // HeartbeatConfig holds configuration for the Heartbeat middleware
@@ -51,10 +52,7 @@ func DefaultHeartbeatConfig() HeartbeatConfig {
 //	    Response: "OK",
 //	}))
 func Heartbeat(config ...HeartbeatConfig) grouter.Middleware {
-	cfg := DefaultHeartbeatConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultHeartbeatConfig)
 
 	// Normalize endpoint
 	if !strings.HasPrefix(cfg.Endpoint, "/") {

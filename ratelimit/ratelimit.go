@@ -7,6 +7,7 @@ import (
 
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 // DefaultConfig returns default configuration for rate limiting
@@ -55,10 +56,7 @@ func DefaultRateLimitConfig() RateLimitConfig {
 //	    },
 //	}))
 func RateLimit(config ...Config) grouter.Middleware {
-	cfg := DefaultConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultConfig)
 
 	// Use default store if none provided
 	if cfg.Store == nil {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 // TimeoutConfig holds configuration for the Timeout middleware
@@ -82,10 +83,7 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 //	    },
 //	}))
 func Timeout(config ...TimeoutConfig) grouter.Middleware {
-	cfg := DefaultTimeoutConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultTimeoutConfig)
 
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {

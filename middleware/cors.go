@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/util"
 )
 
 // CORSConfig contains configuration for CORS middleware
@@ -45,10 +46,7 @@ func DefaultCORSConfig() CORSConfig {
 //	    AllowCredentials: true,
 //	}))
 func CORS(config ...CORSConfig) grouter.Middleware {
-	cfg := DefaultCORSConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultCORSConfig)
 
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {

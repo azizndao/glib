@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 // router implements the Router interface using Go's enhanced net/http features
@@ -30,15 +31,10 @@ func DefaultRouterOptions() RouterOptions {
 }
 
 // NewRouter creates a new router with default options
-func NewRouter() Router {
-	return NewRouterWithOptions(DefaultRouterOptions())
-}
-
-// NewRouterWithOptions creates a new router with custom options
-func NewRouterWithOptions(options RouterOptions) Router {
+func NewRouter(options ...RouterOptions) Router {
 	r := &router{
 		mux:     http.NewServeMux(),
-		options: options,
+		options: util.FirstOrDefault(options, DefaultRouterOptions),
 		routes:  make([]RouteInfo, 0),
 	}
 

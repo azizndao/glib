@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 	"github.com/go-playground/locales"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -54,10 +55,7 @@ func DefaultValidatorConfig() ValidatorConfig {
 
 // NewValidator creates a new validator instance with the given configuration
 func NewValidator(config ...ValidatorConfig) *Validator {
-	cfg := DefaultValidatorConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultValidatorConfig)
 
 	v := validator.New()
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 // BodyLimitConfig holds configuration for the BodyLimit middleware
@@ -58,10 +59,7 @@ func DefaultBodyLimitConfig() BodyLimitConfig {
 //	// Using helper function
 //	router.Use(middleware.BodyLimitWithSize(10 * 1024 * 1024)) // 10MB
 func BodyLimit(config ...BodyLimitConfig) grouter.Middleware {
-	cfg := DefaultBodyLimitConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultBodyLimitConfig)
 
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {

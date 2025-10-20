@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 
 	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/util"
 )
 
 // RequestIDConfig holds configuration for the RequestID middleware
@@ -59,10 +60,7 @@ func defaultRequestIDGenerator() string {
 //	    return c.JSON(map[string]string{"request_id": requestID})
 //	}
 func RequestID(config ...RequestIDConfig) grouter.Middleware {
-	cfg := DefaultRequestIDConfig()
-	if len(config) > 0 {
-		cfg = config[0]
-	}
+	cfg := util.FirstOrDefault(config, DefaultRequestIDConfig)
 
 	return func(next grouter.Handler) grouter.Handler {
 		return func(c *grouter.Ctx) error {
