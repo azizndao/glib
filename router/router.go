@@ -1,5 +1,5 @@
 // Package grouter provides utilities for HTTP routing
-package grouter
+package router
 
 import (
 	"fmt"
@@ -24,14 +24,14 @@ type router struct {
 // DefaultRouterOptions returns sensible default options
 func DefaultRouterOptions() RouterOptions {
 	return RouterOptions{
-		AutoOPtions:           true,
+		AutoOptions:           true,
 		AutoHEAD:              true,
 		TrailingSlashRedirect: true,
 	}
 }
 
-// NewRouter creates a new router with default options
-func NewRouter(options ...RouterOptions) Router {
+// Default creates a new router with default options
+func Default(options ...RouterOptions) Router {
 	return &router{
 		mux:     http.NewServeMux(),
 		options: util.FirstOrDefault(options, DefaultRouterOptions),
@@ -162,7 +162,7 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 	finalHandler := r.applyCtxMiddleware(handler, middleware)
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := NewCtx(w, req)
+		ctx := newCtx(w, req)
 
 		if err := finalHandler(ctx); err != nil {
 			var grouterErr *errors.ApiError

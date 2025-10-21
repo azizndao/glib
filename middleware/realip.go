@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
 )
 
@@ -46,6 +46,18 @@ func DefaultRealIPConfig() RealIPConfig {
 	}
 }
 
+// LoadRealIPConfig loads RealIPConfig from environment variables
+// Environment variable: ENABLE_REAL_IP (bool)
+// Returns nil if ENABLE_REAL_IP=false, otherwise returns default config
+func LoadRealIPConfig() *RealIPConfig {
+	if !util.GetEnvBool("ENABLE_REAL_IP", true) {
+		return nil
+	}
+
+	cfg := DefaultRealIPConfig()
+	return &cfg
+}
+
 // RealIP creates a middleware that sets the request's RemoteAddr to the real client IP.
 // This middleware should be used when your application is behind a reverse proxy or load balancer.
 //
@@ -64,7 +76,7 @@ func DefaultRealIPConfig() RealIPConfig {
 //	    },
 //	    Headers: []string{"CF-Connecting-IP", "X-Forwarded-For"},
 //	}))
-func RealIP(config ...RealIPConfig) grouter.Middleware {
+func RealIP(config ...RealIPConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultRealIPConfig)
 	// Parse trusted proxy CIDRs
 	if len(cfg.TrustedProxies) > 0 {
@@ -84,8 +96,8 @@ func RealIP(config ...RealIPConfig) grouter.Middleware {
 		cfg.Headers = DefaultRealIPConfig().Headers
 	}
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			// Get the remote address
 			remoteAddr := c.Request.RemoteAddr
 			host, _, err := net.SplitHostPort(remoteAddr)

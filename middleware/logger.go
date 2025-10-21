@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
+	"github.com/azizndao/grouter/util"
 )
 
 // ANSI color codes
@@ -67,6 +68,23 @@ func DefaultLoggerConfig() LoggerConfig {
 	}
 }
 
+// LoadLoggerConfig loads LoggerConfig from environment variables
+// Environment variables:
+//   - ENABLE_LOGGER (bool): enable/disable logger middleware
+//   - LOGGER_STRUCTURED (bool): use structured logging
+//
+// Returns nil if ENABLE_LOGGER=false, otherwise returns config
+func LoadLoggerConfig() *LoggerConfig {
+	if !util.GetEnvBool("ENABLE_LOGGER", true) {
+		return nil
+	}
+
+	cfg := DefaultLoggerConfig()
+	cfg.UseStructuredLogging = util.GetEnvBool("LOGGER_STRUCTURED", cfg.UseStructuredLogging)
+
+	return &cfg
+}
+
 // Logger creates a logging middleware with custom configuration
 //
 // Example usage:
@@ -85,7 +103,7 @@ func DefaultLoggerConfig() LoggerConfig {
 //	    Logger: slog.Default(),
 //	    LogLevel: slog.LevelInfo,
 //	}))
-func Logger(config ...LoggerConfig) grouter.Middleware {
+func Logger(config ...LoggerConfig) router.Middleware {
 	cfg := DefaultLoggerConfig()
 	if len(config) > 0 {
 		// Merge provided config with defaults
@@ -120,8 +138,8 @@ func Logger(config ...LoggerConfig) grouter.Middleware {
 		cfg.Logger = slog.Default()
 	}
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			// Skip if skip function returns true
 			if cfg.Skip != nil && cfg.Skip(c.Request) {
 				return next(c)
@@ -304,7 +322,7 @@ func truncate(s string, length int) string {
 }
 
 // logStructuredRequest logs the request using structured logging (slog)
-func logStructuredRequest(cfg LoggerConfig, c *grouter.Ctx, status, size int, duration time.Duration) {
+func logStructuredRequest(cfg LoggerConfig, c *router.Ctx, status, size int, duration time.Duration) {
 	requestID := GetRequestID(c)
 
 	// Determine log level based on status code
@@ -338,4 +356,3 @@ func logStructuredRequest(cfg LoggerConfig, c *grouter.Ctx, status, size int, du
 		cfg.Logger.Log(c.Context(), logLevel, "HTTP request", attrs...)
 	}
 }
-

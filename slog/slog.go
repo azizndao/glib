@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"reflect"
 	"runtime"
 	"time"
 
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/util"
 )
 
 type unwrapper interface {
@@ -20,6 +22,21 @@ type unwrapper interface {
 // functions so they take an error as parameter and handle `*errors.Error` gracefully.
 type Logger struct {
 	*slog.Logger
+}
+
+// Create creates a Logger from environment variables.
+// Environment variables:
+//   - IS_DEBUG (bool, default: false): When true, uses debug level and DevMode handler.
+//     When false, uses info level and JSON handler.
+//
+// Returns a Logger with JSON handler in production mode and DevMode handler in debug mode.
+func Create() *Logger {
+	isDebug := util.GetEnvBool("IS_DEBUG", false)
+
+	// Create handler based on debug mode
+	var handler slog.Handler = NewHandler(isDebug, os.Stdout)
+
+	return New(handler)
 }
 
 // New creates a new Logger with the given non-nil Handler and a nil context.
@@ -171,7 +188,7 @@ func structValue(v reflect.Value) slog.Value {
 		t := v.Type()
 		numField := t.NumField()
 		attrs = make([]slog.Attr, 0, numField)
-		for i := 0; i < numField; i++ {
+		for i := range numField {
 			fieldType := t.Field(i)
 			fieldValue := v.Field(i)
 			if !fieldType.IsExported() {

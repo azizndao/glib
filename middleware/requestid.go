@@ -4,8 +4,16 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
+)
+
+const (
+	// DefaultRequestIDContextKey is the default key used to store request ID in context
+	DefaultRequestIDContextKey = "requestID"
+
+	// DefaultRequestIDHeader is the default header name for request ID
+	DefaultRequestIDHeader = "X-Request-ID"
 )
 
 // RequestIDConfig holds configuration for the RequestID middleware
@@ -26,9 +34,9 @@ type RequestIDConfig struct {
 // DefaultRequestIDConfig returns default configuration for RequestID middleware
 func DefaultRequestIDConfig() RequestIDConfig {
 	return RequestIDConfig{
-		Header:     "X-Request-ID",
+		Header:     DefaultRequestIDHeader,
 		Generator:  defaultRequestIDGenerator,
-		ContextKey: "requestID",
+		ContextKey: DefaultRequestIDContextKey,
 	}
 }
 
@@ -40,6 +48,18 @@ func defaultRequestIDGenerator() string {
 		return hex.EncodeToString([]byte("fallback"))
 	}
 	return hex.EncodeToString(b)
+}
+
+// LoadRequestIDConfig loads RequestIDConfig from environment variables
+// Environment variable: ENABLE_REQUEST_ID (bool)
+// Returns nil if ENABLE_REQUEST_ID=false, otherwise returns default config
+func LoadRequestIDConfig() *RequestIDConfig {
+	if !util.GetEnvBool("ENABLE_REQUEST_ID", true) {
+		return nil
+	}
+
+	cfg := DefaultRequestIDConfig()
+	return &cfg
 }
 
 // RequestID creates a middleware that adds a unique request ID to each request.
@@ -59,11 +79,11 @@ func defaultRequestIDGenerator() string {
 //	    log.Printf("Request ID: %s", requestID)
 //	    return c.JSON(map[string]string{"request_id": requestID})
 //	}
-func RequestID(config ...RequestIDConfig) grouter.Middleware {
+func RequestID(config ...RequestIDConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultRequestIDConfig)
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			// Check if request ID already exists in header
 			requestID := c.Get(cfg.Header)
 			if requestID == "" {
@@ -84,8 +104,10 @@ func RequestID(config ...RequestIDConfig) grouter.Middleware {
 
 // GetRequestID is a helper function to retrieve the request ID from context
 // Returns empty string if not found
-func GetRequestID(c *grouter.Ctx) string {
-	if id := c.GetValue("requestID"); id != nil {
+// Note: This uses the default context key. If you changed the ContextKey in config,
+// use c.GetValue(yourContextKey) directly instead.
+func GetRequestID(c *router.Ctx) string {
+	if id := c.GetValue(DefaultRequestIDContextKey); id != nil {
 		if requestID, ok := id.(string); ok {
 			return requestID
 		}

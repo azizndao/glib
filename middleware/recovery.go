@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
 )
 
@@ -20,7 +20,7 @@ type RecoveryConfig struct {
 
 	// PanicHandler is an optional custom handler for panics
 	// If nil, default behavior is to return 500 error
-	PanicHandler func(*grouter.Ctx, any)
+	PanicHandler func(*router.Ctx, any)
 }
 
 // DefaultRecoveryConfig returns default recovery configuration
@@ -29,6 +29,23 @@ func DefaultRecoveryConfig() RecoveryConfig {
 		EnableStackTrace: true,
 		PanicHandler:     nil,
 	}
+}
+
+// LoadRecoveryConfig loads RecoveryConfig from environment variables
+// Environment variables:
+//   - ENABLE_RECOVERY (bool): enable/disable recovery middleware
+//   - RECOVERY_STACK_TRACE (bool): enable stack traces
+//
+// Returns nil if ENABLE_RECOVERY=false, otherwise returns config
+func LoadRecoveryConfig() *RecoveryConfig {
+	if !util.GetEnvBool("ENABLE_RECOVERY", true) {
+		return nil
+	}
+
+	cfg := DefaultRecoveryConfig()
+	cfg.EnableStackTrace = util.GetEnvBool("RECOVERY_STACK_TRACE", cfg.EnableStackTrace)
+
+	return &cfg
 }
 
 // Recovery middleware for panic recovery
@@ -46,10 +63,10 @@ func DefaultRecoveryConfig() RecoveryConfig {
 //	        c.Status(500).JSON(map[string]string{"error": "internal server error"})
 //	    },
 //	}))
-func Recovery(config ...RecoveryConfig) grouter.Middleware {
+func Recovery(config ...RecoveryConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultRecoveryConfig)
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) (err error) {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) (err error) {
 			defer func() {
 				if rvr := recover(); rvr != nil {
 					// Don't recover http.ErrAbortHandler - let it propagate

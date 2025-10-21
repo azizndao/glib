@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/azizndao/grouter/errors"
 	"github.com/stretchr/testify/assert"
-	"goyave.dev/goyave/v5/util/errors"
 )
 
 type testValuerError struct{}

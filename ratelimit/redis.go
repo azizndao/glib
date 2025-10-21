@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 )
@@ -77,6 +78,23 @@ local ttl = window - (now - window_start)
 return {count, ttl}
 `
 
+// Lua script for atomic decrement
+const decrementScript = `
+local key = KEYS[1]
+
+-- Get current count
+local data = redis.call('HMGET', key, 'count')
+local count = tonumber(data[1]) or 0
+
+-- Decrement if greater than 0
+if count > 0 then
+    count = count - 1
+    redis.call('HSET', key, 'count', count)
+end
+
+return count
+`
+
 // Increment increments the counter for the given key using Lua script for atomicity
 func (r *RedisStore) Increment(ctx context.Context, key string, window time.Duration) (int, time.Duration, error) {
 	fullKey := r.prefix + key
@@ -107,6 +125,19 @@ func (r *RedisStore) Increment(ctx context.Context, key string, window time.Dura
 
 	ttl := time.Duration(ttlSeconds) * time.Second
 	return count, ttl, nil
+}
+
+// Decrement decrements the counter for the given key using Lua script for atomicity
+func (r *RedisStore) Decrement(ctx context.Context, key string) error {
+	fullKey := r.prefix + key
+
+	// Execute Lua script
+	_, err := r.client.Eval(ctx, decrementScript, []string{fullKey})
+	if err != nil {
+		return fmt.Errorf("redis decrement failed: %w", err)
+	}
+
+	return nil
 }
 
 // Get returns the current count for the given key
@@ -141,14 +172,27 @@ func (r *RedisStore) Close() error {
 }
 
 // toInt converts interface{} to int (handles both int64 and string from Redis)
+// Returns error if the value would overflow on the current platform
 func toInt(val interface{}) (int, error) {
 	switch v := val.(type) {
 	case int:
 		return v, nil
 	case int64:
+		// Check for overflow on platforms where int is 32-bit
+		if v > math.MaxInt || v < math.MinInt {
+			return 0, fmt.Errorf("value %d overflows int on this platform", v)
+		}
 		return int(v), nil
 	case string:
-		return strconv.Atoi(v)
+		i64, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		// Check for overflow
+		if i64 > math.MaxInt || i64 < math.MinInt {
+			return 0, fmt.Errorf("value %d overflows int on this platform", i64)
+		}
+		return int(i64), nil
 	default:
 		return 0, fmt.Errorf("cannot convert %T to int", val)
 	}

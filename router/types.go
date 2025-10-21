@@ -1,4 +1,4 @@
-package grouter
+package router
 
 import (
 	"net/http"
@@ -49,7 +49,7 @@ type RouteInfo struct {
 }
 
 type RouterOptions struct {
-	AutoOPTIONS bool
+	AutoOptions bool
 
 	AutoHEAD bool
 

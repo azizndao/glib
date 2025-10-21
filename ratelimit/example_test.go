@@ -5,103 +5,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/ratelimit"
+	"github.com/azizndao/grouter/router"
 )
 
-// Example using default in-memory store
-func ExampleRateLimit() {
-	router := grouter.NewRouter()
-
-	// Default: 100 requests per minute per IP
-	router.Use(ratelimit.RateLimit())
-
-	router.Get("/api/data", func(c *grouter.Ctx) error {
-		return c.JSON(map[string]string{"data": "value"})
-	})
-}
-
-// Example with custom configuration
-func ExampleRateLimit_customConfig() {
-	router := grouter.NewRouter()
-
-	// Custom: 50 requests per minute
-	router.Use(ratelimit.RateLimit(ratelimit.Config{
-		Max:    50,
-		Window: time.Minute,
-	}))
-}
-
-// Example with custom key generator (rate limit by user ID)
-func ExampleRateLimit_customKeyGenerator() {
-	router := grouter.NewRouter()
-
-	router.Use(ratelimit.RateLimit(ratelimit.Config{
-		Max:    100,
-		Window: time.Minute,
-		KeyGenerator: func(c *grouter.Ctx) string {
-			// Rate limit authenticated users by ID
-			if userID := c.Get("userID"); userID != "" {
-				return "user:" + userID
-			}
-			// Fall back to IP for anonymous users
-			return "ip:" + c.IP()
-		},
-	}))
-}
-
-// Example with custom handler
-func ExampleRateLimit_customHandler() {
-	router := grouter.NewRouter()
-
-	router.Use(ratelimit.RateLimit(ratelimit.Config{
-		Max:    100,
-		Window: time.Minute,
-		Handler: func(c *grouter.Ctx) error {
-			return c.Status(429).JSON(map[string]any{
-				"error":      "rate_limit_exceeded",
-				"message":    "Too many requests. Please try again later.",
-				"retryAfter": c.Get("Retry-After"),
-			})
-		},
-	}))
-}
-
-// Example using memory store directly
-func ExampleNewMemoryStore() {
-	store := ratelimit.NewMemoryStore()
-	defer store.Close()
-
-	router := grouter.NewRouter()
-
-	router.Use(ratelimit.RateLimit(ratelimit.Config{
-		Max:    100,
-		Window: time.Minute,
-		Store:  store,
-	}))
-}
-
-// Example with per-route rate limiting
 func ExampleRateLimit_perRoute() {
-	router := grouter.NewRouter()
+	r := router.Default()
 
 	// Global rate limit: 1000 requests per minute
-	router.Use(ratelimit.RateLimit(ratelimit.Config{
+	r.Use(ratelimit.RateLimit(ratelimit.Config{
 		Max:    1000,
 		Window: time.Minute,
 	}))
 
 	// API routes with stricter limit: 10 requests per minute
-	apiGroup := router.Group("/api")
+	apiGroup := r.Group("/api")
 	apiGroup.Use(ratelimit.RateLimit(ratelimit.Config{
 		Max:    10,
 		Window: time.Minute,
-		KeyGenerator: func(c *grouter.Ctx) string {
+		KeyGenerator: func(c *router.Ctx) string {
 			return "api:" + c.IP()
 		},
 	}))
 
-	apiGroup.Get("/sensitive", func(c *grouter.Ctx) error {
+	apiGroup.Get("/sensitive", func(c *router.Ctx) error {
 		return c.JSON(map[string]string{"data": "sensitive"})
 	})
 }

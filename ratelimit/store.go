@@ -5,7 +5,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
+)
+
+const (
+	// DefaultCleanupInterval is the interval at which the memory store cleanup runs
+	DefaultCleanupInterval = time.Minute
+
+	// DefaultMaxAge is the maximum age of entries before they are removed during cleanup
+	DefaultMaxAge = 10 * time.Minute
 )
 
 // Store is the interface for rate limit storage backends
@@ -15,6 +23,10 @@ type Store interface {
 	// If the key doesn't exist or has expired, it creates a new counter starting at 1
 	// Returns: (current count, time until window expires, error)
 	Increment(ctx context.Context, key string, window time.Duration) (int, time.Duration, error)
+
+	// Decrement decrements the counter for the given key
+	// Returns error if key doesn't exist
+	Decrement(ctx context.Context, key string) error
 
 	// Get returns the current count for the given key
 	// Returns: (current count, time until window expires, error)
@@ -41,11 +53,11 @@ type Config struct {
 
 	// KeyGenerator is a function that generates a unique key for each client
 	// Default: uses IP address
-	KeyGenerator func(*grouter.Ctx) string
+	KeyGenerator func(*router.Ctx) string
 
 	// Handler is called when rate limit is exceeded
 	// Default: returns 429 Too Many Requests
-	Handler grouter.Handler
+	Handler router.Handler
 
 	// SkipFailedRequests determines if failed requests should be counted
 	// Default: false
@@ -79,12 +91,12 @@ type memoryEntry struct {
 }
 
 // NewMemoryStore creates a new in-memory store for rate limiting
-// The cleanup interval is set to run every minute to remove expired entries
+// The cleanup runs every DefaultCleanupInterval to remove entries older than DefaultMaxAge
 func NewMemoryStore() *MemoryStore {
 	store := &MemoryStore{
 		entries: make(map[string]*memoryEntry),
 		done:    make(chan struct{}),
-		cleanup: time.NewTicker(time.Minute),
+		cleanup: time.NewTicker(DefaultCleanupInterval),
 	}
 
 	// Start cleanup goroutine
@@ -128,6 +140,25 @@ func (m *MemoryStore) Increment(ctx context.Context, key string, window time.Dur
 	return entry.count, ttl, nil
 }
 
+// Decrement decrements the counter for the given key
+func (m *MemoryStore) Decrement(ctx context.Context, key string) error {
+	m.mu.RLock()
+	entry, exists := m.entries[key]
+	m.mu.RUnlock()
+
+	if !exists {
+		return nil // Key doesn't exist, nothing to decrement
+	}
+
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	if entry.count > 0 {
+		entry.count--
+	}
+	return nil
+}
+
 // Get returns the current count for the given key
 func (m *MemoryStore) Get(ctx context.Context, key string) (int, time.Duration, error) {
 	m.mu.RLock()
@@ -164,12 +195,11 @@ func (m *MemoryStore) cleanupRoutine() {
 		select {
 		case <-m.cleanup.C:
 			now := time.Now()
-			maxAge := 10 * time.Minute // Remove entries older than 10 minutes
 
 			m.mu.Lock()
 			for key, entry := range m.entries {
 				entry.mu.Lock()
-				if now.Sub(entry.windowStart) > maxAge {
+				if now.Sub(entry.windowStart) > DefaultMaxAge {
 					delete(m.entries, key)
 				}
 				entry.mu.Unlock()

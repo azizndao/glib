@@ -7,9 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
+)
+
+const (
+	// DefaultTimeout is the default timeout duration for requests
+	DefaultTimeout = 30 * time.Second
 )
 
 // TimeoutConfig holds configuration for the Timeout middleware
@@ -20,14 +25,14 @@ type TimeoutConfig struct {
 
 	// ErrorHandler is called when timeout occurs
 	// Default: returns 504 Gateway Timeout
-	ErrorHandler grouter.Handler
+	ErrorHandler router.Handler
 }
 
 // DefaultTimeoutConfig returns default timeout configuration
 func DefaultTimeoutConfig() TimeoutConfig {
 	return TimeoutConfig{
-		Timeout: 30 * time.Second,
-		ErrorHandler: func(c *grouter.Ctx) error {
+		Timeout: DefaultTimeout,
+		ErrorHandler: func(c *router.Ctx) error {
 			return errors.NewApi(http.StatusGatewayTimeout, "Gateway Timeout", nil)
 		},
 	}
@@ -65,6 +70,9 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 
 // Timeout middleware for request timeout handling
 //
+// IMPORTANT: Handlers must respect context cancellation to prevent goroutine leaks.
+// Always check ctx.Done() in long-running operations.
+//
 // Example usage:
 //
 //	// Use default configuration (30 seconds)
@@ -82,11 +90,21 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 //	        return c.Status(504).JSON(map[string]string{"error": "request timeout"})
 //	    },
 //	}))
-func Timeout(config ...TimeoutConfig) grouter.Middleware {
+//
+//	// Handler that respects context cancellation:
+//	func handler(c *router.Ctx) error {
+//	    select {
+//	    case <-c.Context().Done():
+//	        return c.Context().Err()
+//	    case result := <-someLongOperation():
+//	        return c.JSON(result)
+//	    }
+//	}
+func Timeout(config ...TimeoutConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultTimeoutConfig)
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			// Create a context with timeout
 			ctx, cancel := context.WithTimeout(c.Context(), cfg.Timeout)
 			defer cancel()
@@ -108,6 +126,8 @@ func Timeout(config ...TimeoutConfig) grouter.Middleware {
 			c.Request = c.Request.WithContext(ctx)
 
 			// Execute handler with timeout
+			// Buffered channels (size 1) prevent the goroutine from blocking on send
+			// even if the select statement exits due to timeout
 			done := make(chan error, 1)
 			panicChan := make(chan any, 1)
 

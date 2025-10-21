@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
 )
 
@@ -32,6 +32,18 @@ func DefaultCORSConfig() CORSConfig {
 	}
 }
 
+// LoadCORSConfig loads CORSConfig from environment variables
+// Environment variable: ENABLE_CORS (bool)
+// Returns nil if ENABLE_CORS=false, otherwise returns default config
+func LoadCORSConfig() *CORSConfig {
+	if !util.GetEnvBool("ENABLE_CORS", true) {
+		return nil
+	}
+
+	cfg := DefaultCORSConfig()
+	return &cfg
+}
+
 // CORS middleware for handling Cross-Origin Resource Sharing
 //
 // Example usage:
@@ -45,11 +57,11 @@ func DefaultCORSConfig() CORSConfig {
 //	    AllowedMethods: []string{"GET", "POST"},
 //	    AllowCredentials: true,
 //	}))
-func CORS(config ...CORSConfig) grouter.Middleware {
+func CORS(config ...CORSConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultCORSConfig)
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			origin := c.Get("Origin")
 
 			// Set CORS headers

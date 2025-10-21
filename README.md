@@ -45,52 +45,131 @@ package main
 
 import (
     "fmt"
-    "log/slog"
-    "net/http"
 
     "github.com/azizndao/grouter"
-    "github.com/azizndao/grouter/middleware"
+    "github.com/azizndao/grouter/router"
 )
 
 func main() {
-    router := grouter.NewRouter()
+    // Create server - all configuration loaded from environment variables
+    // See Environment Configuration section below for available options
+    server := grouter.New()
 
-    // Add middleware
-    router.Use(middleware.Logger(), middleware.Recovery())
+    // Get the router to register routes
+    r := server.Router()
 
     // Define routes
-    router.Get("/hello", func(c *grouter.Ctx) error {
-        return c.Status(200).JSON(map[string]string{"message": "Hello World"})
+    r.Get("/hello", func(c *router.Ctx) error {
+        return c.JSON(map[string]string{"message": "Hello World"})
     })
 
-    router.Get("/hello/{name}", func(c *grouter.Ctx) error {
-        return c.Status(200).JSON(map[string]string{
+    r.Get("/hello/{name}", func(c *router.Ctx) error {
+        return c.JSON(map[string]string{
             "message": fmt.Sprintf("Hello %s", c.PathValue("name")),
             "query":   c.Query("q"),
         })
     })
 
-    slog.Default().Info("Server started")
-    http.ListenAndServe(":8080", router.Handler())
+    // Start server with automatic graceful shutdown on SIGINT/SIGTERM
+    server.Logger().Info("Starting server", "address", server.Address())
+    if err := server.ListenWithGracefulShutdown(); err != nil {
+        server.Logger().Error(err)
+    }
 }
 ```
 
+## Environment Configuration
+
+GRouter is fully configurable via environment variables. Copy `.env.example` to `.env` and customize as needed:
+
+```env
+# Server Configuration
+IS_DEBUG=false              # Debug mode (sets debug level + colored DevMode handler)
+
+# Server settings
+HOST=localhost
+PORT=8080
+
+# Timeouts (Go duration format: 10s, 1m, 1h30m)
+READ_TIMEOUT=10s
+WRITE_TIMEOUT=10s
+IDLE_TIMEOUT=120s
+SHUTDOWN_TIMEOUT=30s
+
+# Middleware enable/disable (true/false, 1/0, yes/no, on/off)
+ENABLE_REAL_IP=true
+ENABLE_REQUEST_ID=true
+ENABLE_RECOVERY=true
+ENABLE_LOGGER=true
+ENABLE_COMPRESS=true
+ENABLE_CORS=true
+
+# Body limit (in bytes, e.g., 4194304 = 4MB)
+BODY_LIMIT=5242880
+
+# Rate limiting
+ENABLE_RATE_LIMIT=true
+RATE_LIMIT_MAX=100
+RATE_LIMIT_WINDOW=1m
+
+# Logger configuration
+LOGGER_STRUCTURED=false     # Use structured logging (slog)
+
+# Recovery configuration
+RECOVERY_STACK_TRACE=false  # Enable stack traces in recovery
+```
+
+All middleware are automatically loaded and configured from environment variables when you call `grouter.New()`.
+
 ## API Reference
 
-### Router Creation
+### Server Creation
 
 ```go
-// Create router with default options
-router := grouter.NewRouter()
+// Create server with default configuration (loads from environment variables)
+server := grouter.New()
 
-// Create router with custom options
-router := grouter.NewRouter(grouter.RouterOptions{
-    AutoOPTIONS:           true,
-    AutoHEAD:              true,
-    TrailingSlashRedirect: true,
-    EnableLogging:         true,
-})
+// Create server with validation locales for i18n error messages
+server := grouter.New(
+    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
+)
+
+// Access the router
+r := server.Router()
+
+// Access the logger
+logger := server.Logger()
+
+// Get server address
+addr := server.Address() // Returns "host:port"
 ```
+
+### Server Methods
+
+```go
+// Start HTTP server with graceful shutdown (recommended)
+err := server.ListenWithGracefulShutdown()
+
+// Start HTTP server without graceful shutdown
+err := server.Listen()
+
+// Start HTTPS server with graceful shutdown
+err := server.ListenTLSWithGracefulShutdown(certFile, keyFile)
+
+// Start HTTPS server without graceful shutdown
+err := server.ListenTLS(certFile, keyFile)
+
+// Manually shutdown the server
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+err := server.Shutdown(ctx)
+
+// Register custom rate limit stores for cleanup
+server.RegisterStore(redisStore)
+```
+
+### Router Methods
 
 ### HTTP Methods
 
@@ -233,9 +312,13 @@ func handler(c *grouter.Ctx) error {
 
 ### Middleware
 
-All middleware in GRouter now uses the `*Ctx` interface, providing a cleaner and more powerful API.
+All middleware in GRouter uses the `*Ctx` interface, providing a cleaner and more powerful API.
 
-**Middleware signature:** `func(grouter.Handler) grouter.Handler` where `Handler` is `func(*Ctx) error`
+**Middleware signature:** `func(router.Handler) router.Handler` where `Handler` is `func(*Ctx) error`
+
+When using `grouter.New()`, middleware are **automatically loaded and configured from environment variables**. You can disable individual middleware by setting their corresponding `ENABLE_*` environment variable to `false`.
+
+For custom configurations or when building routes manually, you can also configure middleware programmatically:
 
 #### Built-in Middleware
 
@@ -243,6 +326,7 @@ All middleware in GRouter now uses the `*Ctx` interface, providing a cleaner and
 import (
     "github.com/azizndao/grouter/middleware"
     "github.com/azizndao/grouter/ratelimit"
+    "github.com/azizndao/grouter/router"
     "github.com/azizndao/grouter/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
@@ -250,62 +334,74 @@ import (
     es_translations "github.com/go-playground/validator/v10/translations/es"
 )
 
-// Request ID middleware - generates unique request IDs
-router.Use(middleware.RequestID())
+// With grouter.New(), middleware are automatically loaded from environment variables
+// No manual router.Use() calls needed unless you want custom configuration
 
+// Request ID middleware - generates unique request IDs (auto-enabled with ENABLE_REQUEST_ID=true)
 // Access request ID in handlers
-func handler(c *grouter.Ctx) error {
+func handler(c *router.Ctx) error {
     requestID := middleware.GetRequestID(c)
     return c.JSON(map[string]string{"request_id": requestID})
 }
 
-// Logger middleware - colorful console logging
-router.Use(middleware.Logger())
+// If you need custom middleware configuration, you can still add them manually:
+r := server.Router()
+r.Use(middleware.RequestID(middleware.RequestIDConfig{
+    Generator: func() string {
+        return customIDGenerator()
+    },
+}))
+
+// === Manual Middleware Configuration Examples ===
+// These are only needed if you're NOT using grouter.New() or need custom config
+
+// Logger middleware - colorful console logging (auto-enabled with ENABLE_LOGGER=true)
+r.Use(middleware.Logger())
 
 // Logger with custom format
-router.Use(middleware.Logger(middleware.LoggerConfig{
+r.Use(middleware.Logger(middleware.LoggerConfig{
     Format: middleware.LogFormatTiny, // Minimal format
 }))
 
 // Structured logging with slog (recommended for production)
-router.Use(middleware.Logger(middleware.LoggerConfig{
+r.Use(middleware.Logger(middleware.LoggerConfig{
     UseStructuredLogging: true,
     Logger:               slog.Default(),
     LogLevel:             slog.LevelInfo,
 }))
 
-// Recovery middleware - panic recovery
-router.Use(middleware.Recovery())
+// Recovery middleware - panic recovery (auto-enabled with ENABLE_RECOVERY=true)
+r.Use(middleware.Recovery())
 
 // Recovery with custom config
-router.Use(middleware.Recovery(middleware.RecoveryConfig{
+r.Use(middleware.Recovery(middleware.RecoveryConfig{
     EnableStackTrace: false, // Disable stack traces in production
 }))
 
-// Compression middleware - gzip/deflate compression
-router.Use(middleware.Compress())
+// Compression middleware - gzip/deflate compression (auto-enabled with ENABLE_COMPRESS=true)
+r.Use(middleware.Compress())
 
 // Compression with custom level
-router.Use(middleware.Compress(middleware.CompressConfig{
+r.Use(middleware.Compress(middleware.CompressConfig{
     Level: gzip.BestCompression,
 }))
 
-// Body size limit middleware - prevent DoS attacks (default 4MB)
-router.Use(middleware.BodyLimit())
+// Body size limit middleware - prevent DoS attacks (configured via BODY_LIMIT env var)
+r.Use(middleware.BodyLimit())
 
 // Body limit with custom size
-router.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
+r.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
     MaxSize: 10 * middleware.MB, // 10MB
 }))
 
-// Rate limiting middleware - prevent abuse (default 100 req/min by IP)
-router.Use(ratelimit.RateLimit())
+// Rate limiting middleware - prevent abuse (auto-enabled with ENABLE_RATE_LIMIT=true)
+r.Use(ratelimit.RateLimit())
 
 // Rate limiting with custom config
-router.Use(ratelimit.RateLimit(ratelimit.Config{
+r.Use(ratelimit.RateLimit(ratelimit.Config{
     Max:    50,
     Window: time.Minute,
-    KeyGenerator: func(c *grouter.Ctx) string {
+    KeyGenerator: func(c *router.Ctx) string {
         // Rate limit by user ID if authenticated
         if userID := c.GetValue("userID"); userID != nil {
             return userID.(string)
@@ -314,11 +410,11 @@ router.Use(ratelimit.RateLimit(ratelimit.Config{
     },
 }))
 
-// CORS middleware - cross-origin resource sharing (default allows all origins)
-router.Use(middleware.CORS())
+// CORS middleware - cross-origin resource sharing (auto-enabled with ENABLE_CORS=true)
+r.Use(middleware.CORS())
 
 // CORS with custom config
-router.Use(middleware.CORS(middleware.CORSConfig{
+r.Use(middleware.CORS(middleware.CORSConfig{
     AllowedOrigins:   []string{"https://example.com"},
     AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
     AllowedHeaders:   []string{"Authorization", "Content-Type"},
@@ -326,70 +422,34 @@ router.Use(middleware.CORS(middleware.CORSConfig{
     MaxAge:           24 * time.Hour,
 }))
 
-// Timeout middleware - request timeout handling (default 30 seconds)
-router.Use(middleware.Timeout())
+// Timeout middleware - request timeout handling
+r.Use(middleware.Timeout())
 
 // Timeout with custom duration
-router.Use(middleware.Timeout(middleware.TimeoutConfig{
+r.Use(middleware.Timeout(middleware.TimeoutConfig{
     Timeout: 10 * time.Second,
 }))
 
-// Heartbeat middleware - health check endpoint
-router.Use(middleware.Heartbeat()) // Responds to GET /ping with 200 OK
-
-// Heartbeat with custom config
-router.Use(middleware.Heartbeat(middleware.HeartbeatConfig{
-    Endpoint: "/health",
-    Response: "OK",
-}))
-
-// RealIP middleware - extract real client IP from proxy headers
-router.Use(middleware.RealIP()) // Trusts common private networks by default
+// RealIP middleware - extract real client IP from proxy headers (auto-enabled with ENABLE_REAL_IP=true)
+r.Use(middleware.RealIP()) // Trusts common private networks by default
 
 // RealIP with custom trusted proxies
-router.Use(middleware.RealIP(middleware.RealIPConfig{
+r.Use(middleware.RealIP(middleware.RealIPConfig{
     TrustedProxies: []string{"10.0.0.0/8"}, // Only trust this network
     Headers:        []string{"CF-Connecting-IP", "X-Forwarded-For"},
 }))
-
-// Validator middleware - request validation with i18n
-router.Use(validation.Middleware(
-    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-))
-
-// Combine multiple middleware - recommended production setup
-router.Use(
-    middleware.Heartbeat(),              // Health check endpoint
-    middleware.RealIP(),                 // Extract real client IP
-    middleware.RequestID(),              // Request tracking
-    middleware.Recovery(middleware.RecoveryConfig{
-        EnableStackTrace: false,         // Disable stack traces in production
-    }),
-    middleware.Logger(middleware.LoggerConfig{
-        UseStructuredLogging: true,      // Use structured logging
-    }),
-    middleware.Compress(),               // Response compression
-    middleware.BodyLimit(middleware.BodyLimitConfig{
-        MaxSize: 5 * middleware.MB,      // 5MB body limit
-    }),
-    ratelimit.RateLimit(),               // Rate limiting
-    middleware.CORS(),                   // CORS with defaults
-    validation.Middleware(               // Validation with i18n
-        validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-        validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-    ),
-)
 ```
 
 #### Custom Middleware
 
-Middleware works directly with the `*Ctx` interface for cleaner composition:
+Middleware works directly with the `*router.Ctx` interface for cleaner composition:
 
 ```go
+import "github.com/azizndao/grouter/router"
+
 // Basic middleware template
-func customMiddleware(next grouter.Handler) grouter.Handler {
-    return func(c *grouter.Ctx) error {
+func customMiddleware(next router.Handler) router.Handler {
+    return func(c *router.Ctx) error {
         // Before request - access to full Ctx API
         start := time.Now()
         userID := c.Get("X-User-ID")
@@ -405,11 +465,13 @@ func customMiddleware(next grouter.Handler) grouter.Handler {
     }
 }
 
-router.Use(customMiddleware)
+// Apply custom middleware
+r := server.Router()
+r.Use(customMiddleware)
 
 // Authentication middleware example
-func authMiddleware(next grouter.Handler) grouter.Handler {
-    return func(c *grouter.Ctx) error {
+func authMiddleware(next router.Handler) router.Handler {
+    return func(c *router.Ctx) error {
         token := c.Authorization()
         if token == "" {
             return c.Status(401).JSON(map[string]string{"error": "Unauthorized"})
@@ -427,12 +489,12 @@ func authMiddleware(next grouter.Handler) grouter.Handler {
 }
 
 // Rate limiting middleware example
-func rateLimiter(requestsPerMinute int) grouter.Middleware {
+func rateLimiter(requestsPerMinute int) router.Middleware {
     // Setup rate limiter
     limiter := rate.NewLimiter(rate.Limit(requestsPerMinute), requestsPerMinute)
 
-    return func(next grouter.Handler) grouter.Handler {
-        return func(c *grouter.Ctx) error {
+    return func(next router.Handler) router.Handler {
+        return func(c *router.Ctx) error {
             if !limiter.Allow() {
                 return c.Status(429).JSON(map[string]string{
                     "error": "Too many requests",
@@ -510,6 +572,8 @@ router.Use(validation.Middleware(
 #### Using Validation
 
 ```go
+import "github.com/azizndao/grouter/router"
+
 type CreateUserRequest struct {
     Email    string `json:"email" validate:"required,email"`
     Password string `json:"password" validate:"required,min=8"`
@@ -517,7 +581,7 @@ type CreateUserRequest struct {
     Age      int    `json:"age" validate:"required,gte=18"`
 }
 
-func createUser(c *grouter.Ctx) error {
+func createUser(c *router.Ctx) error {
     var req CreateUserRequest
 
     // Parse and validate in one call
@@ -633,8 +697,10 @@ for _, route := range routes {
 Store and retrieve values in the request context:
 
 ```go
-func authMiddleware(next grouter.Handler) grouter.Handler {
-    return func(c *grouter.Ctx) error {
+import "github.com/azizndao/grouter/router"
+
+func authMiddleware(next router.Handler) router.Handler {
+    return func(c *router.Ctx) error {
         // Authenticate and set user in context
         user := authenticateUser(c)
         c.Request = c.SetValue("user", user)
@@ -642,7 +708,7 @@ func authMiddleware(next grouter.Handler) grouter.Handler {
     }
 }
 
-func handler(c *grouter.Ctx) error {
+func handler(c *router.Ctx) error {
     // Retrieve user from context
     user := c.GetValue("user")
     return c.Status(200).JSON(user)

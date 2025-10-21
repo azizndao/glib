@@ -1,4 +1,4 @@
-package grouter
+package router
 
 import (
 	"context"
@@ -24,8 +24,8 @@ type Ctx struct {
 	bodyRead   bool   // Track if body has been read
 }
 
-// NewCtx creates a new Context from request and response
-func NewCtx(w http.ResponseWriter, r *http.Request) *Ctx {
+// newCtx creates a new Context from request and response
+func newCtx(w http.ResponseWriter, r *http.Request) *Ctx {
 	return &Ctx{
 		Request:    r,
 		Response:   w,

@@ -8,10 +8,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 
-	"github.com/azizndao/grouter"
+	"github.com/azizndao/grouter/router"
+	"github.com/azizndao/grouter/util"
 )
 
 // Encoder is an interface that wraps the compression writer
@@ -99,7 +101,7 @@ func (c *Compressor) SetEncoder(encoding string, fn EncoderFunc) {
 	if _, ok := encoder.(ioResetterWriter); ok {
 		// Create pool for resettable encoders
 		pool := &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return fn(io.Discard, c.level)
 			},
 		}
@@ -146,9 +148,9 @@ func (c *Compressor) Handler(next http.Handler) http.Handler {
 }
 
 // Middleware returns a grouter-compatible middleware
-func (c *Compressor) Middleware() grouter.Middleware {
-	return func(next grouter.Handler) grouter.Handler {
-		return func(ctx *grouter.Ctx) error {
+func (c *Compressor) Middleware() router.Middleware {
+	return func(next router.Handler) router.Handler {
+		return func(ctx *router.Ctx) error {
 			encoder, encoding, cleanup := c.selectEncoder(ctx.Request.Header, ctx.Response)
 			if encoder == nil {
 				// No acceptable encoding found
@@ -307,7 +309,7 @@ func (fe *flateEncoder) Flush() error {
 // parseAcceptEncoding parses the Accept-Encoding header
 func parseAcceptEncoding(s string) []string {
 	var encodings []string
-	for _, enc := range strings.Split(s, ",") {
+	for enc := range strings.SplitSeq(s, ",") {
 		enc = strings.TrimSpace(enc)
 		// Remove quality value if present
 		if idx := strings.Index(enc, ";"); idx != -1 {
@@ -323,12 +325,7 @@ func parseAcceptEncoding(s string) []string {
 
 // contains checks if a slice contains a string
 func contains(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // isCompressible checks if the content type should be compressed
@@ -397,6 +394,18 @@ func DefaultCompressConfig() CompressConfig {
 	}
 }
 
+// LoadCompressConfig loads CompressConfig from environment variables
+// Environment variable: ENABLE_COMPRESS (bool)
+// Returns nil if ENABLE_COMPRESS=false, otherwise returns default config
+func LoadCompressConfig() *CompressConfig {
+	if !util.GetEnvBool("ENABLE_COMPRESS", true) {
+		return nil
+	}
+
+	cfg := DefaultCompressConfig()
+	return &cfg
+}
+
 // Compress creates a compression middleware with gzip/deflate support
 //
 // Example usage:
@@ -419,7 +428,7 @@ func DefaultCompressConfig() CompressConfig {
 //	        },
 //	    },
 //	}))
-func Compress(config ...CompressConfig) grouter.Middleware {
+func Compress(config ...CompressConfig) router.Middleware {
 	cfg := DefaultCompressConfig()
 	if len(config) > 0 {
 		cfg = config[0]

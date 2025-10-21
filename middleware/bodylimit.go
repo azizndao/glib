@@ -5,34 +5,75 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
+)
+
+// Common size constants for convenience
+const (
+	KB = 1024
+	MB = 1024 * KB
+	GB = 1024 * MB
+
+	// DefaultBodyLimit is the default maximum request body size (4MB)
+	DefaultBodyLimit = 4 * MB
 )
 
 // BodyLimitConfig holds configuration for the BodyLimit middleware
 type BodyLimitConfig struct {
 	// MaxSize is the maximum allowed size of request body in bytes
-	// Default: 4MB (4 * 1024 * 1024)
+	// Default: 4MB (DefaultBodyLimit)
 	MaxSize int64
 
 	// SkipFunc is a function that determines if body size check should be skipped
 	// Default: nil (check all requests)
-	SkipFunc func(*grouter.Ctx) bool
+	SkipFunc func(*router.Ctx) bool
 
 	// ErrorHandler is called when body size exceeds limit
 	// Default: returns 413 Request Entity Too Large
-	ErrorHandler grouter.Handler
+	ErrorHandler router.Handler
 }
 
 // DefaultBodyLimitConfig returns default configuration for body limit
 func DefaultBodyLimitConfig() BodyLimitConfig {
+	maxSize := int64(DefaultBodyLimit)
 	return BodyLimitConfig{
-		MaxSize:  4 * 1024 * 1024, // 4MB
+		MaxSize:  maxSize,
 		SkipFunc: nil,
-		ErrorHandler: func(c *grouter.Ctx) error {
+		ErrorHandler: func(c *router.Ctx) error {
 			return errors.RequestEntityTooLarge(
-				fmt.Sprintf("Request body too large. Maximum size is %d bytes", 4*1024*1024),
+				fmt.Sprintf("Request body too large. Maximum size is %d bytes", maxSize),
+				nil,
+			)
+		},
+	}
+}
+
+// LoadBodyLimitConfig loads BodyLimitConfig from environment variables
+// Environment variable: BODY_LIMIT (int64, bytes)
+// Returns default config if BODY_LIMIT is not set
+// Falls back to DefaultBodyLimitConfig if set but invalid
+func LoadBodyLimitConfig() *BodyLimitConfig {
+	size := util.GetEnvInt64("BODY_LIMIT", -1)
+	if size == -1 {
+		// Not set, return default
+		cfg := DefaultBodyLimitConfig()
+		return &cfg
+	}
+
+	if size <= 0 {
+		// Invalid value, return default
+		cfg := DefaultBodyLimitConfig()
+		return &cfg
+	}
+
+	return &BodyLimitConfig{
+		MaxSize:  size,
+		SkipFunc: nil,
+		ErrorHandler: func(c *router.Ctx) error {
+			return errors.RequestEntityTooLarge(
+				fmt.Sprintf("Request body too large. Maximum size is %d bytes", size),
 				nil,
 			)
 		},
@@ -50,7 +91,7 @@ func DefaultBodyLimitConfig() BodyLimitConfig {
 //	// Custom configuration
 //	router.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
 //	    MaxSize: 10 * 1024 * 1024, // 10MB
-//	    SkipFunc: func(c *grouter.Ctx) bool {
+//	    SkipFunc: func(c *router.Ctx) bool {
 //	        // Skip limit for file upload endpoints
 //	        return strings.HasPrefix(c.Path(), "/upload")
 //	    },
@@ -58,11 +99,11 @@ func DefaultBodyLimitConfig() BodyLimitConfig {
 //
 //	// Using helper function
 //	router.Use(middleware.BodyLimitWithSize(10 * 1024 * 1024)) // 10MB
-func BodyLimit(config ...BodyLimitConfig) grouter.Middleware {
+func BodyLimit(config ...BodyLimitConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultBodyLimitConfig)
 
-	return func(next grouter.Handler) grouter.Handler {
-		return func(c *grouter.Ctx) error {
+	return func(next router.Handler) router.Handler {
+		return func(c *router.Ctx) error {
 			// Skip if skip function returns true
 			if cfg.SkipFunc != nil && cfg.SkipFunc(c) {
 				return next(c)
@@ -92,13 +133,6 @@ func BodyLimit(config ...BodyLimitConfig) grouter.Middleware {
 		}
 	}
 }
-
-// Common size constants for convenience
-const (
-	KB = 1024
-	MB = 1024 * KB
-	GB = 1024 * MB
-)
 
 // limitedReader wraps io.ReadCloser to enforce size limit
 type limitedReader struct {

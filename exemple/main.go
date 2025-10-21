@@ -1,16 +1,14 @@
-// Package main is an example package for grouter
+// Package main demonstrates the grouter.Server with comprehensive production-ready configuration
 package main
 
 import (
 	"fmt"
-	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/azizndao/grouter"
 	"github.com/azizndao/grouter/errors"
 	"github.com/azizndao/grouter/middleware"
-	"github.com/azizndao/grouter/ratelimit"
+	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
@@ -34,38 +32,27 @@ type CreateProductRequest struct {
 }
 
 func main() {
-	router := grouter.NewRouter()
-
-	// Add comprehensive production-ready middleware stack
-	router.Use(
-		middleware.Heartbeat(), // Health check endpoint (default: /ping)
-		middleware.RealIP(),    // Extract real client IP from proxy headers
-		middleware.RequestID(), // Generate unique request IDs
-		middleware.Recovery(middleware.RecoveryConfig{ // Panic recovery
-			EnableStackTrace: false, // Disable stack traces in production
-		}),
-		middleware.Logger(middleware.LoggerConfig{ // Structured logging with slog
-			UseStructuredLogging: false,
-		}),
-		middleware.Compress(), // Response compression (gzip/deflate)
-		middleware.BodyLimit(middleware.BodyLimitConfig{ // Limit request body size to 5MB
-			MaxSize: 5 * middleware.MB,
-		}),
-		ratelimit.RateLimit(), // Rate limiting (100 req/min by default)
-		middleware.CORS(),     // CORS support with default config
-		validation.Middleware( // Request validation with i18n
-			validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-			validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-		),
+	// Create server - all configuration loaded from environment variables
+	// See .env.example for available configuration options
+	// Set environment variables to customize the server behavior
+	//
+	// Optionally add validation locales for multi-language validation error messages
+	server := grouter.New(
+		validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
+		validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 	)
 
+	// Get the router from the server to register routes
+	r := server.Router()
+
+	// Register routes using the router
 	// Simple hello endpoint
-	router.Get("/hello", func(c *grouter.Ctx) error {
+	r.Get("/hello", func(c *router.Ctx) error {
 		return c.JSON(map[string]string{"message": "Hello World"})
 	})
 
 	// Hello with name parameter
-	router.Get("/hello/{name}", func(c *grouter.Ctx) error {
+	r.Get("/hello/{name}", func(c *router.Ctx) error {
 		return c.JSON(map[string]string{
 			"message": fmt.Sprintf("Hello %s", c.PathValue("name")),
 			"query":   c.Query("q"),
@@ -73,19 +60,19 @@ func main() {
 	})
 
 	// Error example
-	router.Get("/error", func(c *grouter.Ctx) error {
+	r.Get("/error", func(c *router.Ctx) error {
 		return errors.BadRequest("Bad request example", nil)
 	})
 
 	// User registration with validation
-	// Validates based on Accept-Language header
-	router.Post("/register", registerUser)
+	// Validates based on Accept-Language header (French/Spanish/English)
+	r.Post("/register", registerUser)
 
 	// Product creation with validation
-	router.Post("/products", createProduct)
+	r.Post("/products", createProduct)
 
 	// Request ID demonstration
-	router.Get("/request-id", func(c *grouter.Ctx) error {
+	r.Get("/request-id", func(c *router.Ctx) error {
 		requestID := middleware.GetRequestID(c)
 		return c.JSON(map[string]string{
 			"request_id": requestID,
@@ -93,22 +80,27 @@ func main() {
 		})
 	})
 
-	// Demonstrate timeout with a slow endpoint
-	slowRouter := router.Group("/slow", middleware.Timeout(middleware.TimeoutConfig{
+	// Demonstrate timeout with a slow endpoint using route group
+	slowGroup := r.Group("/slow", middleware.Timeout(middleware.TimeoutConfig{
 		Timeout: 2 * time.Second,
 	}))
-	slowRouter.Get("/endpoint", func(c *grouter.Ctx) error {
-		// Simulate slow processing
+	slowGroup.Get("/endpoint", func(c *router.Ctx) error {
+		// Simulate slow processing (will timeout after 2 seconds)
 		time.Sleep(3 * time.Second)
 		return c.JSON(map[string]string{"message": "This should timeout"})
 	})
 
-	slog.Info("Server started on :8080")
+	// Start server with automatic graceful shutdown on SIGINT/SIGTERM
+	// This handles Ctrl+C gracefully, completing in-flight requests
+	server.Logger().Info("Starting server on http://localhost:8080")
+	server.Logger().Info("Press Ctrl+C to gracefully shutdown")
 
-	http.ListenAndServe(":8080", router.Handler())
+	if err := server.ListenWithGracefulShutdown(); err != nil {
+		server.Logger().Error(err)
+	}
 }
 
-func registerUser(c *grouter.Ctx) error {
+func registerUser(c *router.Ctx) error {
 	var req RegisterRequest
 
 	// ValidateBody automatically uses Accept-Language header
@@ -116,17 +108,10 @@ func registerUser(c *grouter.Ctx) error {
 		return err
 	}
 
-	return c.Status(201).JSON(map[string]any{
-		"message": "User registered successfully",
-		"user": map[string]any{
-			"name":  req.Name,
-			"email": req.Email,
-			"age":   req.Age,
-		},
-	})
+	return c.Status(201).JSON(req)
 }
 
-func createProduct(c *grouter.Ctx) error {
+func createProduct(c *router.Ctx) error {
 	var req CreateProductRequest
 
 	// Parse and validate in one call
@@ -134,8 +119,5 @@ func createProduct(c *grouter.Ctx) error {
 		return err
 	}
 
-	return c.Status(201).JSON(map[string]any{
-		"message": "Product created successfully",
-		"product": req,
-	})
+	return c.Status(201).JSON(req)
 }
