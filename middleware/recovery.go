@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -79,11 +78,11 @@ func Recovery(config ...RecoveryConfig) router.Middleware {
 					var panicErr error
 					switch x := rvr.(type) {
 					case string:
-						panicErr = fmt.Errorf("%s", x)
+						panicErr = errors.Errorf("%s", x)
 					case error:
 						panicErr = x
 					default:
-						panicErr = fmt.Errorf("%v", x)
+						panicErr = errors.Errorf("%v", x)
 					}
 
 					// Get request ID if available
@@ -113,7 +112,7 @@ func Recovery(config ...RecoveryConfig) router.Middleware {
 					if rw, ok := c.Response.(interface{ HeadersWritten() bool }); ok && rw.HeadersWritten() {
 						// Can't send error response, headers already sent
 						// Just log and set error for middleware to see
-						err = fmt.Errorf("panic after headers sent: %w", panicErr)
+						err = errors.Errorf("panic after headers sent: %w", panicErr)
 						return
 					}
 

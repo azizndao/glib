@@ -2,10 +2,11 @@ package ratelimit
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 	"time"
+
+	"github.com/azizndao/grouter/errors"
 )
 
 // RedisCommander is the minimal interface needed for rate limiting with Redis
@@ -104,23 +105,23 @@ func (r *RedisStore) Increment(ctx context.Context, key string, window time.Dura
 	// Execute Lua script
 	result, err := r.client.Eval(ctx, incrementScript, []string{fullKey}, windowSeconds, now)
 	if err != nil {
-		return 0, 0, fmt.Errorf("redis increment failed: %w", err)
+		return 0, 0, errors.Errorf("redis increment failed: %w", err)
 	}
 
 	// Parse result
 	arr, ok := result.([]any)
 	if !ok || len(arr) != 2 {
-		return 0, 0, fmt.Errorf("unexpected redis response format")
+		return 0, 0, errors.Errorf("unexpected redis response format")
 	}
 
 	count, err := toInt(arr[0])
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to parse count: %w", err)
+		return 0, 0, errors.Errorf("failed to parse count: %w", err)
 	}
 
 	ttlSeconds, err := toInt(arr[1])
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to parse ttl: %w", err)
+		return 0, 0, errors.Errorf("failed to parse ttl: %w", err)
 	}
 
 	ttl := time.Duration(ttlSeconds) * time.Second
@@ -134,7 +135,7 @@ func (r *RedisStore) Decrement(ctx context.Context, key string) error {
 	// Execute Lua script
 	_, err := r.client.Eval(ctx, decrementScript, []string{fullKey})
 	if err != nil {
-		return fmt.Errorf("redis decrement failed: %w", err)
+		return errors.Errorf("redis decrement failed: %w", err)
 	}
 
 	return nil
@@ -152,7 +153,7 @@ func (r *RedisStore) Get(ctx context.Context, key string) (int, time.Duration, e
 
 	count, err := strconv.Atoi(val)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to parse count: %w", err)
+		return 0, 0, errors.Errorf("failed to parse count: %w", err)
 	}
 
 	return count, 0, nil
@@ -180,7 +181,7 @@ func toInt(val interface{}) (int, error) {
 	case int64:
 		// Check for overflow on platforms where int is 32-bit
 		if v > math.MaxInt || v < math.MinInt {
-			return 0, fmt.Errorf("value %d overflows int on this platform", v)
+			return 0, errors.Errorf("value %d overflows int on this platform", v)
 		}
 		return int(v), nil
 	case string:
@@ -190,10 +191,10 @@ func toInt(val interface{}) (int, error) {
 		}
 		// Check for overflow
 		if i64 > math.MaxInt || i64 < math.MinInt {
-			return 0, fmt.Errorf("value %d overflows int on this platform", i64)
+			return 0, errors.Errorf("value %d overflows int on this platform", i64)
 		}
 		return int(i64), nil
 	default:
-		return 0, fmt.Errorf("cannot convert %T to int", val)
+		return 0, errors.Errorf("cannot convert %T to int", val)
 	}
 }

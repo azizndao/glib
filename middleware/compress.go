@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"compress/flate"
 	"compress/gzip"
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/azizndao/grouter/errors"
 	"github.com/azizndao/grouter/router"
 	"github.com/azizndao/grouter/util"
 )
@@ -283,7 +283,7 @@ func (cw *compressResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 	if hj, ok := cw.ResponseWriter.(http.Hijacker); ok {
 		return hj.Hijack()
 	}
-	return nil, nil, errors.New("http.Hijacker not implemented")
+	return nil, nil, errors.Errorf("http.Hijacker not implemented")
 }
 
 func (cw *compressResponseWriter) Unwrap() http.ResponseWriter {

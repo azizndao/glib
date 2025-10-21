@@ -107,7 +107,7 @@ func (s *Server) ListenTLS(certFile, keyFile string) error {
 	)
 
 	if err := s.httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("TLS server failed to start: %w", err)
+		return gerrors.Errorf("TLS server failed to start: %w", err)
 	}
 
 	return nil
@@ -119,14 +119,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// Shutdown HTTP server
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		s.logger.ErrorWithSource(ctx, 0, fmt.Errorf("server shutdown failed: %w", err))
+		s.logger.ErrorWithSource(ctx, 0, gerrors.Errorf("server shutdown failed: %w", err))
 		return err
 	}
 
 	// Cleanup stores (rate limiters, etc.)
 	for _, store := range s.stores {
 		if err := store.Close(); err != nil {
-			s.logger.ErrorWithSource(ctx, 0, fmt.Errorf("failed to close store: %w", err))
+			s.logger.ErrorWithSource(ctx, 0, gerrors.Errorf("failed to close store: %w", err))
 		}
 	}
 
@@ -150,7 +150,7 @@ func (s *Server) ListenWithGracefulShutdown() error {
 	// Wait for interrupt signal or server error
 	select {
 	case err := <-serverErrors:
-		return fmt.Errorf("server error: %w", err)
+		return gerrors.Errorf("server error: %w", err)
 	case sig := <-quit:
 		s.logger.InfoWithSource(context.Background(), 0, "Received shutdown signal",
 			"signal", sig.String(),
@@ -162,7 +162,7 @@ func (s *Server) ListenWithGracefulShutdown() error {
 
 		// Attempt graceful shutdown
 		if err := s.Shutdown(ctx); err != nil {
-			return fmt.Errorf("graceful shutdown failed: %w", err)
+			return gerrors.Errorf("graceful shutdown failed: %w", err)
 		}
 	}
 
@@ -181,7 +181,7 @@ func (s *Server) ListenTLSWithGracefulShutdown(certFile, keyFile string) error {
 
 	select {
 	case err := <-serverErrors:
-		return fmt.Errorf("server error: %w", err)
+		return gerrors.Errorf("server error: %w", err)
 	case sig := <-quit:
 		s.logger.InfoWithSource(context.Background(), 0, "Received shutdown signal",
 			"signal", sig.String(),
@@ -191,7 +191,7 @@ func (s *Server) ListenTLSWithGracefulShutdown(certFile, keyFile string) error {
 		defer cancel()
 
 		if err := s.Shutdown(ctx); err != nil {
-			return fmt.Errorf("graceful shutdown failed: %w", err)
+			return gerrors.Errorf("graceful shutdown failed: %w", err)
 		}
 	}
 
