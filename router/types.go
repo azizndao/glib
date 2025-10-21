@@ -2,6 +2,8 @@ package router
 
 import (
 	"net/http"
+
+	"github.com/azizndao/grouter/slog"
 )
 
 type Router interface {
@@ -12,6 +14,8 @@ type Router interface {
 }
 
 type RouteGroup interface {
+	Logger() *slog.Logger
+
 	// HTTP method routing within the group
 	Get(pattern string, handler Handler, middleware ...Middleware)
 	Post(pattern string, handler Handler, middleware ...Middleware)

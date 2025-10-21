@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/slog"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -20,21 +21,28 @@ type Ctx struct {
 	Request    *http.Request
 	Response   http.ResponseWriter
 	statusCode int
-	body       []byte // Cached request body
-	bodyRead   bool   // Track if body has been read
+	body       []byte      // Cached request body
+	bodyRead   bool        // Track if body has been read
+	logger     *slog.Logger // Logger instance for logging within routes and middleware
 }
 
 // newCtx creates a new Context from request and response
-func newCtx(w http.ResponseWriter, r *http.Request) *Ctx {
+func newCtx(w http.ResponseWriter, r *http.Request, logger *slog.Logger) *Ctx {
 	return &Ctx{
 		Request:    r,
 		Response:   w,
 		statusCode: http.StatusOK, // Default to 200
+		logger:     logger,
 	}
 }
 
 func (c *Ctx) Context() context.Context {
 	return c.Request.Context()
+}
+
+// Logger returns the logger instance for logging within routes and middleware
+func (c *Ctx) Logger() *slog.Logger {
+	return c.logger
 }
 
 // SetValue sets a custom value in the request context

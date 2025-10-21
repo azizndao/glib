@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/grouter/slog"
 	"github.com/azizndao/grouter/util"
 )
 
@@ -19,6 +20,7 @@ type router struct {
 	routes     []RouteInfo
 	prefix     string
 	groupMW    []Middleware
+	logger     *slog.Logger
 }
 
 // DefaultRouterOptions returns sensible default options
@@ -31,8 +33,9 @@ func DefaultRouterOptions() RouterOptions {
 }
 
 // Default creates a new router with default options
-func Default(options ...RouterOptions) Router {
+func Default(logger *slog.Logger, options ...RouterOptions) Router {
 	return &router{
+		logger:  logger,
 		mux:     http.NewServeMux(),
 		options: util.FirstOrDefault(options, DefaultRouterOptions),
 		routes:  make([]RouteInfo, 0),
@@ -156,13 +159,18 @@ func (r *router) Routes() []RouteInfo {
 	return r.routes
 }
 
+// Logger returns the logger instance for the router
+func (r *router) Logger() *slog.Logger {
+	return r.logger
+}
+
 // handlerToHTTPHandler converts a Handler to http.HandlerFunc with error handling
 func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) http.HandlerFunc {
 	// Apply middleware chain to the handler
 	finalHandler := r.applyCtxMiddleware(handler, middleware)
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := newCtx(w, req)
+		ctx := newCtx(w, req, r.logger)
 
 		if err := finalHandler(ctx); err != nil {
 			var grouterErr *errors.ApiError

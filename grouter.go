@@ -50,7 +50,7 @@ func New(locales ...validation.LocaleConfig) *Server {
 	logger := gslog.Create()
 
 	// Create router with default options
-	r := router.Default()
+	r := router.Default(logger)
 
 	// Build and apply middleware stack from environment variables
 	r.Use(middleware.Stack(locales...)...)

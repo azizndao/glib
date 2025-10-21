@@ -7,10 +7,11 @@ import (
 
 	"github.com/azizndao/grouter/ratelimit"
 	"github.com/azizndao/grouter/router"
+	"github.com/azizndao/grouter/slog"
 )
 
 func ExampleRateLimit_perRoute() {
-	r := router.Default()
+	r := router.Default(slog.Create())
 
 	// Global rate limit: 1000 requests per minute
 	r.Use(ratelimit.RateLimit(ratelimit.Config{
