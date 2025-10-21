@@ -29,24 +29,13 @@ type BodyLimitConfig struct {
 	// SkipFunc is a function that determines if body size check should be skipped
 	// Default: nil (check all requests)
 	SkipFunc func(*router.Ctx) bool
-
-	// ErrorHandler is called when body size exceeds limit
-	// Default: returns 413 Request Entity Too Large
-	ErrorHandler router.Handler
 }
 
 // DefaultBodyLimitConfig returns default configuration for body limit
 func DefaultBodyLimitConfig() BodyLimitConfig {
-	maxSize := int64(DefaultBodyLimit)
 	return BodyLimitConfig{
-		MaxSize:  maxSize,
+		MaxSize:  int64(DefaultBodyLimit),
 		SkipFunc: nil,
-		ErrorHandler: func(c *router.Ctx) error {
-			return errors.RequestEntityTooLarge(
-				fmt.Sprintf("Request body too large. Maximum size is %d bytes", maxSize),
-				nil,
-			)
-		},
 	}
 }
 
@@ -71,12 +60,6 @@ func LoadBodyLimitConfig() *BodyLimitConfig {
 	return &BodyLimitConfig{
 		MaxSize:  size,
 		SkipFunc: nil,
-		ErrorHandler: func(c *router.Ctx) error {
-			return errors.RequestEntityTooLarge(
-				fmt.Sprintf("Request body too large. Maximum size is %d bytes", size),
-				nil,
-			)
-		},
 	}
 }
 
@@ -125,7 +108,10 @@ func BodyLimit(config ...BodyLimitConfig) router.Middleware {
 			// Check if error is due to body size limit
 			if err != nil {
 				if err.Error() == "http: request body too large" {
-					return cfg.ErrorHandler(c)
+					return errors.RequestEntityTooLarge(
+						fmt.Sprintf("Request body too large. Maximum size is %d bytes", cfg.MaxSize),
+						nil,
+					)
 				}
 			}
 
