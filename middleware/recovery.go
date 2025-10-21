@@ -107,7 +107,7 @@ func Recovery(config ...RecoveryConfig) grouter.Middleware {
 					}
 
 					// Default: return 500 error
-					err = errors.New(http.StatusInternalServerError, "Internal Server Error", panicErr)
+					err = errors.NewApi(http.StatusInternalServerError, "Internal Server Error", panicErr)
 				}
 			}()
 

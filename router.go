@@ -24,7 +24,7 @@ type router struct {
 // DefaultRouterOptions returns sensible default options
 func DefaultRouterOptions() RouterOptions {
 	return RouterOptions{
-		AutoOPTIONS:           true,
+		AutoOPtions:           true,
 		AutoHEAD:              true,
 		TrailingSlashRedirect: true,
 	}
@@ -32,13 +32,11 @@ func DefaultRouterOptions() RouterOptions {
 
 // NewRouter creates a new router with default options
 func NewRouter(options ...RouterOptions) Router {
-	r := &router{
+	return &router{
 		mux:     http.NewServeMux(),
 		options: util.FirstOrDefault(options, DefaultRouterOptions),
 		routes:  make([]RouteInfo, 0),
 	}
-
-	return r
 }
 
 // Get registers a Get route
@@ -167,10 +165,10 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 		ctx := NewCtx(w, req)
 
 		if err := finalHandler(ctx); err != nil {
-			var grouterErr *errors.Error
+			var grouterErr *errors.ApiError
 
 			switch t := err.(type) {
-			case *errors.Error:
+			case *errors.ApiError:
 				if t.Data == nil {
 					t.Data = http.StatusText(t.Code)
 				}

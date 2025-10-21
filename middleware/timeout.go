@@ -28,7 +28,7 @@ func DefaultTimeoutConfig() TimeoutConfig {
 	return TimeoutConfig{
 		Timeout: 30 * time.Second,
 		ErrorHandler: func(c *grouter.Ctx) error {
-			return errors.New(http.StatusGatewayTimeout, "Gateway Timeout", nil)
+			return errors.NewApi(http.StatusGatewayTimeout, "Gateway Timeout", nil)
 		},
 	}
 }
@@ -109,7 +109,7 @@ func Timeout(config ...TimeoutConfig) grouter.Middleware {
 
 			// Execute handler with timeout
 			done := make(chan error, 1)
-			panicChan := make(chan interface{}, 1)
+			panicChan := make(chan any, 1)
 
 			go func() {
 				defer func() {
@@ -155,7 +155,7 @@ func Timeout(config ...TimeoutConfig) grouter.Middleware {
 				}
 
 				// Headers already written - return error for logging/metrics
-				return errors.New(http.StatusGatewayTimeout, "Gateway Timeout (response already started)", nil)
+				return errors.NewApi(http.StatusGatewayTimeout, "Gateway Timeout (response already started)", nil)
 			}
 		}
 	}

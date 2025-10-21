@@ -3,8 +3,8 @@ package errors
 import "net/http"
 
 // UnprocessableEntity creates a 422 Unprocessable Entity error
-func UnprocessableEntity(data any, internal error) *Error {
-	return &Error{
+func UnprocessableEntity(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusUnprocessableEntity,
 		Data:     data,
 		internal: internal,
@@ -12,8 +12,8 @@ func UnprocessableEntity(data any, internal error) *Error {
 }
 
 // Conflict creates a 409 Conflict error
-func Conflict(data any, internal error) *Error {
-	return &Error{
+func Conflict(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusConflict,
 		Data:     data,
 		internal: internal,
@@ -21,8 +21,8 @@ func Conflict(data any, internal error) *Error {
 }
 
 // Gone creates a 410 Gone error
-func Gone(data any, internal error) *Error {
-	return &Error{
+func Gone(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusGone,
 		Data:     data,
 		internal: internal,
@@ -30,8 +30,8 @@ func Gone(data any, internal error) *Error {
 }
 
 // NotFound creates a 404 Not Found error
-func NotFound(data any, internal error) *Error {
-	return &Error{
+func NotFound(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusNotFound,
 		Data:     data,
 		internal: internal,
@@ -39,8 +39,8 @@ func NotFound(data any, internal error) *Error {
 }
 
 // BadRequest creates a 400 Bad Request error
-func BadRequest(data any, internal error) *Error {
-	return &Error{
+func BadRequest(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusBadRequest,
 		Data:     data,
 		internal: internal,
@@ -48,8 +48,8 @@ func BadRequest(data any, internal error) *Error {
 }
 
 // Unauthorized creates a 401 Unauthorized error
-func Unauthorized(data any, internal error) *Error {
-	return &Error{
+func Unauthorized(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusUnauthorized,
 		Data:     data,
 		internal: internal,
@@ -57,8 +57,8 @@ func Unauthorized(data any, internal error) *Error {
 }
 
 // Forbidden creates a 403 Forbidden error
-func Forbidden(data any, internal error) *Error {
-	return &Error{
+func Forbidden(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusForbidden,
 		Data:     data,
 		internal: internal,
@@ -66,8 +66,8 @@ func Forbidden(data any, internal error) *Error {
 }
 
 // InternalServerError creates a 500 Internal Server Error
-func InternalServerError(data any, internal error) *Error {
-	return &Error{
+func InternalServerError(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusInternalServerError,
 		Data:     data,
 		internal: internal,
@@ -75,8 +75,8 @@ func InternalServerError(data any, internal error) *Error {
 }
 
 // ServiceUnavailable creates a 503 Service Unavailable error
-func ServiceUnavailable(data any, internal error) *Error {
-	return &Error{
+func ServiceUnavailable(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusServiceUnavailable,
 		Data:     data,
 		internal: internal,
@@ -84,8 +84,8 @@ func ServiceUnavailable(data any, internal error) *Error {
 }
 
 // GatewayTimeout creates a 504 Gateway Timeout error
-func GatewayTimeout(data any, internal error) *Error {
-	return &Error{
+func GatewayTimeout(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusGatewayTimeout,
 		Data:     data,
 		internal: internal,
@@ -93,8 +93,8 @@ func GatewayTimeout(data any, internal error) *Error {
 }
 
 // MethodNotAllowed creates a 405 Method Not Allowed error
-func MethodNotAllowed(data any, internal error) *Error {
-	return &Error{
+func MethodNotAllowed(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusMethodNotAllowed,
 		Data:     data,
 		internal: internal,
@@ -102,8 +102,8 @@ func MethodNotAllowed(data any, internal error) *Error {
 }
 
 // NotImplemented creates a 501 Not Implemented error
-func NotImplemented(data any, internal error) *Error {
-	return &Error{
+func NotImplemented(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusNotImplemented,
 		Data:     data,
 		internal: internal,
@@ -111,8 +111,8 @@ func NotImplemented(data any, internal error) *Error {
 }
 
 // BadGateway creates a 502 Bad Gateway error
-func BadGateway(data any, internal error) *Error {
-	return &Error{
+func BadGateway(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusBadGateway,
 		Data:     data,
 		internal: internal,
@@ -120,8 +120,8 @@ func BadGateway(data any, internal error) *Error {
 }
 
 // TooManyRequests creates a 429 Too Many Requests error
-func TooManyRequests(data any, internal error) *Error {
-	return &Error{
+func TooManyRequests(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusTooManyRequests,
 		Data:     data,
 		internal: internal,
@@ -129,8 +129,8 @@ func TooManyRequests(data any, internal error) *Error {
 }
 
 // RequestEntityTooLarge creates a 413 Request Entity Too Large error
-func RequestEntityTooLarge(data any, internal error) *Error {
-	return &Error{
+func RequestEntityTooLarge(data any, internal error) *ApiError {
+	return &ApiError{
 		Code:     http.StatusRequestEntityTooLarge,
 		Data:     data,
 		internal: internal,
