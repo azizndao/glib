@@ -16,17 +16,12 @@ type RecoveryConfig struct {
 	// EnableStackTrace determines if stack traces should be logged
 	// Default: true (disable in production for performance)
 	EnableStackTrace bool
-
-	// PanicHandler is an optional custom handler for panics
-	// If nil, default behavior is to return 500 error
-	PanicHandler func(*router.Ctx, any)
 }
 
 // DefaultRecoveryConfig returns default recovery configuration
 func DefaultRecoveryConfig() RecoveryConfig {
 	return RecoveryConfig{
 		EnableStackTrace: true,
-		PanicHandler:     nil,
 	}
 }
 
@@ -57,10 +52,6 @@ func LoadRecoveryConfig() *RecoveryConfig {
 //	// Custom configuration
 //	router.Use(middleware.Recovery(middleware.RecoveryConfig{
 //	    EnableStackTrace: false,
-//	    PanicHandler: func(c *grouter.Ctx, err any) {
-//	        log.Printf("Panic: %v", err)
-//	        c.Status(500).JSON(map[string]string{"error": "internal server error"})
-//	    },
 //	}))
 func Recovery(config ...RecoveryConfig) router.Middleware {
 	cfg := util.FirstOrDefault(config, DefaultRecoveryConfig)
@@ -116,13 +107,7 @@ func Recovery(config ...RecoveryConfig) router.Middleware {
 						return
 					}
 
-					// Call custom panic handler if provided
-					if cfg.PanicHandler != nil {
-						cfg.PanicHandler(c, rvr)
-						return
-					}
-
-					// Default: return 500 error
+					// Return 500 error
 					err = errors.NewApi(http.StatusInternalServerError, "Internal Server Error", panicErr)
 				}
 			}()
