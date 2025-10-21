@@ -117,9 +117,6 @@ RATE_LIMIT_WINDOW=1m
 # Logger configuration (format options only apply when IS_DEBUG=true)
 LOGGER_FORMAT=default       # Options: default, combined, short, tiny
 LOGGER_TIME_FORMAT=15:04:05 # Go time layout
-
-# Recovery configuration
-RECOVERY_STACK_TRACE=false  # Enable stack traces in recovery
 ```
 
 All middleware are automatically loaded and configured from environment variables when you call `grouter.New()`.
@@ -378,12 +375,8 @@ r.Use(middleware.Logger(middleware.LoggerConfig{
 }))
 
 // Recovery middleware - panic recovery (auto-enabled with ENABLE_RECOVERY=true)
+// Stack traces are always included in panic logs for debugging
 r.Use(middleware.Recovery())
-
-// Recovery with custom config
-r.Use(middleware.Recovery(middleware.RecoveryConfig{
-    EnableStackTrace: false, // Disable stack traces in production
-}))
 
 // Compression middleware - gzip/deflate compression (auto-enabled with ENABLE_COMPRESS=true)
 r.Use(middleware.Compress())

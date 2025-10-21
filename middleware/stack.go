@@ -36,8 +36,8 @@ func Stack(locales ...validation.LocaleConfig) []router.Middleware {
 	}
 
 	// Recovery should be early to catch panics from other middleware
-	if recoveryCfg := LoadRecoveryConfig(); recoveryCfg != nil {
-		middlewares = append(middlewares, Recovery(*recoveryCfg))
+	if LoadRecoveryConfig() {
+		middlewares = append(middlewares, Recovery())
 	}
 
 	// Logger after recovery and request ID

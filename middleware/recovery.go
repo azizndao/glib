@@ -11,50 +11,22 @@ import (
 	"github.com/azizndao/grouter/util"
 )
 
-// RecoveryConfig holds configuration for the Recovery middleware
-type RecoveryConfig struct {
-	// EnableStackTrace determines if stack traces should be logged
-	// Default: true (disable in production for performance)
-	EnableStackTrace bool
-}
-
-// DefaultRecoveryConfig returns default recovery configuration
-func DefaultRecoveryConfig() RecoveryConfig {
-	return RecoveryConfig{
-		EnableStackTrace: true,
-	}
-}
-
-// LoadRecoveryConfig loads RecoveryConfig from environment variables
+// LoadRecoveryConfig loads recovery middleware enabled state from environment variables
 // Environment variables:
-//   - ENABLE_RECOVERY (bool): enable/disable recovery middleware
-//   - RECOVERY_STACK_TRACE (bool): enable stack traces
+//   - ENABLE_RECOVERY (bool): enable/disable recovery middleware (default: true)
 //
-// Returns nil if ENABLE_RECOVERY=false, otherwise returns config
-func LoadRecoveryConfig() *RecoveryConfig {
-	if !util.GetEnvBool("ENABLE_RECOVERY", true) {
-		return nil
-	}
-
-	cfg := DefaultRecoveryConfig()
-	cfg.EnableStackTrace = util.GetEnvBool("RECOVERY_STACK_TRACE", cfg.EnableStackTrace)
-
-	return &cfg
+// Returns true if recovery middleware should be enabled, false otherwise
+func LoadRecoveryConfig() bool {
+	return util.GetEnvBool("ENABLE_RECOVERY", true)
 }
 
 // Recovery middleware for panic recovery
+// Stack traces are always included in panic logs for debugging
 //
 // Example usage:
 //
-//	// Use default configuration
 //	router.Use(middleware.Recovery())
-//
-//	// Custom configuration
-//	router.Use(middleware.Recovery(middleware.RecoveryConfig{
-//	    EnableStackTrace: false,
-//	}))
-func Recovery(config ...RecoveryConfig) router.Middleware {
-	cfg := util.FirstOrDefault(config, DefaultRecoveryConfig)
+func Recovery() router.Middleware {
 	return func(next router.Handler) router.Handler {
 		return func(c *router.Ctx) (err error) {
 			defer func() {
@@ -91,10 +63,8 @@ func Recovery(config ...RecoveryConfig) router.Middleware {
 						attrs = append(attrs, "request_id", requestID)
 					}
 
-					// Add stack trace if enabled
-					if cfg.EnableStackTrace {
-						attrs = append(attrs, "stack", string(debug.Stack()))
-					}
+					// Always include stack trace for debugging
+					attrs = append(attrs, "stack", string(debug.Stack()))
 
 					// Log the panic
 					slog.Error("panic recovered", attrs...)
