@@ -8,8 +8,6 @@
 - **Structured errors**: Proper HTTP status codes with consistent JSON error responses
 - **Rich context helpers**: 30+ utility methods to minimize boilerplate
 
-This framework prioritizes developer experience and clean code over flexibility. If you prefer a more minimalist or standard library approach, this may not be the right fit.
-
 ## Features
 
 - **Clean API**: Intuitive routing interface with fluent/builder pattern
