@@ -22,19 +22,12 @@ type TimeoutConfig struct {
 	// Timeout is the maximum duration for the request
 	// Default: 30 seconds
 	Timeout time.Duration
-
-	// ErrorHandler is called when timeout occurs
-	// Default: returns 504 Gateway Timeout
-	ErrorHandler router.Handler
 }
 
 // DefaultTimeoutConfig returns default timeout configuration
 func DefaultTimeoutConfig() TimeoutConfig {
 	return TimeoutConfig{
 		Timeout: DefaultTimeout,
-		ErrorHandler: func(c *router.Ctx) error {
-			return errors.NewApi(http.StatusGatewayTimeout, "Gateway Timeout", nil)
-		},
 	}
 }
 
@@ -81,14 +74,6 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 //	// Custom timeout duration
 //	router.Use(middleware.Timeout(middleware.TimeoutConfig{
 //	    Timeout: 10 * time.Second,
-//	}))
-//
-//	// Custom timeout with error handler
-//	router.Use(middleware.Timeout(middleware.TimeoutConfig{
-//	    Timeout: 5 * time.Second,
-//	    ErrorHandler: func(c *grouter.Ctx) error {
-//	        return c.Status(504).JSON(map[string]string{"error": "request timeout"})
-//	    },
 //	}))
 //
 //	// Handler that respects context cancellation:
@@ -171,7 +156,7 @@ func Timeout(config ...TimeoutConfig) router.Middleware {
 
 				// Only send timeout response if handler hasn't written anything yet
 				if !alreadyWritten {
-					return cfg.ErrorHandler(c)
+					return errors.NewApi(http.StatusGatewayTimeout, "Gateway Timeout", nil)
 				}
 
 				// Headers already written - return error for logging/metrics
