@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -56,4 +57,51 @@ func GetEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
+}
+
+// GetEnvStringSlice returns the environment variable value as a slice of strings or the default if not set
+// Values should be comma-separated. Whitespace around each value is trimmed.
+// Example: "value1,value2,value3" or "value1, value2, value3"
+func GetEnvStringSlice(key string, defaultValue []string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	// Split by comma and trim whitespace
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	// Return default if no valid values found
+	if len(result) == 0 {
+		return defaultValue
+	}
+
+	return result
+}
+
+// GetEnvLogFormat returns the environment variable value as a log format string or the default if not set or invalid
+// Accepts: default, combined, short, tiny (case insensitive)
+func GetEnvLogFormat(key string, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	// Normalize to lowercase for comparison
+	normalized := strings.ToLower(strings.TrimSpace(value))
+
+	// Validate against known formats
+	switch normalized {
+	case "default", "combined", "short", "tiny":
+		return normalized
+	default:
+		return defaultValue
+	}
 }

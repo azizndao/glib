@@ -70,8 +70,15 @@ func DefaultLoggerConfig() LoggerConfig {
 
 // LoadLoggerConfig loads LoggerConfig from environment variables
 // Environment variables:
-//   - ENABLE_LOGGER (bool): enable/disable logger middleware
-//   - LOGGER_STRUCTURED (bool): use structured logging
+//   - ENABLE_LOGGER (bool): enable/disable logger middleware (default: true)
+//   - IS_DEBUG (bool): determines logging mode (default: false)
+//     When IS_DEBUG=false: uses structured JSON logging (production mode)
+//     When IS_DEBUG=true: uses colorful console logging (development mode)
+//   - LOGGER_FORMAT (string): log format for console logging - options: default, combined, short, tiny (default: default)
+//     Note: Only applies when IS_DEBUG=true. Ignored in production mode.
+//   - LOGGER_TIME_FORMAT (string): time format string in Go layout format (default: "15:04:05")
+//     Example: "2006-01-02 15:04:05" for full date/time
+//     Note: Only applies when IS_DEBUG=true. Ignored in production mode.
 //
 // Returns nil if ENABLE_LOGGER=false, otherwise returns config
 func LoadLoggerConfig() *LoggerConfig {
@@ -80,7 +87,18 @@ func LoadLoggerConfig() *LoggerConfig {
 	}
 
 	cfg := DefaultLoggerConfig()
-	cfg.UseStructuredLogging = util.GetEnvBool("LOGGER_STRUCTURED", cfg.UseStructuredLogging)
+
+	// Use IS_DEBUG to determine if we should use structured logging
+	// IS_DEBUG=false means production mode (structured/JSON logging)
+	// IS_DEBUG=true means development mode (colorful console logging)
+	isDebug := util.GetEnvBool("IS_DEBUG", false)
+	cfg.UseStructuredLogging = !isDebug
+
+	// Load format and time format (only used when IS_DEBUG=true)
+	formatStr := util.GetEnvLogFormat("LOGGER_FORMAT", string(cfg.Format))
+	cfg.Format = LogFormat(formatStr)
+
+	cfg.TimeFormat = util.GetEnv("LOGGER_TIME_FORMAT", cfg.TimeFormat)
 
 	return &cfg
 }

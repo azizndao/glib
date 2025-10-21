@@ -98,6 +98,14 @@ ENABLE_LOGGER=true
 ENABLE_COMPRESS=true
 ENABLE_CORS=true
 
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=*                     # Comma-separated origins
+CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS=Authorization,Content-Type,Accept
+CORS_EXPOSED_HEADERS=                      # Optional: headers browsers can access
+CORS_ALLOW_CREDENTIALS=false               # Allow cookies/credentials
+CORS_MAX_AGE=24h                           # Preflight cache duration
+
 # Body limit (in bytes, e.g., 4194304 = 4MB)
 BODY_LIMIT=5242880
 
@@ -106,8 +114,9 @@ ENABLE_RATE_LIMIT=true
 RATE_LIMIT_MAX=100
 RATE_LIMIT_WINDOW=1m
 
-# Logger configuration
-LOGGER_STRUCTURED=false     # Use structured logging (slog)
+# Logger configuration (format options only apply when IS_DEBUG=true)
+LOGGER_FORMAT=default       # Options: default, combined, short, tiny
+LOGGER_TIME_FORMAT=15:04:05 # Go time layout
 
 # Recovery configuration
 RECOVERY_STACK_TRACE=false  # Enable stack traces in recovery
@@ -349,10 +358,14 @@ r.Use(middleware.RequestID(middleware.RequestIDConfig{
 // === Manual Middleware Configuration Examples ===
 // These are only needed if you're NOT using grouter.New() or need custom config
 
-// Logger middleware - colorful console logging (auto-enabled with ENABLE_LOGGER=true)
+// Logger middleware (auto-enabled with ENABLE_LOGGER=true)
+// Configuration loaded from environment variables:
+//   - IS_DEBUG: determines logging mode (false=JSON/structured, true=colorful console)
+//   - LOGGER_FORMAT: default, combined, short, tiny (only for IS_DEBUG=true)
+//   - LOGGER_TIME_FORMAT: Go time layout string (only for IS_DEBUG=true)
 r.Use(middleware.Logger())
 
-// Logger with custom format
+// Logger with custom programmatic format (overrides env vars)
 r.Use(middleware.Logger(middleware.LoggerConfig{
     Format: middleware.LogFormatTiny, // Minimal format
 }))
@@ -405,13 +418,21 @@ r.Use(ratelimit.RateLimit(ratelimit.Config{
 }))
 
 // CORS middleware - cross-origin resource sharing (auto-enabled with ENABLE_CORS=true)
+// Configuration loaded from environment variables:
+//   - CORS_ALLOWED_ORIGINS: comma-separated list (default: "*")
+//   - CORS_ALLOWED_METHODS: comma-separated list (default: "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+//   - CORS_ALLOWED_HEADERS: comma-separated list
+//   - CORS_EXPOSED_HEADERS: comma-separated list (optional)
+//   - CORS_ALLOW_CREDENTIALS: boolean (default: false)
+//   - CORS_MAX_AGE: duration (default: "24h")
 r.Use(middleware.CORS())
 
-// CORS with custom config
+// CORS with custom programmatic config (overrides env vars)
 r.Use(middleware.CORS(middleware.CORSConfig{
-    AllowedOrigins:   []string{"https://example.com"},
+    AllowedOrigins:   []string{"https://example.com", "https://app.example.com"},
     AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
     AllowedHeaders:   []string{"Authorization", "Content-Type"},
+    ExposedHeaders:   []string{"X-Request-ID"},
     AllowCredentials: true,
     MaxAge:           24 * time.Hour,
 }))

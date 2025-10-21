@@ -33,14 +33,35 @@ func DefaultCORSConfig() CORSConfig {
 }
 
 // LoadCORSConfig loads CORSConfig from environment variables
-// Environment variable: ENABLE_CORS (bool)
-// Returns nil if ENABLE_CORS=false, otherwise returns default config
+// Environment variables:
+//   - ENABLE_CORS (bool): enable/disable CORS middleware (default: true)
+//   - CORS_ALLOWED_ORIGINS (string): comma-separated list of allowed origins (default: "*")
+//     Example: "https://example.com,https://app.example.com"
+//   - CORS_ALLOWED_METHODS (string): comma-separated list of allowed HTTP methods
+//     Example: "GET,POST,PUT,DELETE"
+//   - CORS_ALLOWED_HEADERS (string): comma-separated list of allowed headers
+//     Example: "Authorization,Content-Type"
+//   - CORS_EXPOSED_HEADERS (string): comma-separated list of headers browsers can access
+//   - CORS_ALLOW_CREDENTIALS (bool): whether to allow credentials (default: false)
+//   - CORS_MAX_AGE (duration): how long preflight requests can be cached
+//     Example: "24h", "3600s" (default: 24h)
+//
+// Returns nil if ENABLE_CORS=false, otherwise returns config with values from env or defaults
 func LoadCORSConfig() *CORSConfig {
 	if !util.GetEnvBool("ENABLE_CORS", true) {
 		return nil
 	}
 
 	cfg := DefaultCORSConfig()
+
+	// Load configuration from environment variables
+	cfg.AllowedOrigins = util.GetEnvStringSlice("CORS_ALLOWED_ORIGINS", cfg.AllowedOrigins)
+	cfg.AllowedMethods = util.GetEnvStringSlice("CORS_ALLOWED_METHODS", cfg.AllowedMethods)
+	cfg.AllowedHeaders = util.GetEnvStringSlice("CORS_ALLOWED_HEADERS", cfg.AllowedHeaders)
+	cfg.ExposedHeaders = util.GetEnvStringSlice("CORS_EXPOSED_HEADERS", cfg.ExposedHeaders)
+	cfg.AllowCredentials = util.GetEnvBool("CORS_ALLOW_CREDENTIALS", cfg.AllowCredentials)
+	cfg.MaxAge = util.GetEnvDuration("CORS_MAX_AGE", cfg.MaxAge)
+
 	return &cfg
 }
 
