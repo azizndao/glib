@@ -1,9 +1,5 @@
 # GRouter
 
-A minimal HTTP router for Go that leverages Go 1.22+ enhanced routing features while providing a clean, intuitive interface for building web applications.
-
-## Philosophy
-
 **GRouter is an opinionated framework.** It was created for my personal approach to building Go APIs and reflects specific design decisions that I find valuable:
 
 - **Ctx-based middleware**: Uses `*Ctx` instead of `http.Handler` for cleaner composition and richer APIs
