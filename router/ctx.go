@@ -148,6 +148,7 @@ func (c *Ctx) FormFile(key string) (multipart.File, *multipart.FileHeader, error
 	return c.Request.FormFile(key)
 }
 
+// PathValue gets a path value by key
 func (c *Ctx) PathValue(key string) string {
 	return c.Request.PathValue(key)
 }
@@ -161,9 +162,18 @@ func (c *Ctx) Query(key string) string {
 func (c *Ctx) QueryInt(key string) (int, error) {
 	value := c.Query(key)
 	if value == "" {
-		return 0, nil
+		return 0, errors.New("Query parameter not found")
 	}
 	return strconv.Atoi(value)
+}
+
+// / QueryIntDefault gets a query parameter as int with a default value
+func (c *Ctx) QueryIntDefault(key string, defaultValue int) int {
+	intValue, err := c.QueryInt(key)
+	if err != nil {
+		return defaultValue
+	}
+	return intValue
 }
 
 // QueryBool gets a query parameter as bool
@@ -179,6 +189,15 @@ func (c *Ctx) QueryFloat(key string) (float64, error) {
 		return 0, nil
 	}
 	return strconv.ParseFloat(value, 64)
+}
+
+// QueryFloatDefault gets a query parameter as float64 with a default value
+func (c *Ctx) QueryFloatDefault(key string, defaultValue float64) float64 {
+	floatValue, err := c.QueryFloat(key)
+	if err != nil {
+		return defaultValue
+	}
+	return floatValue
 }
 
 // QueryDefault gets a query parameter with a default value
@@ -306,6 +325,12 @@ func (c *Ctx) ClearCookie(name string) *Ctx {
 		SameSite: http.SameSiteLaxMode,
 	}
 	return c.SetCookie(cookie)
+}
+
+// NoContent sends a 204 No Content response
+func (c *Ctx) NoContent() error {
+	c.Response.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 // Status sets the response status code (stored until response is sent)
