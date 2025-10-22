@@ -72,12 +72,21 @@ func (c *Ctx) ValidateBody(out any) error {
 	}
 	validator := c.getValidator()
 	if validator == nil {
-		return errors.InternalServerError("Validator not configured", nil)
+		return errors.InternalServerError(nil, errors.New("Validator not configured"))
 	}
 
 	// Get locale from Accept-Language header
 	locale := c.getLocaleFromHeader()
 	return validator.Validate(out, locale)
+}
+
+// ValidateBody is a generic helper to parse and validate the request body
+func ValidateBody[T any](c *Ctx) (*T, error) {
+	var out T
+	if err := c.ValidateBody(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 type Validator interface {
