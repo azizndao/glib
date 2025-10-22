@@ -1,0 +1,201 @@
+### Simple Hello
+
+GET http://localhost:8088/hello HTTP/1.1
+
+
+### 
+
+
+### Hello with name parameter
+
+GET http://localhost:8088/hello/Aziz?q=hello HTTP/1.1
+
+
+### 
+
+
+### Error example
+
+GET http://localhost:8088/error HTTP/1.1
+
+
+### 
+
+
+### Register User - Validation Errors in English
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: en
+
+{
+  "age": 15,
+  "email": "invalid-email",
+  "name": "A",
+  "password": "123"
+}
+
+
+### 
+
+
+### Register User - Validation Errors in French
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: fr
+
+{
+  "age": 15,
+  "email": "invalid-email",
+  "name": "A",
+  "password": "123"
+}
+
+
+### 
+
+
+### Register User - Validation Errors in Spanish
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: es
+
+{
+  "age": 15,
+  "email": "invalid-email",
+  "name": "A",
+  "password": "123"
+}
+
+
+### 
+
+
+### Register User - Success (Valid Data)
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: en
+
+{
+  "age": 25,
+  "email": "john@example.com",
+  "name": "John Doe",
+  "password": "securepassword123"
+}
+
+
+### 
+
+
+### Create Product - Validation Errors in English
+
+POST http://localhost:8088/products HTTP/1.1
+Content-Type: application/json
+Accept-Language: en
+
+{
+  "description": "Short",
+  "name": "AB",
+  "price": -10,
+  "sku": "invalid sku!",
+  "stock": -5
+}
+
+
+### 
+
+
+### Create Product - Validation Errors in French
+
+POST http://localhost:8088/products HTTP/1.1
+Content-Type: application/json
+Accept-Language: fr
+
+{
+  "description": "Short",
+  "name": "AB",
+  "price": -10,
+  "sku": "invalid sku!",
+  "stock": -5
+}
+
+
+### 
+
+
+### Create Product - Validation Errors in Spanish
+
+POST http://localhost:8088/products HTTP/1.1
+Content-Type: application/json
+Accept-Language: es
+
+{
+  "description": "Short",
+  "name": "AB",
+  "price": -10,
+  "sku": "invalid sku!",
+  "stock": -5
+}
+
+
+### 
+
+
+### Create Product - Success (Valid Data)
+
+POST http://localhost:8088/products HTTP/1.1
+Content-Type: application/json
+Accept-Language: en
+
+{
+  "description": "High-performance laptop with 16GB RAM",
+  "name": "Laptop",
+  "price": 999.99,
+  "sku": "LAPTOP001",
+  "stock": 50
+}
+
+
+### 
+
+
+### Missing Required Fields - English
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: en
+
+{
+  "name": "John"
+}
+
+
+### 
+
+
+### Missing Required Fields - French
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: fr
+
+{
+  "name": "Jean"
+}
+
+
+### 
+
+
+### Missing Required Fields - Spanish
+
+POST http://localhost:8088/register HTTP/1.1
+Content-Type: application/json
+Accept-Language: es
+
+{
+  "name": "Juan"
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/locales/fr"
 	est "github.com/go-playground/validator/v10/translations/es"
 	frt "github.com/go-playground/validator/v10/translations/fr"
+	"github.com/joho/godotenv"
 )
 
 type RegisterRequest struct {
@@ -31,6 +32,7 @@ type CreateProductRequest struct {
 }
 
 func main() {
+	godotenv.Load()
 	// Create server - all configuration loaded from environment variables
 	// See .env.example for available configuration options
 	// Set environment variables to customize the server behavior
@@ -44,7 +46,9 @@ func main() {
 	server := glib.New(options)
 
 	// Get the router from the server to register routes
-	r := server.Router()
+	rf := server.Router()
+
+	r := rf.SubRouter("/api")
 
 	// Register routes using the router
 	// Simple hello endpoint
@@ -82,7 +86,7 @@ func main() {
 	})
 
 	// Demonstrate timeout with a slow endpoint using route group
-	slowGroup := r.Group("/slow", middleware.Timeout(middleware.TimeoutConfig{
+	slowGroup := r.SubRouter("/slow", middleware.Timeout(middleware.TimeoutConfig{
 		Timeout: 2 * time.Second,
 	}))
 	slowGroup.Get("/endpoint", func(c *router.Ctx) error {

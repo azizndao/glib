@@ -73,14 +73,10 @@ func (c *Ctx) ValidateBody(out any) error {
 	if err := c.ParseBody(out); err != nil {
 		return errors.BadRequest("Invalid request body", err)
 	}
-	validator := c.getValidator()
-	if validator == nil {
-		return errors.InternalServerError(nil, errors.New("Validator not configured"))
-	}
 
 	// Get locale from Accept-Language header
 	locale := c.getLocaleFromHeader()
-	return validator.Validate(out, locale)
+	return c.validator.Validate(out, locale)
 }
 
 // ValidateBody is a generic helper to parse and validate the request body
@@ -94,16 +90,6 @@ func ValidateBody[T any](c *Ctx) (*T, error) {
 
 type Validator interface {
 	Validate(out any, locale ...string) error
-}
-
-// getValidator retrieves the validator from the request context
-func (c *Ctx) getValidator() Validator {
-	if v := c.GetValue("validator"); v != nil {
-		if validator, ok := v.(Validator); ok {
-			return validator
-		}
-	}
-	return nil
 }
 
 // getLocaleFromHeader extracts the locale from Accept-Language header
@@ -342,6 +328,11 @@ func (c *Ctx) ClearCookie(name string) *Ctx {
 // NoContent sends a 204 No Content response
 func (c *Ctx) NoContent() error {
 	c.Response.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (c *Ctx) End() error {
+	c.Response.WriteHeader(c.statusCode)
 	return nil
 }
 

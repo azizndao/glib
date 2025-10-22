@@ -8,10 +8,12 @@ import (
 	"github.com/azizndao/glib/ratelimit"
 	"github.com/azizndao/glib/router"
 	"github.com/azizndao/glib/slog"
+	"github.com/azizndao/glib/validation"
 )
 
 func ExampleRateLimit_perRoute() {
-	r := router.Default(slog.Create())
+	validator := validation.New(validation.DefaultValidatorConfig())
+	r := router.New(slog.Create(), validator)
 
 	// Global rate limit: 1000 requests per minute
 	r.Use(ratelimit.RateLimit(ratelimit.Config{

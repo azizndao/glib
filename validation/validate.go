@@ -17,12 +17,14 @@ import (
 
 // Validator wraps go-playground validator with translator support
 type Validator struct {
-	validate *validator.Validate
-	uni      *ut.UniversalTranslator
+	defaultLocale string
+	logger        *slog.Logger
+	validate      *validator.Validate
+	uni           *ut.UniversalTranslator
 }
 
-// ValidatorConfig holds configuration for the validator
-type ValidatorConfig struct {
+// Config holds configuration for the validator
+type Config struct {
 	Logger *slog.Logger
 	// DefaultLocale is the default language for validation messages (e.g., "en")
 	DefaultLocale string
@@ -50,15 +52,15 @@ func Locale(locale locales.Translator, registrar TranslationRegistrar) LocaleCon
 }
 
 // DefaultValidatorConfig returns default validator configuration
-func DefaultValidatorConfig() ValidatorConfig {
-	return ValidatorConfig{
+func DefaultValidatorConfig() Config {
+	return Config{
 		DefaultLocale:     "en",
 		UseJSONFieldNames: true,
 	}
 }
 
-// NewValidator creates a new validator instance with the given configuration
-func NewValidator(cfg ValidatorConfig) *Validator {
+// New creates a new validator instance with the given configuration
+func New(cfg Config) *Validator {
 
 	v := validator.New()
 
@@ -91,8 +93,10 @@ func NewValidator(cfg ValidatorConfig) *Validator {
 	}
 
 	validator := &Validator{
-		validate: v,
-		uni:      uni,
+		defaultLocale: cfg.DefaultLocale,
+		logger:        cfg.Logger,
+		validate:      v,
+		uni:           uni,
 	}
 
 	// Register default English translations
@@ -104,13 +108,9 @@ func NewValidator(cfg ValidatorConfig) *Validator {
 }
 
 // Validate validates a struct and returns formatted errors
-func (v *Validator) Validate(data any, locale ...string) error {
+func (v *Validator) Validate(data any, locale string) error {
 	if err := v.validate.Struct(data); err != nil {
-		lang := "en"
-		if len(locale) > 0 {
-			lang = locale[0]
-		}
-		return v.formatValidationErrors(err, lang)
+		return v.formatValidationErrors(err, locale)
 	}
 	return nil
 }

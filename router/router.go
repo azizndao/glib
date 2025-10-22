@@ -34,13 +34,14 @@ func DefaultRouterOptions() RouterOptions {
 	}
 }
 
-// Default creates a new router with default options
-func Default(logger *slog.Logger, options ...RouterOptions) Router {
+// New creates a new router with default options
+func New(logger *slog.Logger, validator *validation.Validator, options ...RouterOptions) Router {
 	return &router{
-		logger:  logger,
-		mux:     http.NewServeMux(),
-		options: util.FirstOrDefault(options, DefaultRouterOptions),
-		routes:  make([]RouteInfo, 0),
+		logger:    logger,
+		validator: validator,
+		mux:       http.NewServeMux(),
+		options:   util.FirstOrDefault(options, DefaultRouterOptions),
+		routes:    make([]RouteInfo, 0),
 	}
 }
 
@@ -89,26 +90,11 @@ func (r *router) Handle(method, pattern string, handler Handler, middleware ...M
 	// Build full pattern with prefix
 	fullPattern := r.buildPattern(method, pattern)
 
-	// Combine all middleware (global + group + route-specific)
-	allMiddleware := make([]Middleware, 0, len(r.middleware)+len(r.groupMW)+len(middleware))
-	allMiddleware = append(allMiddleware, r.middleware...)
-	allMiddleware = append(allMiddleware, r.groupMW...)
-	allMiddleware = append(allMiddleware, middleware...)
-
 	// Convert Handler to http.HandlerFunc with middleware applied
-	httpHandler := r.handlerToHTTPHandler(handler, allMiddleware)
+	httpHandler := r.handlerToHTTPHandler(handler, middleware)
 
 	// Register with the mux
 	r.mux.Handle(fullPattern, httpHandler)
-
-	// Store route info for introspection
-	r.routes = append(r.routes, RouteInfo{
-		Method:     method,
-		Pattern:    pattern,
-		Handler:    httpHandler,
-		Middleware: allMiddleware,
-		Group:      r.prefix,
-	})
 
 	// Auto-generate HEAD handler from GET if enabled
 	if r.options.AutoHEAD && method == http.MethodGet {
@@ -137,6 +123,8 @@ func (r *router) SubRouter(prefix string, middleware ...Middleware) Router {
 		routes:     r.routes,
 		prefix:     fullPrefix,
 		groupMW:    groupMW,
+		logger:     r.logger,
+		validator:  r.validator,
 	}
 }
 
@@ -194,25 +182,11 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 
 // buildPattern constructs the full pattern for registration
 func (r *router) buildPattern(method, pattern string) string {
-	// Clean the pattern
-	if pattern == "" {
-		pattern = "/"
-	}
-
-	// Combine prefix and pattern
-	fullPath := path.Join(r.prefix, pattern)
-
-	// Preserve trailing slash if original pattern had it
-	if strings.HasSuffix(pattern, "/") && !strings.HasSuffix(fullPath, "/") && fullPath != "/" {
-		fullPath += "/"
-	}
-
-	// Add method prefix for Go 1.22+ enhanced routing
 	if method != "" {
-		return fmt.Sprintf("%s %s", method, fullPath)
+		return fmt.Sprintf("%s %s", method, pattern)
 	}
 
-	return fullPath
+	return pattern
 }
 
 // applyCtxMiddleware applies a chain of Ctx middleware to a Handler

@@ -15,10 +15,9 @@ import (
 	"github.com/azizndao/glib/middleware"
 	"github.com/azizndao/glib/ratelimit"
 	"github.com/azizndao/glib/router"
-	glog "github.com/azizndao/glib/slog"
+	logger "github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/util"
 	"github.com/azizndao/glib/validation"
-	"github.com/joho/godotenv"
 )
 
 type LocaleConfig = validation.LocaleConfig
@@ -37,7 +36,7 @@ type Config struct {
 type Server struct {
 	router          router.Router
 	httpServer      *http.Server
-	logger          *glog.Logger
+	logger          *logger.Logger
 	shutdownTimeout time.Duration
 	Stores          []ratelimit.Store // Track stores for cleanup
 	Validator       *validation.Validator
@@ -52,7 +51,6 @@ type Server struct {
 //     Example: New(validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations))
 func New(config Config) *Server {
 	// Load server settings from env
-	godotenv.Load()
 	host := util.GetEnv("HOST", "localhost")
 	port := util.GetEnvInt("PORT", 8080)
 	readTimeout := util.GetEnvDuration("READ_TIMEOUT", 10*time.Second)
@@ -61,12 +59,20 @@ func New(config Config) *Server {
 	shutdownTimeout := util.GetEnvDuration("SHUTDOWN_TIMEOUT", 30*time.Second)
 
 	// Create logger from environment configuration
-	logger := glog.Create()
+	logger := logger.Create()
 
 	slog.SetDefault(logger.Logger)
 
+	validatorConfig := validation.Config{
+		Logger:            logger,
+		Locales:           config.Locales,
+		UseJSONFieldNames: true,
+		DefaultLocale:     "en",
+	}
+	validator := validation.New(validatorConfig)
+
 	// Create router with default options
-	r := router.Default(logger)
+	r := router.New(logger, validator)
 
 	// Build and apply middleware stack from environment variables
 	middlewareStack := middleware.Stack(middleware.StackConfig{
@@ -85,20 +91,13 @@ func New(config Config) *Server {
 		IdleTimeout:  idleTimeout,
 	}
 
-	validatorConfig := validation.ValidatorConfig{
-		Logger:            logger,
-		Locales:           config.Locales,
-		UseJSONFieldNames: true,
-		DefaultLocale:     "en",
-	}
-
 	server := &Server{
 		router:          r,
 		httpServer:      httpServer,
 		logger:          logger,
 		shutdownTimeout: shutdownTimeout,
 		Stores:          make([]ratelimit.Store, 0),
-		Validator:       validation.NewValidator(validatorConfig),
+		Validator:       validator,
 	}
 
 	// Register custom store for cleanup if provided
@@ -115,7 +114,7 @@ func (s *Server) Router() router.Router {
 }
 
 // Logger returns the configured logger
-func (s *Server) Logger() *glog.Logger {
+func (s *Server) Logger() *logger.Logger {
 	return s.logger
 }
 
