@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -48,6 +49,8 @@ func New(locales ...validation.LocaleConfig) *Server {
 
 	// Create logger from environment configuration
 	logger := gslog.Create()
+
+	slog.SetDefault(logger.Logger)
 
 	// Create router with default options
 	r := router.Default(logger)

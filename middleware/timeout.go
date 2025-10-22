@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -146,8 +145,9 @@ func Timeout(config ...TimeoutConfig) router.Middleware {
 				// Restore original writer
 				c.Response = originalWriter
 
-				// Log timeout event
-				slog.Warn("request timeout",
+				// Log timeout event using the context logger
+				// Use background context since request context is cancelled
+				c.Logger().Warn("request timeout",
 					"path", c.Path(),
 					"method", c.Method(),
 					"timeout", cfg.Timeout,

@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"log/slog"
 	"net/http"
 	"runtime/debug"
 
@@ -53,7 +52,6 @@ func Recovery() router.Middleware {
 
 					// Build log attributes
 					attrs := []any{
-						"error", panicErr,
 						"method", c.Method(),
 						"path", c.Path(),
 						"remote_addr", c.IP(),
@@ -66,8 +64,8 @@ func Recovery() router.Middleware {
 					// Always include stack trace for debugging
 					attrs = append(attrs, "stack", string(debug.Stack()))
 
-					// Log the panic
-					slog.Error("panic recovered", attrs...)
+					// Log the panic using the context logger
+					c.Logger().Error(panicErr, attrs...)
 
 					// Check if headers were already written
 					if rw, ok := c.Response.(interface{ HeadersWritten() bool }); ok && rw.HeadersWritten() {

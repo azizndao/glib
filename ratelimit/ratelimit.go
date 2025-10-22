@@ -2,7 +2,6 @@
 package ratelimit
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -119,7 +118,7 @@ func RateLimit(config ...Config) router.Middleware {
 			if err != nil && err.Error() != "key not found" {
 				// On storage error, allow the request but log the error
 				// This prevents rate limiter failures from blocking all traffic
-				slog.ErrorContext(ctx, "rate limiter storage error on Get", "error", err, "key", key)
+				c.Logger().Error(errors.Errorf("rate limiter storage error on Get %v", err), "key", key)
 				return next(c)
 			}
 
@@ -139,7 +138,7 @@ func RateLimit(config ...Config) router.Middleware {
 			if err != nil {
 				// On storage error, allow the request but log the error
 				// This prevents rate limiter failures from blocking all traffic
-				slog.ErrorContext(ctx, "rate limiter storage error on Increment", "error", err, "key", key)
+				c.Logger().Error(errors.Errorf("rate limiter storage error on Increment %v", err), "key", key)
 				return next(c)
 			}
 
@@ -177,7 +176,7 @@ func RateLimit(config ...Config) router.Middleware {
 					// Decrement the counter since we shouldn't have counted this request
 					if decrementErr := cfg.Store.Decrement(ctx, key); decrementErr != nil {
 						// Log error but don't fail the request
-						slog.ErrorContext(ctx, "rate limiter storage error on Decrement", "error", decrementErr, "key", key)
+						c.Logger().Error(errors.Errorf("rate limiter storage error on Decrement %v", decrementErr), "key", key)
 					}
 				}
 			}

@@ -18,7 +18,8 @@ func Middleware(locales ...LocaleConfig) router.Middleware {
 		if err := validator.AddLocale(locale.Locale, locale.Registrar); err != nil {
 			// Log error but don't fail - continue with other locales
 			// The validator will fall back to English for this locale
-			slog.Warn("failed to register locale",
+			// Use default logger for initialization logging (no request context available)
+			slog.Default().Warn("failed to register locale",
 				"locale", locale.Locale.Locale(),
 				"error", err,
 			)
