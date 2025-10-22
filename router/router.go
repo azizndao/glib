@@ -117,8 +117,8 @@ func (r *router) Handle(method, pattern string, handler Handler, middleware ...M
 	}
 }
 
-// Group creates a new route group with a prefix
-func (r *router) Group(prefix string, middleware ...Middleware) RouteGroup {
+// SubRouter creates a new route group with a prefix
+func (r *router) SubRouter(prefix string, middleware ...Middleware) Router {
 	// Clean and combine prefixes
 	fullPrefix := path.Join(r.prefix, prefix)
 	if !strings.HasSuffix(fullPrefix, "/") && strings.HasSuffix(prefix, "/") {
@@ -140,8 +140,12 @@ func (r *router) Group(prefix string, middleware ...Middleware) RouteGroup {
 	}
 }
 
+func (r *router) Group(middleware ...Middleware) Router {
+	return r.SubRouter("", middleware...)
+}
+
 // Use adds middleware to the router
-func (r *router) Use(middleware ...Middleware) RouteGroup {
+func (r *router) Use(middleware ...Middleware) Router {
 	r.middleware = append(r.middleware, middleware...)
 	return r
 }
@@ -149,11 +153,6 @@ func (r *router) Use(middleware ...Middleware) RouteGroup {
 // ServeHTTP implements http.Handler
 func (r *router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
-}
-
-// Handler returns the underlying http.Handler
-func (r *router) Handler() http.Handler {
-	return r
 }
 
 // Routes returns information about all registered routes

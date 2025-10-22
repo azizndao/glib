@@ -20,7 +20,7 @@ func ExampleRateLimit_perRoute() {
 	}))
 
 	// API routes with stricter limit: 10 requests per minute
-	apiGroup := r.Group("/api")
+	apiGroup := r.SubRouter("/api")
 	apiGroup.Use(ratelimit.RateLimit(ratelimit.Config{
 		Max:    10,
 		Window: time.Minute,

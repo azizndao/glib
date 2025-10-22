@@ -68,8 +68,8 @@ func NewValidator(cfg ValidatorConfig) *Validator {
 
 	for _, locale := range cfg.Locales {
 		uni.AddTranslator(locale.Locale, true)
-		trans, _ok := uni.GetTranslator(locale.Locale.Locale())
-		if !_ok {
+		trans, ok := uni.GetTranslator(locale.Locale.Locale())
+		if !ok {
 			cfg.Logger.Error(errors.New("failed to get translator"), "locale", locale.Locale.Locale())
 			os.Exit(0)
 		}

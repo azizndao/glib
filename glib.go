@@ -76,7 +76,7 @@ func New(config Config) *Server {
 	addr := fmt.Sprintf("%s:%d", host, port)
 	httpServer := &http.Server{
 		Addr:         addr,
-		Handler:      r.Handler(),
+		Handler:      r,
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,

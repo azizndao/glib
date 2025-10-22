@@ -7,13 +7,7 @@ import (
 )
 
 type Router interface {
-	RouteGroup
-
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	Handler() http.Handler
-}
-
-type RouteGroup interface {
 	Logger() *slog.Logger
 
 	// HTTP method routing within the group
@@ -31,11 +25,16 @@ type RouteGroup interface {
 	Route(prefix string, handler http.Handler)
 
 	// Nested groups
-	Group(prefix string, middleware ...Middleware) RouteGroup
+	SubRouter(prefix string, middleware ...Middleware) Router
+
+	Group(middleware ...Middleware) Router
 
 	// Group middleware
-	Use(middleware ...Middleware) RouteGroup
+	Use(middleware ...Middleware) Router
 }
+
+// Deprecated: use Router instead of RouteGroup
+type RouteGroup = Router
 
 type Middleware func(Handler) Handler
 

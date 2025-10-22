@@ -49,7 +49,7 @@ func (c *Ctx) Logger() *slog.Logger {
 }
 
 // SetValue sets a custom value in the request context
-func (c *Ctx) SetValue(key string, value any) *http.Request {
+func (c *Ctx) SetValue(key any, value any) *http.Request {
 	ctx := context.WithValue(c.Context(), key, value)
 	return c.Request.WithContext(ctx)
 }
