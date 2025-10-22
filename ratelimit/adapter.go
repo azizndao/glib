@@ -11,7 +11,7 @@ import (
 //
 //	import (
 //	    "github.com/redis/go-redis/v9"
-//	    "github.com/azizndao/grouter/ratelimit"
+//	    "github.com/azizndao/glib/ratelimit"
 //	)
 //
 //	redisClient := redis.NewClient(&redis.Options{

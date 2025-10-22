@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/util"
 )
 
 type unwrapper interface {
@@ -31,7 +31,7 @@ type Logger struct {
 //
 // Returns a Logger with JSON handler in production mode and DevMode handler in debug mode.
 func Create() *Logger {
-	isDebug := util.GetEnvBool("IS_DEBUG", true)
+	isDebug := util.GetEnvBool("IS_DEBUG", false)
 
 	// Create handler based on debug mode
 	var handler slog.Handler = NewHandler(isDebug, os.Stdout)

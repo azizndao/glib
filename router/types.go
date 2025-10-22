@@ -3,7 +3,7 @@ package router
 import (
 	"net/http"
 
-	"github.com/azizndao/grouter/slog"
+	"github.com/azizndao/glib/slog"
 )
 
 type Router interface {

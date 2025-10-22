@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 // statusWriter wraps http.ResponseWriter to track the status code
@@ -85,7 +85,7 @@ func LoadConfig() *Config {
 //	    Max:    50,
 //	    Window: time.Minute,
 //	    Store:  redisStore,
-//	    KeyGenerator: func(c *grouter.Ctx) string {
+//	    KeyGenerator: func(c *glib.Ctx) string {
 //	        // Rate limit by user ID if authenticated
 //	        if userID := c.GetValue("userID"); userID != nil {
 //	            return userID.(string)

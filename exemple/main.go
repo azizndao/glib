@@ -1,15 +1,15 @@
-// Package main demonstrates the grouter.Server with comprehensive production-ready configuration
+// Package main demonstrates the glib.Server with comprehensive production-ready configuration
 package main
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/azizndao/grouter"
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/middleware"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/validation"
+	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/middleware"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
 	es_translations "github.com/go-playground/validator/v10/translations/es"
@@ -37,7 +37,7 @@ func main() {
 	// Set environment variables to customize the server behavior
 	//
 	// Optionally add validation locales for multi-language validation error messages
-	server := grouter.New(
+	server := glib.New(
 		validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
 		validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 	)

@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"github.com/azizndao/grouter/ratelimit"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/validation"
+	"github.com/azizndao/glib/ratelimit"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/validation"
 )
 
 // Stack builds a middleware stack from environment variables.

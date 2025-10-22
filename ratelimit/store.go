@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/azizndao/grouter/router"
+	"github.com/azizndao/glib/router"
 )
 
 const (

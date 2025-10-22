@@ -3,7 +3,7 @@ package validation
 import (
 	"log/slog"
 
-	"github.com/azizndao/grouter/router"
+	"github.com/azizndao/glib/router"
 )
 
 // Middleware creates a middleware that injects the validator into the request context

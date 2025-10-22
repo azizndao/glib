@@ -1,6 +1,6 @@
-# GRouter
+# glib
 
-**GRouter is an opinionated framework.** It was created for my personal approach to building Go APIs and reflects specific design decisions that I find valuable:
+**glib is an opinionated framework.** It was created for my personal approach to building Go APIs and reflects specific design decisions that I find valuable:
 
 - **Ctx-based middleware**: Uses `*Ctx` instead of `http.Handler` for cleaner composition and richer APIs
 - **Builder/fluent pattern**: Chainable method calls for elegant request handling
@@ -18,7 +18,7 @@
 - **Integrated logging**: Access logger via `c.Logger()` in any handler/middleware for consistent logging
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
 - **Error handling**: Graceful error handling with structured error responses
-- **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout, RequestID, RateLimit, Compress, BodyLimit, Heartbeat, RealIP - all using consistent config pattern
+- **Middleware support**: Ctx-based middleware with built-in RealIP, RequestID, Recovery, Logger, Compress, BodyLimit, RateLimit, CORS, and optional Validation — all environment-configurable
 - **Route groups**: Organize routes with prefixes and group-specific middleware
 - **Request tracking**: Built-in request ID generation and tracking
 - **Rate limiting**: Configurable rate limiting per IP or custom key
@@ -31,7 +31,7 @@
 ## Installation
 
 ```bash
-go get github.com/azizndao/grouter
+go get github.com/azizndao/glib
 ```
 
 ## Quick Start
@@ -42,14 +42,14 @@ package main
 import (
     "fmt"
 
-    "github.com/azizndao/grouter"
-    "github.com/azizndao/grouter/router"
+    "github.com/azizndao/glib"
+    "github.com/azizndao/glib/router"
 )
 
 func main() {
     // Create server - all configuration loaded from environment variables
     // See Environment Configuration section below for available options
-    server := grouter.New()
+    server := glib.New()
 
     // Get the router to register routes
     r := server.Router()
@@ -76,7 +76,7 @@ func main() {
 
 ## Environment Configuration
 
-GRouter is fully configurable via environment variables. Copy `.env.example` to `.env` and customize as needed:
+glib is fully configurable via environment variables. Copy `.env.example` to `.env` and customize as needed:
 
 ```env
 # Server Configuration
@@ -121,7 +121,7 @@ LOGGER_FORMAT=default       # Options: default, combined, short, tiny
 LOGGER_TIME_FORMAT=15:04:05 # Go time layout
 ```
 
-All middleware are automatically loaded and configured from environment variables when you call `grouter.New()`.
+All middleware are automatically loaded and configured from environment variables when you call `glib.New()`.
 
 ## API Reference
 
@@ -129,10 +129,10 @@ All middleware are automatically loaded and configured from environment variable
 
 ```go
 // Create server with default configuration (loads from environment variables)
-server := grouter.New()
+server := glib.New()
 
 // Create server with validation locales for i18n error messages
-server := grouter.New(
+server := glib.New(
     validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
     validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
 )
@@ -219,7 +219,7 @@ return c.Status(201).
 #### Request Data
 
 ```go
-func handler(c *grouter.Ctx) error {
+func handler(c *glib.Ctx) error {
     // Path parameters (Go 1.22+ routing)
     id := c.PathValue("id")
 
@@ -276,7 +276,7 @@ func handler(c *grouter.Ctx) error {
 #### Response Helpers
 
 ```go
-func handler(c *grouter.Ctx) error {
+func handler(c *glib.Ctx) error {
     // JSON response - chain Status() with JSON()
     return c.Status(200).JSON(map[string]string{"status": "ok"})
 
@@ -318,11 +318,11 @@ func handler(c *grouter.Ctx) error {
 
 ### Middleware
 
-All middleware in GRouter uses the `*Ctx` interface, providing a cleaner and more powerful API.
+All middleware in glib uses the `*Ctx` interface, providing a cleaner and more powerful API.
 
 **Middleware signature:** `func(router.Handler) router.Handler` where `Handler` is `func(*Ctx) error`
 
-When using `grouter.New()`, middleware are **automatically loaded and configured from environment variables**. You can disable individual middleware by setting their corresponding `ENABLE_*` environment variable to `false`.
+When using `glib.New()`, middleware are **automatically loaded and configured from environment variables**. You can disable individual middleware by setting their corresponding `ENABLE_*` environment variable to `false`.
 
 For custom configurations or when building routes manually, you can also configure middleware programmatically:
 
@@ -330,17 +330,17 @@ For custom configurations or when building routes manually, you can also configu
 
 ```go
 import (
-    "github.com/azizndao/grouter/middleware"
-    "github.com/azizndao/grouter/ratelimit"
-    "github.com/azizndao/grouter/router"
-    "github.com/azizndao/grouter/validation"
+    "github.com/azizndao/glib/middleware"
+    "github.com/azizndao/glib/ratelimit"
+    "github.com/azizndao/glib/router"
+    "github.com/azizndao/glib/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
     fr_translations "github.com/go-playground/validator/v10/translations/fr"
     es_translations "github.com/go-playground/validator/v10/translations/es"
 )
 
-// With grouter.New(), middleware are automatically loaded from environment variables
+// With glib.New(), middleware are automatically loaded from environment variables
 // No manual router.Use() calls needed unless you want custom configuration
 
 // Request ID middleware - generates unique request IDs (auto-enabled with ENABLE_REQUEST_ID=true)
@@ -359,7 +359,7 @@ r.Use(middleware.RequestID(middleware.RequestIDConfig{
 }))
 
 // === Manual Middleware Configuration Examples ===
-// These are only needed if you're NOT using grouter.New() or need custom config
+// These are only needed if you're NOT using glib.New() or need custom config
 
 // Logger middleware (auto-enabled with ENABLE_LOGGER=true)
 // Configuration loaded from environment variables:
@@ -459,7 +459,7 @@ r.Use(middleware.RealIP(middleware.RealIPConfig{
 Middleware works directly with the `*router.Ctx` interface for cleaner composition:
 
 ```go
-import "github.com/azizndao/grouter/router"
+import "github.com/azizndao/glib/router"
 
 // Basic middleware template
 func customMiddleware(next router.Handler) router.Handler {
@@ -528,12 +528,12 @@ func rateLimiter(requestsPerMinute int) router.Middleware {
 
 ### Error Handling
 
-GRouter handlers return errors that are automatically logged:
+glib handlers return errors that are automatically logged:
 
 ```go
-import "github.com/azizndao/grouter/errors"
+import "github.com/azizndao/glib/errors"
 
-func handler(c *grouter.Ctx) error {
+func handler(c *glib.Ctx) error {
     user, err := findUser(id)
     if err != nil {
         return errors.NotFound("User not found", err)
@@ -547,10 +547,10 @@ func handler(c *grouter.Ctx) error {
 }
 ```
 
-GRouter provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
+glib provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
 
 ```go
-import "github.com/azizndao/grouter/errors"
+import "github.com/azizndao/glib/errors"
 
 // Available error helpers:
 errors.BadRequest(data, internal)           // 400
@@ -568,14 +568,14 @@ return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Dat
 
 ### Validation
 
-GRouter provides powerful request validation with multi-language support using `go-playground/validator`.
+glib provides powerful request validation with multi-language support using `go-playground/validator`.
 
 #### Setup Validator Middleware
 
 ```go
 import (
-    "github.com/azizndao/grouter"
-    "github.com/azizndao/grouter/validation"
+    "github.com/azizndao/glib"
+    "github.com/azizndao/glib/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
     fr_translations "github.com/go-playground/validator/v10/translations/fr"
@@ -592,7 +592,7 @@ router.Use(validation.Middleware(
 #### Using Validation
 
 ```go
-import "github.com/azizndao/grouter/router"
+import "github.com/azizndao/glib/router"
 
 type CreateUserRequest struct {
     Email    string `json:"email" validate:"required,email"`
@@ -669,10 +669,10 @@ Supports all standard validator tags:
 
 ### Logging
 
-GRouter includes colorful request logging with support for both console and structured logging:
+glib includes colorful request logging with support for both console and structured logging:
 
 ```go
-import "github.com/azizndao/grouter/middleware"
+import "github.com/azizndao/glib/middleware"
 
 // Use default console logger with colors
 router.Use(middleware.Logger())
@@ -752,7 +752,7 @@ for _, route := range routes {
 Store and retrieve values in the request context:
 
 ```go
-import "github.com/azizndao/grouter/router"
+import "github.com/azizndao/glib/router"
 
 func authMiddleware(next router.Handler) router.Handler {
     return func(c *router.Ctx) error {
@@ -775,7 +775,7 @@ ctx := c.Context()
 
 ## Requirements
 
-- Go 1.22 or later (for enhanced routing features)
+- Go 1.25+ (per go.mod)
 
 ## License
 

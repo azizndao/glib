@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 const (
@@ -74,7 +74,7 @@ func LoadRequestIDConfig() *RequestIDConfig {
 //	router.Use(middleware.RequestID())
 //
 //	// Access in handler:
-//	func handler(c *grouter.Ctx) error {
+//	func handler(c *glib.Ctx) error {
 //	    requestID := c.GetValue("requestID").(string)
 //	    log.Printf("Request ID: %s", requestID)
 //	    return c.JSON(map[string]string{"request_id": requestID})

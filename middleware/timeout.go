@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 const (

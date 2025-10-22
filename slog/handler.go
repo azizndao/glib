@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/glib/errors"
 )
 
 // Colors and formats

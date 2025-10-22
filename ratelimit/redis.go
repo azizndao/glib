@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/glib/errors"
 )
 
 // RedisCommander is the minimal interface needed for rate limiting with Redis

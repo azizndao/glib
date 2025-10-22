@@ -1,13 +1,13 @@
-// Package middleware provides common middleware implementations for the grouter package.
+// Package middleware provides common middleware implementations for the glib package.
 package middleware
 
 import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 // LoadRecoveryConfig loads recovery middleware enabled state from environment variables

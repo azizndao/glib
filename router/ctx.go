@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/slog"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/slog"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -21,8 +21,8 @@ type Ctx struct {
 	Request    *http.Request
 	Response   http.ResponseWriter
 	statusCode int
-	body       []byte      // Cached request body
-	bodyRead   bool        // Track if body has been read
+	body       []byte       // Cached request body
+	bodyRead   bool         // Track if body has been read
 	logger     *slog.Logger // Logger instance for logging within routes and middleware
 }
 

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/azizndao/grouter/ratelimit"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/slog"
+	"github.com/azizndao/glib/ratelimit"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/slog"
 )
 
 func ExampleRateLimit_perRoute() {

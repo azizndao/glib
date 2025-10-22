@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/azizndao/grouter/errors"
+	"github.com/azizndao/glib/errors"
 	"github.com/stretchr/testify/assert"
 )
 

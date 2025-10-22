@@ -1,4 +1,4 @@
-module github.com/azizndao/grouter
+module github.com/azizndao/glib
 
 go 1.25.1
 

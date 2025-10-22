@@ -1,11 +1,11 @@
-module grouter/exemple
+module glib/exemple
 
 go 1.25.1
 
-replace github.com/azizndao/grouter => ../
+replace github.com/azizndao/glib => ../
 
 require (
-	github.com/azizndao/grouter v0.0.0-00010101000000-000000000000
+	github.com/azizndao/glib v0.0.0-00010101000000-000000000000
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/joho/godotenv v1.5.1

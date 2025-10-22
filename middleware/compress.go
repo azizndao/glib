@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 // Encoder is an interface that wraps the compression writer
@@ -147,7 +147,7 @@ func (c *Compressor) Handler(next http.Handler) http.Handler {
 	})
 }
 
-// Middleware returns a grouter-compatible middleware
+// Middleware returns a glib-compatible middleware
 func (c *Compressor) Middleware() router.Middleware {
 	return func(next router.Handler) router.Handler {
 		return func(ctx *router.Ctx) error {

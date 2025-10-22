@@ -1,4 +1,4 @@
-// Package middleware provides common HTTP middleware implementations for grouter.
+// Package middleware provides common HTTP middleware implementations for glib.
 package middleware
 
 import (
@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/azizndao/grouter/router"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/router"
+	"github.com/azizndao/glib/util"
 )
 
 // CORSConfig contains configuration for CORS middleware

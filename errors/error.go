@@ -101,7 +101,7 @@ func toErr(reason any) []error {
 
 func (e Error) Error() string {
 	if len(e.reasons) == 0 {
-		return "github.com/azizndao/grouter/errors.Error: the Error doesn't wrap any reason (empty reasons slice)"
+		return "github.com/azizndao/glib/errors.Error: the Error doesn't wrap any reason (empty reasons slice)"
 	}
 	return strings.Join(lo.Map(e.reasons, func(e error, _ int) string {
 		if e == nil {

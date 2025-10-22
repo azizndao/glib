@@ -1,4 +1,4 @@
-// Package grouter provides utilities for HTTP routing
+// Package glib provides utilities for HTTP routing
 package router
 
 import (
@@ -7,9 +7,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/slog"
-	"github.com/azizndao/grouter/util"
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/slog"
+	"github.com/azizndao/glib/util"
 )
 
 // router implements the Router interface using Go's enhanced net/http features
@@ -173,20 +173,20 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 		ctx := newCtx(w, req, r.logger)
 
 		if err := finalHandler(ctx); err != nil {
-			var grouterErr *errors.ApiError
+			var glibErr *errors.ApiError
 
 			switch t := err.(type) {
 			case *errors.ApiError:
 				if t.Data == nil {
 					t.Data = http.StatusText(t.Code)
 				}
-				grouterErr = t
+				glibErr = t
 
 			default:
-				grouterErr = errors.InternalServerError("Server Error", err)
+				glibErr = errors.InternalServerError("Server Error", err)
 			}
 
-			ctx.Status(grouterErr.Code).JSON(grouterErr)
+			ctx.Status(glibErr.Code).JSON(glibErr)
 		}
 	}
 }

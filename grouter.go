@@ -1,4 +1,4 @@
-package grouter
+package glib
 
 import (
 	"context"
@@ -11,17 +11,17 @@ import (
 	"syscall"
 	"time"
 
-	gerrors "github.com/azizndao/grouter/errors"
-	"github.com/azizndao/grouter/middleware"
-	"github.com/azizndao/grouter/ratelimit"
-	"github.com/azizndao/grouter/router"
-	gslog "github.com/azizndao/grouter/slog"
-	"github.com/azizndao/grouter/util"
-	"github.com/azizndao/grouter/validation"
+	gerrors "github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/middleware"
+	"github.com/azizndao/glib/ratelimit"
+	"github.com/azizndao/glib/router"
+	gslog "github.com/azizndao/glib/slog"
+	"github.com/azizndao/glib/util"
+	"github.com/azizndao/glib/validation"
 	"github.com/joho/godotenv"
 )
 
-// Server represents the main grouter HTTP server with integrated middleware and lifecycle management
+// Server represents the main glib HTTP server with integrated middleware and lifecycle management
 type Server struct {
 	router          router.Router
 	httpServer      *http.Server
