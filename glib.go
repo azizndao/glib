@@ -25,6 +25,9 @@ type LocaleConfig = validation.LocaleConfig
 
 var Locale = validation.Locale
 
+type Router = router.Router
+type Ctx = router.Ctx
+
 type Config struct {
 	Locales []LocaleConfig
 	Store   ratelimit.Store // Optional: Custom store for rate limiting (default: in-memory)
