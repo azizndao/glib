@@ -6,6 +6,7 @@
 - **Builder/fluent pattern**: Chainable method calls for elegant request handling
 - **Integrated validation**: Built-in `go-playground/validator` with i18n support out of the box
 - **Structured errors**: Proper HTTP status codes with consistent JSON error responses
+- **Integrated logger**: Access logger from anywhere via `c.Logger()` for consistent, centralized logging
 - **Rich context helpers**: 30+ utility methods to minimize boilerplate
 
 ## Features
@@ -14,6 +15,7 @@
 - **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements
 - **Request validation**: Integrated `go-playground/validator` with struct tags
 - **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
+- **Integrated logging**: Access logger via `c.Logger()` in any handler/middleware for consistent logging
 - **Colorful logging**: Beautiful, configurable request logging with ANSI colors
 - **Error handling**: Graceful error handling with structured error responses
 - **Middleware support**: Ctx-based middleware with built-in Logger, Recovery, CORS, Timeout, RequestID, RateLimit, Compress, BodyLimit, Heartbeat, RealIP - all using consistent config pattern
@@ -263,6 +265,10 @@ func handler(c *grouter.Ctx) error {
     // Cookies
     sessionCookie, err := c.GetCookie("session")
 
+    // Logger - access the application logger
+    c.Logger().Info("Processing request", "user_id", id)
+    c.Logger().Error(err, "operation", "parse_body")
+
     return nil
 }
 ```
@@ -458,16 +464,22 @@ import "github.com/azizndao/grouter/router"
 // Basic middleware template
 func customMiddleware(next router.Handler) router.Handler {
     return func(c *router.Ctx) error {
-        // Before request - access to full Ctx API
+        // Before request - access to full Ctx API including logger
         start := time.Now()
         userID := c.Get("X-User-ID")
+
+        c.Logger().Debug("Request started", "user_id", userID, "path", c.Path())
 
         // Execute next handler
         err := next(c)
 
-        // After request
+        // After request - log with context
         duration := time.Since(start)
-        log.Printf("User %s - Request took %v", userID, duration)
+        c.Logger().Info("Request completed",
+            "user_id", userID,
+            "duration", duration,
+            "status", c.statusCode,
+        )
 
         return err
     }
@@ -687,6 +699,41 @@ Available log formats:
 - `LogFormatTiny` - Minimal format (timestamp, method, status, duration)
 - `LogFormatShort` - Short format (timestamp, method, path, status, duration)
 - `LogFormatCombined` - Combined format with user agent
+
+#### Application Logging
+
+Access the logger from any route handler or middleware using `c.Logger()`:
+
+```go
+func handler(c *router.Ctx) error {
+    // Log informational messages
+    c.Logger().Info("Processing user request",
+        "user_id", c.PathValue("id"),
+        "action", "update",
+    )
+
+    // Log errors with structured data
+    if err := doSomething(); err != nil {
+        c.Logger().Error(err,
+            "operation", "database_query",
+            "user_id", c.PathValue("id"),
+        )
+        return err
+    }
+
+    // Log warnings
+    c.Logger().Warn("Deprecated API called", "endpoint", c.Path())
+
+    // Log debug information
+    c.Logger().Debug("Cache hit", "key", cacheKey)
+
+    return c.JSON(map[string]string{"status": "ok"})
+}
+```
+
+The logger respects the `IS_DEBUG` environment variable:
+- `IS_DEBUG=true`: Colorful console logging with DevMode handler
+- `IS_DEBUG=false`: Structured JSON logging for production
 
 ## Advanced Usage
 
