@@ -15,19 +15,28 @@ import (
 	"github.com/azizndao/glib/middleware"
 	"github.com/azizndao/glib/ratelimit"
 	"github.com/azizndao/glib/router"
-	gslog "github.com/azizndao/glib/slog"
+	glog "github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/util"
 	"github.com/azizndao/glib/validation"
 	"github.com/joho/godotenv"
 )
 
+type LocaleConfig = validation.LocaleConfig
+
+var Locale = validation.Locale
+
+type Config struct {
+	Locales []LocaleConfig
+	Store   ratelimit.Store // Optional: Custom store for rate limiting (default: in-memory)
+}
+
 // Server represents the main glib HTTP server with integrated middleware and lifecycle management
 type Server struct {
 	router          router.Router
 	httpServer      *http.Server
-	logger          *gslog.Logger
+	logger          *glog.Logger
 	shutdownTimeout time.Duration
-	stores          []ratelimit.Store // Track stores for cleanup
+	Stores          []ratelimit.Store // Track stores for cleanup
 }
 
 // New creates a new Server with configuration loaded from environment variables
@@ -37,7 +46,7 @@ type Server struct {
 //   - locales: Optional validation locale configurations for i18n support
 //     Pass validation.LocaleConfig for multi-language validation error messages
 //     Example: New(validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations))
-func New(locales ...validation.LocaleConfig) *Server {
+func New(config Config) *Server {
 	// Load server settings from env
 	godotenv.Load()
 	host := util.GetEnv("HOST", "localhost")
@@ -48,7 +57,7 @@ func New(locales ...validation.LocaleConfig) *Server {
 	shutdownTimeout := util.GetEnvDuration("SHUTDOWN_TIMEOUT", 30*time.Second)
 
 	// Create logger from environment configuration
-	logger := gslog.Create()
+	logger := glog.Create()
 
 	slog.SetDefault(logger.Logger)
 
@@ -56,7 +65,11 @@ func New(locales ...validation.LocaleConfig) *Server {
 	r := router.Default(logger)
 
 	// Build and apply middleware stack from environment variables
-	r.Use(middleware.Stack(locales...)...)
+	middlewareStack := middleware.Stack(middleware.StackConfig{
+		Locales: config.Locales,
+		Store:   config.Store,
+	})
+	r.Use(middlewareStack...)
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -68,13 +81,20 @@ func New(locales ...validation.LocaleConfig) *Server {
 		IdleTimeout:  idleTimeout,
 	}
 
-	return &Server{
+	server := &Server{
 		router:          r,
 		httpServer:      httpServer,
 		logger:          logger,
 		shutdownTimeout: shutdownTimeout,
-		stores:          make([]ratelimit.Store, 0),
+		Stores:          make([]ratelimit.Store, 0),
 	}
+
+	// Register custom store for cleanup if provided
+	if config.Store != nil {
+		server.RegisterStore(config.Store)
+	}
+
+	return server
 }
 
 // Router returns the underlying router for advanced configuration
@@ -83,7 +103,7 @@ func (s *Server) Router() router.Router {
 }
 
 // Logger returns the configured logger
-func (s *Server) Logger() *gslog.Logger {
+func (s *Server) Logger() *glog.Logger {
 	return s.logger
 }
 
@@ -95,6 +115,7 @@ func (s *Server) Address() string {
 // Listen starts the HTTP server
 // Returns an error if the server fails to start
 func (s *Server) Listen() error {
+	s.logger.InfoWithSource(context.Background(), 0, fmt.Sprintf("Starting server on %s", s.httpServer.Addr))
 	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return gerrors.Errorf("server failed to start: %w", err)
 	}
@@ -104,10 +125,7 @@ func (s *Server) Listen() error {
 
 // ListenTLS starts the HTTPS server with TLS
 func (s *Server) ListenTLS(certFile, keyFile string) error {
-	s.logger.InfoWithSource(context.Background(), 0, "Starting TLS server",
-		"address", s.httpServer.Addr,
-		"cert", certFile,
-	)
+	s.logger.InfoWithSource(context.Background(), 0, fmt.Sprintf("Starting TLS server on %s", s.httpServer.Addr))
 
 	if err := s.httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return gerrors.Errorf("TLS server failed to start: %w", err)
@@ -127,7 +145,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	// Cleanup stores (rate limiters, etc.)
-	for _, store := range s.stores {
+	for _, store := range s.Stores {
 		if err := store.Close(); err != nil {
 			s.logger.ErrorWithSource(ctx, 0, gerrors.Errorf("failed to close store: %w", err))
 		}
@@ -204,5 +222,5 @@ func (s *Server) ListenTLSWithGracefulShutdown(certFile, keyFile string) error {
 // RegisterStore registers a rate limit store for cleanup on shutdown
 // This is useful if you're using custom rate limit stores
 func (s *Server) RegisterStore(store ratelimit.Store) {
-	s.stores = append(s.stores, store)
+	s.Stores = append(s.Stores, store)
 }

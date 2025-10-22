@@ -1,6 +1,13 @@
 # glib
 
-**glib is an opinionated framework.** It was created for my personal approach to building Go APIs and reflects specific design decisions that I find valuable:
+[![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.25-blue)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+**glib is an opinionated HTTP framework for Go** that provides a modern, production-ready foundation for building REST APIs with minimal boilerplate.
+
+## Philosophy
+
+glib was created with specific design principles that prioritize developer experience and code clarity:
 
 - **Ctx-based middleware**: Uses `*Ctx` instead of `http.Handler` for cleaner composition and richer APIs
 - **Builder/fluent pattern**: Chainable method calls for elegant request handling
@@ -8,24 +15,57 @@
 - **Structured errors**: Proper HTTP status codes with consistent JSON error responses
 - **Integrated logger**: Access logger from anywhere via `c.Logger()` for consistent, centralized logging
 - **Rich context helpers**: 30+ utility methods to minimize boilerplate
+- **Environment-driven**: All configuration via environment variables for 12-factor app compliance
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Environment Configuration](#environment-configuration)
+- [API Reference](#api-reference)
+  - [Server Creation](#server-creation)
+  - [Server Methods](#server-methods)
+  - [Router Methods](#router-methods)
+  - [Context Methods](#context-methods)
+  - [Middleware](#middleware)
+  - [Error Handling](#error-handling)
+  - [Validation](#validation)
+  - [Logging](#logging)
+- [Advanced Usage](#advanced-usage)
+- [Requirements](#requirements)
+- [License](#license)
+
+
 
 ## Features
 
 - **Clean API**: Intuitive routing interface with fluent/builder pattern
-- **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements
+- **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements with enhanced pattern matching
 - **Request validation**: Integrated `go-playground/validator` with struct tags
 - **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
 - **Integrated logging**: Access logger via `c.Logger()` in any handler/middleware for consistent logging
-- **Colorful logging**: Beautiful, configurable request logging with ANSI colors
+- **Colorful dev logging**: Beautiful, configurable request logging with ANSI colors for development
+- **Structured production logging**: JSON logging with slog for production environments
 - **Error handling**: Graceful error handling with structured error responses
-- **Middleware support**: Ctx-based middleware with built-in RealIP, RequestID, Recovery, Logger, Compress, BodyLimit, RateLimit, CORS, and optional Validation — all environment-configurable
+- **Middleware support**: Ctx-based middleware with built-in implementations:
+  - **RealIP**: Extract real client IP from proxy headers
+  - **RequestID**: Generate unique request IDs for tracing
+  - **Recovery**: Panic recovery with stack traces
+  - **Logger**: Request/response logging (dev and production modes)
+  - **Compress**: Automatic gzip/deflate compression
+  - **BodyLimit**: Request body size limits (prevent DoS)
+  - **RateLimit**: Configurable rate limiting per IP or custom key
+  - **CORS**: Cross-origin resource sharing
+  - **Timeout**: Request timeout handling
+  - **Validation**: Optional validation middleware (enabled when locales configured)
 - **Route groups**: Organize routes with prefixes and group-specific middleware
 - **Request tracking**: Built-in request ID generation and tracking
-- **Rate limiting**: Configurable rate limiting per IP or custom key
 - **Compression**: Automatic gzip compression for responses
 - **Security**: Body size limits, CORS, secure cookie handling
 - **Rich context helpers**: 30+ utility methods for requests, responses, validation, cookies
 - **Type safety**: Full type safety with Go's type system
+- **Graceful shutdown**: Automatic signal handling (SIGINT/SIGTERM) with configurable timeout
 - **Production ready**: Battle-tested with comprehensive error handling
 
 ## Installation
@@ -49,7 +89,7 @@ import (
 func main() {
     // Create server - all configuration loaded from environment variables
     // See Environment Configuration section below for available options
-    server := glib.New()
+    server := glib.New(glib.Config{})
 
     // Get the router to register routes
     r := server.Router()
@@ -74,68 +114,90 @@ func main() {
 }
 ```
 
+Run the server:
+
+```bash
+# Set environment variables (or create .env file)
+export HOST=localhost
+export PORT=8080
+export IS_DEBUG=true
+
+# Run the server
+go run main.go
+```
+
 ## Environment Configuration
 
-glib is fully configurable via environment variables. Copy `.env.example` to `.env` and customize as needed:
+glib is fully configurable via environment variables. Create a `.env` file in your project root:
 
 ```env
 # Server Configuration
-IS_DEBUG=false              # Debug mode (sets debug level + colored DevMode handler)
+IS_DEBUG=false              # Debug mode (enables colored DevMode logging)
 
 # Server settings
-HOST=localhost
-PORT=8080
+HOST=localhost              # Server host
+PORT=8080                   # Server port
 
 # Timeouts (Go duration format: 10s, 1m, 1h30m)
-READ_TIMEOUT=10s
-WRITE_TIMEOUT=10s
-IDLE_TIMEOUT=120s
-SHUTDOWN_TIMEOUT=30s
+READ_TIMEOUT=10s            # Maximum duration for reading request
+WRITE_TIMEOUT=10s           # Maximum duration for writing response
+IDLE_TIMEOUT=120s           # Maximum idle time between requests
+SHUTDOWN_TIMEOUT=30s        # Maximum time to wait for graceful shutdown
 
 # Middleware enable/disable (true/false, 1/0, yes/no, on/off)
-ENABLE_REAL_IP=true
-ENABLE_REQUEST_ID=true
-ENABLE_RECOVERY=true
-ENABLE_LOGGER=true
-ENABLE_COMPRESS=true
-ENABLE_CORS=true
+ENABLE_REAL_IP=true         # Extract real client IP from proxy headers
+ENABLE_REQUEST_ID=true      # Generate unique request IDs
+ENABLE_RECOVERY=true        # Panic recovery with stack traces
+ENABLE_LOGGER=true          # Request/response logging
+ENABLE_COMPRESS=true        # Gzip/deflate compression
+ENABLE_CORS=true            # CORS support
+ENABLE_RATE_LIMIT=true      # Rate limiting
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS=*                     # Comma-separated origins
+CORS_ALLOWED_ORIGINS=*                              # Comma-separated origins
 CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
 CORS_ALLOWED_HEADERS=Authorization,Content-Type,Accept
-CORS_EXPOSED_HEADERS=                      # Optional: headers browsers can access
-CORS_ALLOW_CREDENTIALS=false               # Allow cookies/credentials
-CORS_MAX_AGE=24h                           # Preflight cache duration
+CORS_EXPOSED_HEADERS=                               # Optional: headers browsers can access
+CORS_ALLOW_CREDENTIALS=false                        # Allow cookies/credentials
+CORS_MAX_AGE=24h                                    # Preflight cache duration
 
 # Body limit (in bytes, e.g., 4194304 = 4MB)
-BODY_LIMIT=5242880
+BODY_LIMIT=5242880          # 5MB
 
 # Rate limiting
-ENABLE_RATE_LIMIT=true
-RATE_LIMIT_MAX=100
-RATE_LIMIT_WINDOW=1m
+RATE_LIMIT_MAX=100          # Maximum requests per window
+RATE_LIMIT_WINDOW=1m        # Time window for rate limiting
 
 # Logger configuration (format options only apply when IS_DEBUG=true)
 LOGGER_FORMAT=default       # Options: default, combined, short, tiny
 LOGGER_TIME_FORMAT=15:04:05 # Go time layout
 ```
 
-All middleware are automatically loaded and configured from environment variables when you call `glib.New()`.
+Copy `.env.example` from the repository to get started.
 
 ## API Reference
 
 ### Server Creation
 
 ```go
+import (
+    "github.com/azizndao/glib"
+    "github.com/go-playground/locales/fr"
+    "github.com/go-playground/locales/es"
+    frt "github.com/go-playground/validator/v10/translations/fr"
+    est "github.com/go-playground/validator/v10/translations/es"
+)
+
 // Create server with default configuration (loads from environment variables)
-server := glib.New()
+server := glib.New(glib.Config{})
 
 // Create server with validation locales for i18n error messages
-server := glib.New(
-    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-)
+server := glib.New(glib.Config{
+    Locales: []glib.LocaleConfig{
+        glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
+        glib.Locale(es.New(), est.RegisterDefaultTranslations),
+    },
+})
 
 // Access the router
 r := server.Router()
@@ -173,7 +235,7 @@ server.RegisterStore(redisStore)
 
 ### Router Methods
 
-### HTTP Methods
+#### HTTP Methods
 
 ```go
 router.Get("/path", handler)
@@ -191,7 +253,7 @@ router.Handle("METHOD", "/path", handler)
 router.Route("/prefix", httpHandler)
 ```
 
-### Route Groups
+#### Route Groups
 
 ```go
 // Create a group with prefix
@@ -202,6 +264,12 @@ api.Post("/users", createUserHandler)
 // Groups with middleware
 admin := router.Group("/admin", authMiddleware, adminMiddleware)
 admin.Get("/dashboard", dashboardHandler)
+
+// Nested groups
+v1 := router.Group("/api/v1")
+users := v1.Group("/users")
+users.Get("/", listUsers)
+users.Get("/{id}", getUser)
 ```
 
 ### Context Methods
@@ -219,7 +287,7 @@ return c.Status(201).
 #### Request Data
 
 ```go
-func handler(c *glib.Ctx) error {
+func handler(c *router.Ctx) error {
     // Path parameters (Go 1.22+ routing)
     id := c.PathValue("id")
 
@@ -276,7 +344,7 @@ func handler(c *glib.Ctx) error {
 #### Response Helpers
 
 ```go
-func handler(c *glib.Ctx) error {
+func handler(c *router.Ctx) error {
     // JSON response - chain Status() with JSON()
     return c.Status(200).JSON(map[string]string{"status": "ok"})
 
@@ -324,8 +392,6 @@ All middleware in glib uses the `*Ctx` interface, providing a cleaner and more p
 
 When using `glib.New()`, middleware are **automatically loaded and configured from environment variables**. You can disable individual middleware by setting their corresponding `ENABLE_*` environment variable to `false`.
 
-For custom configurations or when building routes manually, you can also configure middleware programmatically:
-
 #### Built-in Middleware
 
 ```go
@@ -333,11 +399,6 @@ import (
     "github.com/azizndao/glib/middleware"
     "github.com/azizndao/glib/ratelimit"
     "github.com/azizndao/glib/router"
-    "github.com/azizndao/glib/validation"
-    "github.com/go-playground/locales/fr"
-    "github.com/go-playground/locales/es"
-    fr_translations "github.com/go-playground/validator/v10/translations/fr"
-    es_translations "github.com/go-playground/validator/v10/translations/es"
 )
 
 // With glib.New(), middleware are automatically loaded from environment variables
@@ -349,14 +410,6 @@ func handler(c *router.Ctx) error {
     requestID := middleware.GetRequestID(c)
     return c.JSON(map[string]string{"request_id": requestID})
 }
-
-// If you need custom middleware configuration, you can still add them manually:
-r := server.Router()
-r.Use(middleware.RequestID(middleware.RequestIDConfig{
-    Generator: func() string {
-        return customIDGenerator()
-    },
-}))
 
 // === Manual Middleware Configuration Examples ===
 // These are only needed if you're NOT using glib.New() or need custom config
@@ -507,33 +560,16 @@ func authMiddleware(next router.Handler) router.Handler {
         return next(c)
     }
 }
-
-// Rate limiting middleware example
-func rateLimiter(requestsPerMinute int) router.Middleware {
-    // Setup rate limiter
-    limiter := rate.NewLimiter(rate.Limit(requestsPerMinute), requestsPerMinute)
-
-    return func(next router.Handler) router.Handler {
-        return func(c *router.Ctx) error {
-            if !limiter.Allow() {
-                return c.Status(429).JSON(map[string]string{
-                    "error": "Too many requests",
-                })
-            }
-            return next(c)
-        }
-    }
-}
 ```
 
 ### Error Handling
 
-glib handlers return errors that are automatically logged:
+glib provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
 
 ```go
 import "github.com/azizndao/glib/errors"
 
-func handler(c *glib.Ctx) error {
+func handler(c *router.Ctx) error {
     user, err := findUser(id)
     if err != nil {
         return errors.NotFound("User not found", err)
@@ -547,7 +583,7 @@ func handler(c *glib.Ctx) error {
 }
 ```
 
-glib provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
+#### Available Error Helpers
 
 ```go
 import "github.com/azizndao/glib/errors"
@@ -563,30 +599,31 @@ errors.UnprocessableEntity(data, internal)  // 422
 errors.InternalServerError(data, internal)  // 500
 
 // Standard errors are automatically converted to 500 responses
-return fmt.Errorf("something went wrong") // Returns 500 with {"Code": 500, "Data": "Server Error"}
+return fmt.Errorf("something went wrong") // Returns 500 with {"code": 500, "data": "Server Error"}
 ```
 
 ### Validation
 
 glib provides powerful request validation with multi-language support using `go-playground/validator`.
 
-#### Setup Validator Middleware
+#### Setup Validation
 
 ```go
 import (
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/validation"
     "github.com/go-playground/locales/fr"
     "github.com/go-playground/locales/es"
-    fr_translations "github.com/go-playground/validator/v10/translations/fr"
-    es_translations "github.com/go-playground/validator/v10/translations/es"
+    frt "github.com/go-playground/validator/v10/translations/fr"
+    est "github.com/go-playground/validator/v10/translations/es"
 )
 
-// Add validator middleware with multiple languages
-router.Use(validation.Middleware(
-    validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-    validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-))
+// Create server with validation locales
+server := glib.New(glib.Config{
+    Locales: []glib.LocaleConfig{
+        glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
+        glib.Locale(es.New(), est.RegisterDefaultTranslations),
+    },
+})
 ```
 
 #### Using Validation
@@ -669,36 +706,7 @@ Supports all standard validator tags:
 
 ### Logging
 
-glib includes colorful request logging with support for both console and structured logging:
-
-```go
-import "github.com/azizndao/glib/middleware"
-
-// Use default console logger with colors
-router.Use(middleware.Logger())
-
-// Custom format
-router.Use(middleware.Logger(middleware.LoggerConfig{
-    Format: middleware.LogFormatTiny,    // Minimal format
-}))
-
-router.Use(middleware.Logger(middleware.LoggerConfig{
-    Format: middleware.LogFormatCombined, // Combined format with user agent
-}))
-
-// Structured logging for production (using slog)
-router.Use(middleware.Logger(middleware.LoggerConfig{
-    UseStructuredLogging: true,
-    Logger:               slog.Default(),
-    LogLevel:             slog.LevelInfo,
-}))
-```
-
-Available log formats:
-- `LogFormatDefault` - Standard format with all details (default)
-- `LogFormatTiny` - Minimal format (timestamp, method, status, duration)
-- `LogFormatShort` - Short format (timestamp, method, path, status, duration)
-- `LogFormatCombined` - Combined format with user agent
+glib includes comprehensive logging with support for both development (colored) and production (JSON) modes:
 
 #### Application Logging
 
@@ -729,6 +737,27 @@ func handler(c *router.Ctx) error {
 
     return c.JSON(map[string]string{"status": "ok"})
 }
+```
+
+#### Request Logging
+
+The logger middleware automatically logs all requests and responses:
+
+```go
+// Available log formats (for IS_DEBUG=true mode):
+// - LogFormatDefault: Standard format with all details (default)
+// - LogFormatTiny: Minimal format (timestamp, method, status, duration)
+// - LogFormatShort: Short format (timestamp, method, path, status, duration)
+// - LogFormatCombined: Combined format with user agent
+
+// Custom format via environment variables:
+// LOGGER_FORMAT=tiny
+// LOGGER_TIME_FORMAT=15:04:05
+
+// Or programmatic configuration:
+r.Use(middleware.Logger(middleware.LoggerConfig{
+    Format: middleware.LogFormatTiny,
+}))
 ```
 
 The logger respects the `IS_DEBUG` environment variable:
@@ -773,9 +802,36 @@ func handler(c *router.Ctx) error {
 ctx := c.Context()
 ```
 
+### Rate Limiting with Redis
+
+```go
+import (
+    "github.com/azizndao/glib/ratelimit"
+    "github.com/redis/go-redis/v9"
+)
+
+// Create Redis client
+redisClient := redis.NewClient(&redis.Options{
+    Addr: "localhost:6379",
+})
+
+// Create Redis store
+redisStore := ratelimit.NewRedisStore(redisClient)
+
+// Register store for cleanup on shutdown
+server.RegisterStore(redisStore)
+
+// Use Redis store for rate limiting
+r.Use(ratelimit.RateLimit(ratelimit.Config{
+    Max:    100,
+    Window: time.Minute,
+    Store:  redisStore,
+}))
+```
+
 ## Requirements
 
-- Go 1.25+ (per go.mod)
+- Go 1.25+ (as specified in go.mod)
 
 ## License
 
@@ -784,3 +840,11 @@ MIT License
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgments
+
+Built with:
+- [go-playground/validator](https://github.com/go-playground/validator) - Struct and field validation
+- [samber/lo](https://github.com/samber/lo) - Functional utilities
+- [joho/godotenv](https://github.com/joho/godotenv) - Environment variable loading
+- Go standard library's enhanced `net/http` (Go 1.22+)

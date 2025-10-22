@@ -9,11 +9,10 @@ import (
 	"github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/middleware"
 	"github.com/azizndao/glib/router"
-	"github.com/azizndao/glib/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
-	es_translations "github.com/go-playground/validator/v10/translations/es"
-	fr_translations "github.com/go-playground/validator/v10/translations/fr"
+	est "github.com/go-playground/validator/v10/translations/es"
+	frt "github.com/go-playground/validator/v10/translations/fr"
 )
 
 type RegisterRequest struct {
@@ -35,12 +34,14 @@ func main() {
 	// Create server - all configuration loaded from environment variables
 	// See .env.example for available configuration options
 	// Set environment variables to customize the server behavior
-	//
-	// Optionally add validation locales for multi-language validation error messages
-	server := glib.New(
-		validation.Locale(fr.New(), fr_translations.RegisterDefaultTranslations),
-		validation.Locale(es.New(), es_translations.RegisterDefaultTranslations),
-	)
+	options := glib.Config{
+		Locales: []glib.LocaleConfig{
+			glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
+			glib.Locale(es.New(), est.RegisterDefaultTranslations),
+		},
+	}
+
+	server := glib.New(options)
 
 	// Get the router from the server to register routes
 	r := server.Router()
@@ -89,11 +90,6 @@ func main() {
 		time.Sleep(3 * time.Second)
 		return c.JSON(map[string]string{"message": "This should timeout"})
 	})
-
-	// Start server with automatic graceful shutdown on SIGINT/SIGTERM
-	// This handles Ctrl+C gracefully, completing in-flight requests
-	server.Logger().Info("Starting server on http://localhost:8080")
-	server.Logger().Info("Press Ctrl+C to gracefully shutdown")
 
 	if err := server.ListenWithGracefulShutdown(); err != nil {
 		server.Logger().Error(err)

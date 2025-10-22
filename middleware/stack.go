@@ -6,6 +6,12 @@ import (
 	"github.com/azizndao/glib/validation"
 )
 
+// StackConfig holds configuration for building the middleware stack
+type StackConfig struct {
+	Locales []validation.LocaleConfig
+	Store   ratelimit.Store // Optional: Custom store for rate limiting
+}
+
 // Stack builds a middleware stack from environment variables.
 // Middleware are loaded and applied in this specific order:
 //  1. RealIP - Extract real client IP from proxy headers
@@ -19,8 +25,8 @@ import (
 //  9. Validation - Request validation with i18n (if locales provided)
 //
 // Each middleware can be disabled via its corresponding ENABLE_* environment variable.
-// Pass validation.LocaleConfig for multi-language validation error messages.
-func Stack(locales ...validation.LocaleConfig) []router.Middleware {
+// Pass StackConfig with validation locales and optional custom store.
+func Stack(config StackConfig) []router.Middleware {
 	middlewares := make([]router.Middleware, 0)
 
 	// Order matters! These middleware are applied in the order specified
@@ -57,6 +63,10 @@ func Stack(locales ...validation.LocaleConfig) []router.Middleware {
 
 	// Rate limiting (if enabled via env)
 	if rateLimitCfg := ratelimit.LoadConfig(); rateLimitCfg != nil {
+		// Use custom store if provided
+		if config.Store != nil {
+			rateLimitCfg.Store = config.Store
+		}
 		middlewares = append(middlewares, ratelimit.RateLimit(*rateLimitCfg))
 	}
 
@@ -66,8 +76,8 @@ func Stack(locales ...validation.LocaleConfig) []router.Middleware {
 	}
 
 	// Validation (if locales provided)
-	if len(locales) > 0 {
-		middlewares = append(middlewares, validation.Middleware(locales...))
+	if len(config.Locales) > 0 {
+		middlewares = append(middlewares, validation.Middleware(config.Locales...))
 	}
 
 	return middlewares
