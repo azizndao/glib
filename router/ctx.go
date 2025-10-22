@@ -14,6 +14,7 @@ import (
 
 	"github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/slog"
+	"github.com/azizndao/glib/validation"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -21,18 +22,20 @@ type Ctx struct {
 	Request    *http.Request
 	Response   http.ResponseWriter
 	statusCode int
-	body       []byte       // Cached request body
-	bodyRead   bool         // Track if body has been read
-	logger     *slog.Logger // Logger instance for logging within routes and middleware
+	body       []byte                // Cached request body
+	bodyRead   bool                  // Track if body has been read
+	logger     *slog.Logger          // Logger instance for logging within routes and middleware
+	validator  *validation.Validator // Validator instance for request validation
 }
 
 // newCtx creates a new Context from request and response
-func newCtx(w http.ResponseWriter, r *http.Request, logger *slog.Logger) *Ctx {
+func newCtx(w http.ResponseWriter, r *http.Request, logger *slog.Logger, validator *validation.Validator) *Ctx {
 	return &Ctx{
 		Request:    r,
 		Response:   w,
 		statusCode: http.StatusOK, // Default to 200
 		logger:     logger,
+		validator:  validator,
 	}
 }
 

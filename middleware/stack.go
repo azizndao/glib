@@ -74,11 +74,5 @@ func Stack(config StackConfig) []router.Middleware {
 	if corsCfg := LoadCORSConfig(); corsCfg != nil {
 		middlewares = append(middlewares, CORS(*corsCfg))
 	}
-
-	// Validation (if locales provided)
-	if len(config.Locales) > 0 {
-		middlewares = append(middlewares, validation.Middleware(config.Locales...))
-	}
-
 	return middlewares
 }

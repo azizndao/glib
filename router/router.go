@@ -10,6 +10,7 @@ import (
 	"github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/util"
+	"github.com/azizndao/glib/validation"
 )
 
 // router implements the Router interface using Go's enhanced net/http features
@@ -21,6 +22,7 @@ type router struct {
 	prefix     string
 	groupMW    []Middleware
 	logger     *slog.Logger
+	validator  *validation.Validator
 }
 
 // DefaultRouterOptions returns sensible default options
@@ -170,7 +172,7 @@ func (r *router) handlerToHTTPHandler(handler Handler, middleware []Middleware) 
 	finalHandler := r.applyCtxMiddleware(handler, middleware)
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := newCtx(w, req, r.logger)
+		ctx := newCtx(w, req, r.logger, r.validator)
 
 		if err := finalHandler(ctx); err != nil {
 			var glibErr *errors.ApiError

@@ -37,6 +37,7 @@ type Server struct {
 	logger          *glog.Logger
 	shutdownTimeout time.Duration
 	Stores          []ratelimit.Store // Track stores for cleanup
+	Validator       *validation.Validator
 }
 
 // New creates a new Server with configuration loaded from environment variables
@@ -81,12 +82,20 @@ func New(config Config) *Server {
 		IdleTimeout:  idleTimeout,
 	}
 
+	validatorConfig := validation.ValidatorConfig{
+		Logger:            logger,
+		Locales:           config.Locales,
+		UseJSONFieldNames: true,
+		DefaultLocale:     "en",
+	}
+
 	server := &Server{
 		router:          r,
 		httpServer:      httpServer,
 		logger:          logger,
 		shutdownTimeout: shutdownTimeout,
 		Stores:          make([]ratelimit.Store, 0),
+		Validator:       validation.NewValidator(validatorConfig),
 	}
 
 	// Register custom store for cleanup if provided

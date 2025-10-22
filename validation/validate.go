@@ -2,11 +2,12 @@
 package validation
 
 import (
+	"os"
 	"reflect"
 	"strings"
 
 	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/util"
+	"github.com/azizndao/glib/slog"
 	"github.com/go-playground/locales"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -22,10 +23,13 @@ type Validator struct {
 
 // ValidatorConfig holds configuration for the validator
 type ValidatorConfig struct {
+	Logger *slog.Logger
 	// DefaultLocale is the default language for validation messages (e.g., "en")
 	DefaultLocale string
 	// UseJSONFieldNames determines if JSON tag names should be used in error messages
 	UseJSONFieldNames bool
+	// Locales is a list of additional locales to register with the validator
+	Locales []LocaleConfig
 }
 
 // TranslationRegistrar is a function that registers translations for a locale
@@ -54,14 +58,23 @@ func DefaultValidatorConfig() ValidatorConfig {
 }
 
 // NewValidator creates a new validator instance with the given configuration
-func NewValidator(config ...ValidatorConfig) *Validator {
-	cfg := util.FirstOrDefault(config, DefaultValidatorConfig)
+func NewValidator(cfg ValidatorConfig) *Validator {
 
 	v := validator.New()
 
 	// Setup universal translator with English as default
 	english := en.New()
 	uni := ut.New(english, english)
+
+	for _, locale := range cfg.Locales {
+		uni.AddTranslator(locale.Locale, true)
+		trans, _ok := uni.GetTranslator(locale.Locale.Locale())
+		if !_ok {
+			cfg.Logger.Error(errors.New("failed to get translator"), "locale", locale.Locale.Locale())
+			os.Exit(0)
+		}
+		locale.Registrar(v, trans)
+	}
 
 	// Register JSON tag names if configured
 	if cfg.UseJSONFieldNames {
@@ -122,20 +135,4 @@ func (v *Validator) formatValidationErrors(err error, locale string) error {
 	}
 
 	return errors.UnprocessableEntity(errs, err)
-}
-
-// AddLocale adds a new locale to the validator with the given translation registrar
-// locale should be from github.com/go-playground/locales (e.g., fr.New(), es.New())
-func (v *Validator) AddLocale(locale locales.Translator, registrar TranslationRegistrar) error {
-	// Add the locale to the universal translator
-	v.uni.AddTranslator(locale, true)
-
-	// Get the translator for this locale
-	trans, ok := v.uni.GetTranslator(locale.Locale())
-	if !ok {
-		return errors.InternalServerError("Failed to get translator", nil)
-	}
-
-	// Register translations
-	return registrar(v.validate, trans)
 }
