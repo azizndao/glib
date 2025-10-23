@@ -13,7 +13,6 @@ import (
 
 	gerrors "github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/middleware"
-	"github.com/azizndao/glib/router"
 	logger "github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/util"
 	"github.com/azizndao/glib/validation"
@@ -23,16 +22,13 @@ type LocaleConfig = validation.LocaleConfig
 
 var Locale = validation.Locale
 
-type Router = router.Router
-type Ctx = router.Ctx
-
 type Config struct {
 	Locales []LocaleConfig
 }
 
 // Server represents the main glib HTTP server with integrated middleware and lifecycle management
 type Server struct {
-	router          router.Router
+	router          Router
 	httpServer      *http.Server
 	logger          *logger.Logger
 	shutdownTimeout time.Duration
@@ -69,7 +65,7 @@ func New(config Config) *Server {
 	validator := validation.New(validatorConfig)
 
 	// Create router with default options
-	r := router.New(logger, validator)
+	r := Default(logger, validator)
 
 	// Build and apply middleware stack from environment variables
 	middlewareStack := middleware.Stack(logger.Logger)
@@ -97,7 +93,7 @@ func New(config Config) *Server {
 }
 
 // Router returns the underlying router for advanced configuration
-func (s *Server) Router() router.Router {
+func (s *Server) Router() Router {
 	return s.router
 }
 

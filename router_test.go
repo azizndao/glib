@@ -1,4 +1,4 @@
-package router
+package glib
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ import (
 func setupTestRouter() Router {
 	logger := slog.DiscardLogger()
 	validator := validation.New(validation.DefaultValidatorConfig())
-	return New(logger, validator)
+	return Default(logger, validator)
 }
 
 func TestNew(t *testing.T) {
@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 	validator := validation.New(validation.DefaultValidatorConfig())
 
 	t.Run("with default options", func(t *testing.T) {
-		r := New(logger, validator)
+		r := Default(logger, validator)
 		assert.NotNil(t, r)
 	})
 
@@ -36,7 +36,7 @@ func TestNew(t *testing.T) {
 			AutoHEAD:              false,
 			TrailingSlashRedirect: false,
 		}
-		r := New(logger, validator, opts)
+		r := Default(logger, validator, opts)
 		assert.NotNil(t, r)
 	})
 }

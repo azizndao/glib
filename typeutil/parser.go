@@ -1,9 +1,9 @@
 package typeutil
 
-import "github.com/azizndao/glib/router"
+import "github.com/azizndao/glib"
 
 // ValidateBody is a generic helper to parse and validate the request body
-func ValidateBody[T any](c *router.Ctx) (*T, error) {
+func ValidateBody[T any](c *glib.Ctx) (*T, error) {
 	var out T
 	if err := c.ValidateBody(&out); err != nil {
 		return nil, err

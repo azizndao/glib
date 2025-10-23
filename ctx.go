@@ -1,4 +1,4 @@
-package router
+package glib
 
 import (
 	"context"
@@ -61,18 +61,23 @@ func (c *Ctx) Err() error {
 	return c.Request.Context().Err()
 }
 
+// Value returns the value associated with this context for key, or nil if no value is associated with key
+func (c *Ctx) Value(key any) any {
+	return c.Request.Context().Value(key)
+}
+
 // Logger returns the logger instance for logging within routes and middleware
 func (c *Ctx) Logger() *slog.Logger {
 	return c.logger
 }
 
 // SetValue sets a custom value in the request context
-func (c *Ctx) SetValue(key any, value any) *http.Request {
-	ctx := context.WithValue(c.Context(), key, value)
-	return c.Request.WithContext(ctx)
+func (c *Ctx) SetValue(key any, value any) {
+	c.Request = c.Request.WithContext(context.WithValue(c.Context(), key, value))
 }
 
-func (c *Ctx) GetValue(key string) any {
+// GetValue gets a value from the request context
+func (c *Ctx) GetValue(key any) any {
 	return c.Context().Value(key)
 }
 
@@ -195,7 +200,7 @@ func (c *Ctx) QueryInt(key string) (int, error) {
 	return strconv.Atoi(value)
 }
 
-// / QueryIntDefault gets a query parameter as int with a default value
+// QueryIntDefault gets a query parameter as int with a default value
 func (c *Ctx) QueryIntDefault(key string, defaultValue int) int {
 	intValue, err := c.QueryInt(key)
 	if err != nil {
@@ -214,7 +219,7 @@ func (c *Ctx) QueryBool(key string) bool {
 func (c *Ctx) QueryFloat(key string) (float64, error) {
 	value := c.Query(key)
 	if value == "" {
-		return 0, nil
+		return 0, errors.New("Query parameter not found")
 	}
 	return strconv.ParseFloat(value, 64)
 }
@@ -242,6 +247,39 @@ func (c *Ctx) QueryAll(key string) []string {
 	return c.Request.URL.Query()[key]
 }
 
+// QueryArray is an alias for QueryAll for convenience
+func (c *Ctx) QueryArray(key string) []string {
+	return c.QueryAll(key)
+}
+
+// PathInt gets a path parameter as int
+func (c *Ctx) PathInt(key string) (int, error) {
+	value := c.PathValue(key)
+	if value == "" {
+		return 0, errors.New("Path parameter not found")
+	}
+	return strconv.Atoi(value)
+}
+
+// PathIntDefault gets a path parameter as int with a default value
+func (c *Ctx) PathIntDefault(key string, defaultValue int) int {
+	intValue, err := c.PathInt(key)
+	if err != nil {
+		return defaultValue
+	}
+	return intValue
+}
+
+// PathFloat gets a path parameter as float64
+func (c *Ctx) PathFloat(key string) (float64, error) {
+	value := c.PathValue(key)
+	if value == "" {
+		return 0, errors.New("Path parameter not found")
+	}
+	return strconv.ParseFloat(value, 64)
+}
+
+// Get gets a request header by key
 func (c *Ctx) Get(key string) string {
 	return c.Request.Header.Get(key)
 }
@@ -262,6 +300,23 @@ func (c *Ctx) GetHeaders() map[string][]string {
 // Authorization gets the Authorization header
 func (c *Ctx) Authorization() string {
 	return c.Get("Authorization")
+}
+
+// BearerToken extracts the bearer token from the Authorization header
+// Returns empty string if no bearer token is present
+func (c *Ctx) BearerToken() string {
+	auth := c.Authorization()
+	if auth == "" {
+		return ""
+	}
+
+	// Check if it starts with "Bearer "
+	const prefix = "Bearer "
+	if len(auth) > len(prefix) && strings.HasPrefix(auth, prefix) {
+		return auth[len(prefix):]
+	}
+
+	return ""
 }
 
 // ContentType gets the Content-Type header
@@ -344,6 +399,15 @@ func (c *Ctx) GetCookie(name string) (*http.Cookie, error) {
 	return c.Request.Cookie(name)
 }
 
+// GetCookieDefault gets a cookie value with a default fallback
+func (c *Ctx) GetCookieDefault(name, defaultValue string) string {
+	cookie, err := c.Request.Cookie(name)
+	if err != nil {
+		return defaultValue
+	}
+	return cookie.Value
+}
+
 func (c *Ctx) SetCookie(cookie *http.Cookie) *Ctx {
 	http.SetCookie(c.Response, cookie)
 	return c
@@ -380,29 +444,89 @@ func (c *Ctx) Status(code int) *Ctx {
 	return c
 }
 
+// Created sends a 201 Created response with optional data
+func (c *Ctx) Created(data any) error {
+	c.statusCode = http.StatusCreated
+	if data != nil {
+		return c.JSON(data)
+	}
+	return c.End()
+}
+
+// Accepted sends a 202 Accepted response with optional data
+func (c *Ctx) Accepted(data any) error {
+	c.statusCode = http.StatusAccepted
+	if data != nil {
+		return c.JSON(data)
+	}
+	return c.End()
+}
+
 // JSON sends a JSON response
 func (c *Ctx) JSON(data any) error {
-	c.Set("Content-Type", "application/json")
+	c.Set("Content-Type", "application/json; charset=utf-8")
 	c.Response.WriteHeader(c.statusCode)
 	return json.NewEncoder(c.Response).Encode(data)
 }
 
+// XML sends an XML response
+func (c *Ctx) XML(data any) error {
+	c.Set("Content-Type", "application/xml; charset=utf-8")
+	c.Response.WriteHeader(c.statusCode)
+	_, err := c.Response.Write([]byte(fmt.Sprintf("%v", data)))
+	return err
+}
+
 // SendString sends a plain text response
 func (c *Ctx) SendString(text string) error {
-	c.Set("Content-Type", "text/plain")
+	c.Set("Content-Type", "text/plain; charset=utf-8")
 	c.Response.WriteHeader(c.statusCode)
 	_, err := c.Response.Write([]byte(text))
 	return err
 }
 
 func (c *Ctx) HTML(data []byte) error {
-	c.Set("Content-Type", "text/html")
+	c.Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.WriteHeader(c.statusCode)
 	_, err := c.Response.Write(data)
 	return err
 }
 
+// Stream sends a streaming response with a custom writer function
+func (c *Ctx) Stream(callback func(w io.Writer) error) error {
+	c.Response.WriteHeader(c.statusCode)
+	return callback(c.Response)
+}
+
+// SSE sends a Server-Sent Event
+func (c *Ctx) SSE(event, data string) error {
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("Connection", "keep-alive")
+
+	if event != "" {
+		if _, err := fmt.Fprintf(c.Response, "event: %s\n", event); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintf(c.Response, "data: %s\n\n", data); err != nil {
+		return err
+	}
+
+	if flusher, ok := c.Response.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	return nil
+}
+
 func (c *Ctx) File(file string) error {
+	return c.SendFile(file, false)
+}
+
+// SendFile sends a file as response with optional download (Content-Disposition: attachment)
+func (c *Ctx) SendFile(file string, download bool) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -414,13 +538,80 @@ func (c *Ctx) File(file string) error {
 		return err
 	}
 
+	// Set Content-Disposition header if download is true
+	if download {
+		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", stat.Name()))
+	}
+
+	// Note: ServeContent handles its own status code
 	http.ServeContent(c.Response, c.Request, file, stat.ModTime(), f)
+	return nil
+}
+
+// Download sends a file with Content-Disposition: attachment
+func (c *Ctx) Download(file string, filename ...string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Use custom filename if provided, otherwise use the file's name
+	name := stat.Name()
+	if len(filename) > 0 && filename[0] != "" {
+		name = filename[0]
+	}
+
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", name))
+	http.ServeContent(c.Response, c.Request, name, stat.ModTime(), f)
 	return nil
 }
 
 func (c *Ctx) Redirect(status int, url string) error {
 	http.Redirect(c.Response, c.Request, url, status)
 	return nil
+}
+
+// ParseMultipartForm parses a multipart form with the given max memory
+func (c *Ctx) ParseMultipartForm(maxMemory int64) error {
+	return c.Request.ParseMultipartForm(maxMemory)
+}
+
+// MultipartForm returns the parsed multipart form
+func (c *Ctx) MultipartForm() (*multipart.Form, error) {
+	if c.Request.MultipartForm == nil {
+		if err := c.ParseMultipartForm(32 << 20); err != nil { // 32 MB default
+			return nil, err
+		}
+	}
+	return c.Request.MultipartForm, nil
+}
+
+// Bind parses request data into the provided struct based on Content-Type
+// Supports JSON, form data, and query parameters
+func (c *Ctx) Bind(out any) error {
+	contentType := strings.ToLower(c.ContentType())
+
+	switch {
+	case strings.HasPrefix(contentType, "application/json"):
+		return c.ParseBody(out)
+	case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"),
+		strings.HasPrefix(contentType, "multipart/form-data"):
+		if err := c.Request.ParseForm(); err != nil {
+			return errors.BadRequest("Invalid form data", err)
+		}
+		// Note: This is a basic implementation
+		// For production, consider using a struct tag-based form decoder library
+		return errors.New("Form binding not fully implemented - use ParseBody for JSON")
+	default:
+		// Try JSON as fallback
+		return c.ParseBody(out)
+	}
 }
 
 // IsSecure checks if the request is using HTTPS
@@ -445,4 +636,29 @@ func (c *Ctx) Accepts(contentType string) bool {
 	accept := strings.ToLower(c.Get("Accept"))
 	contentType = strings.ToLower(contentType)
 	return strings.Contains(accept, contentType) || strings.Contains(accept, "*/*")
+}
+
+// IsSuccess checks if the status code is in the 2xx range
+func (c *Ctx) IsSuccess() bool {
+	return c.statusCode >= 200 && c.statusCode < 300
+}
+
+// IsClientError checks if the status code is in the 4xx range
+func (c *Ctx) IsClientError() bool {
+	return c.statusCode >= 400 && c.statusCode < 500
+}
+
+// IsServerError checks if the status code is in the 5xx range
+func (c *Ctx) IsServerError() bool {
+	return c.statusCode >= 500 && c.statusCode < 600
+}
+
+// GetRequestID gets the request ID from X-Request-ID header
+func (c *Ctx) GetRequestID() string {
+	return c.Get("X-Request-ID")
+}
+
+// SetRequestID sets the X-Request-ID header
+func (c *Ctx) SetRequestID(id string) *Ctx {
+	return c.Set("X-Request-ID", id)
 }

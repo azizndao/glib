@@ -22,7 +22,6 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/router"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
@@ -89,7 +88,7 @@ func main() {
 	r.Use(loggingMiddleware)
 
 	// Use Chi middleware directly
-	r.UseChiMiddleware(chimiddleware.Heartbeat("/ping"))
+	r.UseHTTP(chimiddleware.Heartbeat("/ping"))
 
 	// ====================
 	// BASIC ROUTES - All HTTP Methods
@@ -100,7 +99,7 @@ func main() {
 	// ====================
 	// USER ROUTES - CRUD Operations
 	// ====================
-	r.Route("/users", func(users router.Router) {
+	r.Route("/users", func(users glib.Router) {
 		users.Get("/", listUsersHandler)            // GET /users
 		users.Post("/", createUserHandler)          // POST /users
 		users.Get("/{id}", getUserHandler)          // GET /users/{id}
@@ -114,7 +113,7 @@ func main() {
 	// ====================
 	// PRODUCT ROUTES with Route Group
 	// ====================
-	productsGroup := r.Route("/products", func(products router.Router) {
+	productsGroup := r.Route("/products", func(products glib.Router) {
 		// Apply middleware only to product routes
 		products.Use(authMiddleware)
 
@@ -131,7 +130,7 @@ func main() {
 	// ====================
 	// CONTEXT FEATURES
 	// ====================
-	r.Route("/context", func(ctx router.Router) {
+	r.Route("/context", func(ctx glib.Router) {
 		ctx.Get("/request-info", requestInfoHandler)
 		ctx.Get("/headers", headersHandler)
 		ctx.Get("/cookies", cookiesHandler)
@@ -144,7 +143,7 @@ func main() {
 	// ====================
 	// FILE OPERATIONS
 	// ====================
-	r.Route("/files", func(files router.Router) {
+	r.Route("/files", func(files glib.Router) {
 		files.Post("/upload", fileUploadHandler)
 		files.Get("/download/{filename}", fileDownloadHandler)
 		files.Get("/serve", serveFileHandler)
@@ -153,7 +152,7 @@ func main() {
 	// ====================
 	// RESPONSE TYPES
 	// ====================
-	r.Route("/responses", func(resp router.Router) {
+	r.Route("/responses", func(resp glib.Router) {
 		resp.Get("/json", jsonResponseHandler)
 		resp.Get("/text", textResponseHandler)
 		resp.Get("/html", htmlResponseHandler)
@@ -165,7 +164,7 @@ func main() {
 	// ====================
 	// ERROR HANDLING
 	// ====================
-	r.Route("/errors", func(errs router.Router) {
+	r.Route("/errors", func(errs glib.Router) {
 		errs.Get("/bad-request", badRequestHandler)
 		errs.Get("/unauthorized", unauthorizedHandler)
 		errs.Get("/forbidden", forbiddenHandler)
@@ -178,12 +177,12 @@ func main() {
 	// ====================
 	// MIDDLEWARE EXAMPLES
 	// ====================
-	r.Route("/middleware", func(mw router.Router) {
+	r.Route("/middleware", func(mw glib.Router) {
 		// Route with inline middleware using With()
 		mw.With(timingMiddleware).Get("/timed", timedHandler)
 
 		// Slow endpoint examples (without timeout middleware as it's not implemented)
-		slowGroup := mw.Route("/timeout", func(slow router.Router) {
+		slowGroup := mw.Route("/timeout", func(slow glib.Router) {
 			slow.Get("/fast", fastHandler)
 			slow.Get("/slow", slowHandler)
 		})
@@ -196,7 +195,7 @@ func main() {
 	// ====================
 	// ADVANCED FEATURES
 	// ====================
-	r.Route("/advanced", func(adv router.Router) {
+	r.Route("/advanced", func(adv glib.Router) {
 		// Content negotiation
 		adv.Get("/negotiate", contentNegotiationHandler)
 
@@ -212,7 +211,7 @@ func main() {
 	// ====================
 	// VALIDATION EXAMPLES
 	// ====================
-	r.Route("/validation", func(val router.Router) {
+	r.Route("/validation", func(val glib.Router) {
 		val.Post("/user", validateUserHandler)
 		val.Post("/product", validateProductHandler)
 		val.Post("/french", validateFrenchHandler)   // Test with Accept-Language: fr
@@ -222,19 +221,19 @@ func main() {
 	// ====================
 	// NESTED SUB-ROUTING
 	// ====================
-	r.Route("/api", func(api router.Router) {
-		api.Get("/version", func(c *router.Ctx) error {
+	r.Route("/api", func(api glib.Router) {
+		api.Get("/version", func(c *glib.Ctx) error {
 			return c.JSON(map[string]string{"version": "1.0.0"})
 		})
 
 		// Nested v1 routes
-		api.Route("/v1", func(v1 router.Router) {
-			v1.Get("/status", func(c *router.Ctx) error {
+		api.Route("/v1", func(v1 glib.Router) {
+			v1.Get("/status", func(c *glib.Ctx) error {
 				return c.JSON(map[string]string{"api": "v1", "status": "active"})
 			})
 
 			// Deeply nested admin routes
-			v1.Route("/admin", func(admin router.Router) {
+			v1.Route("/admin", func(admin glib.Router) {
 				admin.Use(authMiddleware)
 				admin.Get("/stats", adminStatsHandler)
 				admin.Get("/users", adminUsersHandler)
@@ -242,8 +241,8 @@ func main() {
 		})
 
 		// v2 routes
-		api.Route("/v2", func(v2 router.Router) {
-			v2.Get("/status", func(c *router.Ctx) error {
+		api.Route("/v2", func(v2 glib.Router) {
+			v2.Get("/status", func(c *glib.Ctx) error {
 				return c.JSON(map[string]string{"api": "v2", "status": "beta"})
 			})
 		})
@@ -252,7 +251,7 @@ func main() {
 	// ====================
 	// CUSTOM ERROR HANDLERS
 	// ====================
-	r.NotFound(func(c *router.Ctx) error {
+	r.NotFound(func(c *glib.Ctx) error {
 		return errors.NotFound(map[string]string{
 			"message": "Custom 404: Route not found",
 			"path":    c.Path(),
@@ -260,7 +259,7 @@ func main() {
 		}, nil)
 	})
 
-	r.MethodNotAllowed(func(c *router.Ctx) error {
+	r.MethodNotAllowed(func(c *glib.Ctx) error {
 		return errors.MethodNotAllowed(map[string]string{
 			"message": "Custom 405: Method not allowed",
 			"path":    c.Path(),
@@ -283,7 +282,7 @@ func main() {
 // HANDLERS
 // ====================
 
-func homeHandler(c *router.Ctx) error {
+func homeHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"message": "Welcome to glib comprehensive example",
 		"endpoints": map[string]string{
@@ -302,7 +301,7 @@ func homeHandler(c *router.Ctx) error {
 	})
 }
 
-func healthCheckHandler(c *router.Ctx) error {
+func healthCheckHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
@@ -311,7 +310,7 @@ func healthCheckHandler(c *router.Ctx) error {
 }
 
 // User Handlers
-func listUsersHandler(c *router.Ctx) error {
+func listUsersHandler(c *glib.Ctx) error {
 	// Query parameters with defaults
 	page := c.QueryIntDefault("page", 1)
 	limit := c.QueryIntDefault("limit", 10)
@@ -333,7 +332,7 @@ func listUsersHandler(c *router.Ctx) error {
 	})
 }
 
-func getUserHandler(c *router.Ctx) error {
+func getUserHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 
 	user := User{
@@ -349,7 +348,7 @@ func getUserHandler(c *router.Ctx) error {
 	})
 }
 
-func createUserHandler(c *router.Ctx) error {
+func createUserHandler(c *glib.Ctx) error {
 	var req CreateUserRequest
 
 	if err := c.ValidateBody(&req); err != nil {
@@ -369,7 +368,7 @@ func createUserHandler(c *router.Ctx) error {
 	})
 }
 
-func updateUserHandler(c *router.Ctx) error {
+func updateUserHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 	var req UpdateUserRequest
 
@@ -384,7 +383,7 @@ func updateUserHandler(c *router.Ctx) error {
 	})
 }
 
-func patchUserHandler(c *router.Ctx) error {
+func patchUserHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 	var req UpdateUserRequest
 
@@ -399,7 +398,7 @@ func patchUserHandler(c *router.Ctx) error {
 	})
 }
 
-func deleteUserHandler(c *router.Ctx) error {
+func deleteUserHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 
 	return c.JSON(map[string]interface{}{
@@ -408,20 +407,20 @@ func deleteUserHandler(c *router.Ctx) error {
 	})
 }
 
-func checkUserExistsHandler(c *router.Ctx) error {
+func checkUserExistsHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 	c.Logger().Info("HEAD request for user", "id", id)
 	// HEAD requests should not return a body
 	return c.NoContent()
 }
 
-func userOptionsHandler(c *router.Ctx) error {
+func userOptionsHandler(c *glib.Ctx) error {
 	c.Set("Allow", "GET, PUT, PATCH, DELETE, HEAD, OPTIONS")
 	return c.NoContent()
 }
 
 // Product Handlers
-func listProductsHandler(c *router.Ctx) error {
+func listProductsHandler(c *glib.Ctx) error {
 	products := []Product{
 		{ID: 1, Name: "Product 1", Price: 29.99, Stock: 100},
 		{ID: 2, Name: "Product 2", Price: 49.99, Stock: 50},
@@ -433,7 +432,7 @@ func listProductsHandler(c *router.Ctx) error {
 	})
 }
 
-func getProductHandler(c *router.Ctx) error {
+func getProductHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 
 	product := Product{
@@ -450,7 +449,7 @@ func getProductHandler(c *router.Ctx) error {
 	})
 }
 
-func createProductHandler(c *router.Ctx) error {
+func createProductHandler(c *glib.Ctx) error {
 	var req CreateProductRequest
 
 	if err := c.ValidateBody(&req); err != nil {
@@ -471,7 +470,7 @@ func createProductHandler(c *router.Ctx) error {
 	})
 }
 
-func updateProductHandler(c *router.Ctx) error {
+func updateProductHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 	var req CreateProductRequest
 
@@ -486,7 +485,7 @@ func updateProductHandler(c *router.Ctx) error {
 	})
 }
 
-func deleteProductHandler(c *router.Ctx) error {
+func deleteProductHandler(c *glib.Ctx) error {
 	id := c.PathValue("id")
 
 	return c.JSON(map[string]interface{}{
@@ -495,7 +494,7 @@ func deleteProductHandler(c *router.Ctx) error {
 	})
 }
 
-func searchProductsHandler(c *router.Ctx) error {
+func searchProductsHandler(c *glib.Ctx) error {
 	query := c.Query("q")
 	minPrice := c.QueryFloatDefault("min_price", 0)
 	maxPrice := c.QueryFloatDefault("max_price", 1000)
@@ -509,7 +508,7 @@ func searchProductsHandler(c *router.Ctx) error {
 }
 
 // Context Handlers
-func requestInfoHandler(c *router.Ctx) error {
+func requestInfoHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"method":       c.Method(),
 		"path":         c.Path(),
@@ -523,7 +522,7 @@ func requestInfoHandler(c *router.Ctx) error {
 	})
 }
 
-func headersHandler(c *router.Ctx) error {
+func headersHandler(c *glib.Ctx) error {
 	headers := c.GetHeaders()
 
 	return c.JSON(map[string]interface{}{
@@ -533,7 +532,7 @@ func headersHandler(c *router.Ctx) error {
 	})
 }
 
-func cookiesHandler(c *router.Ctx) error {
+func cookiesHandler(c *glib.Ctx) error {
 	sessionCookie, err := c.GetCookie("session")
 
 	cookies := map[string]interface{}{
@@ -547,7 +546,7 @@ func cookiesHandler(c *router.Ctx) error {
 	return c.JSON(cookies)
 }
 
-func setCookieHandler(c *router.Ctx) error {
+func setCookieHandler(c *glib.Ctx) error {
 	cookie := &http.Cookie{
 		Name:     "session",
 		Value:    "abc123xyz",
@@ -565,7 +564,7 @@ func setCookieHandler(c *router.Ctx) error {
 	})
 }
 
-func clearCookieHandler(c *router.Ctx) error {
+func clearCookieHandler(c *glib.Ctx) error {
 	c.ClearCookie("session")
 
 	return c.JSON(map[string]string{
@@ -573,7 +572,7 @@ func clearCookieHandler(c *router.Ctx) error {
 	})
 }
 
-func queryParamsHandler(c *router.Ctx) error {
+func queryParamsHandler(c *glib.Ctx) error {
 	// Demonstrate various query parameter methods
 	name := c.Query("name")
 	age, _ := c.QueryInt("age")
@@ -590,7 +589,7 @@ func queryParamsHandler(c *router.Ctx) error {
 	})
 }
 
-func ipInfoHandler(c *router.Ctx) error {
+func ipInfoHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"ip":              c.IP(),
 		"remote_addr":     c.Request.RemoteAddr,
@@ -600,7 +599,7 @@ func ipInfoHandler(c *router.Ctx) error {
 }
 
 // File Handlers
-func fileUploadHandler(c *router.Ctx) error {
+func fileUploadHandler(c *glib.Ctx) error {
 	file, header, err := c.FormFile("file")
 	if err != nil {
 		return errors.BadRequest("Failed to read file", err)
@@ -615,7 +614,7 @@ func fileUploadHandler(c *router.Ctx) error {
 	})
 }
 
-func fileDownloadHandler(c *router.Ctx) error {
+func fileDownloadHandler(c *glib.Ctx) error {
 	filename := c.PathValue("filename")
 
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
@@ -624,7 +623,7 @@ func fileDownloadHandler(c *router.Ctx) error {
 	return c.SendString(fmt.Sprintf("Content of %s", filename))
 }
 
-func serveFileHandler(c *router.Ctx) error {
+func serveFileHandler(c *glib.Ctx) error {
 	// In a real app, you would serve an actual file
 	// return c.File("/path/to/file.pdf")
 
@@ -634,7 +633,7 @@ func serveFileHandler(c *router.Ctx) error {
 }
 
 // Response Type Handlers
-func jsonResponseHandler(c *router.Ctx) error {
+func jsonResponseHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"type":    "json",
 		"message": "This is a JSON response",
@@ -645,11 +644,11 @@ func jsonResponseHandler(c *router.Ctx) error {
 	})
 }
 
-func textResponseHandler(c *router.Ctx) error {
+func textResponseHandler(c *glib.Ctx) error {
 	return c.SendString("This is a plain text response")
 }
 
-func htmlResponseHandler(c *router.Ctx) error {
+func htmlResponseHandler(c *glib.Ctx) error {
 	html := []byte(`
 		<!DOCTYPE html>
 		<html>
@@ -664,15 +663,15 @@ func htmlResponseHandler(c *router.Ctx) error {
 	return c.HTML(html)
 }
 
-func redirectHandler(c *router.Ctx) error {
+func redirectHandler(c *glib.Ctx) error {
 	return c.Redirect(302, "/")
 }
 
-func noContentHandler(c *router.Ctx) error {
+func noContentHandler(c *glib.Ctx) error {
 	return c.NoContent()
 }
 
-func customStatusHandler(c *router.Ctx) error {
+func customStatusHandler(c *glib.Ctx) error {
 	return c.Status(418).JSON(map[string]string{
 		"message": "I'm a teapot",
 		"code":    "418",
@@ -680,7 +679,7 @@ func customStatusHandler(c *router.Ctx) error {
 }
 
 // Error Handlers
-func badRequestHandler(c *router.Ctx) error {
+func badRequestHandler(c *glib.Ctx) error {
 	return errors.BadRequest(map[string]string{
 		"message": "This is a bad request error",
 		"field":   "example",
@@ -688,15 +687,15 @@ func badRequestHandler(c *router.Ctx) error {
 	}, nil)
 }
 
-func unauthorizedHandler(c *router.Ctx) error {
+func unauthorizedHandler(c *glib.Ctx) error {
 	return errors.Unauthorized("You are not authenticated", nil)
 }
 
-func forbiddenHandler(c *router.Ctx) error {
+func forbiddenHandler(c *glib.Ctx) error {
 	return errors.Forbidden("You don't have permission to access this resource", nil)
 }
 
-func notFoundErrorHandler(c *router.Ctx) error {
+func notFoundErrorHandler(c *glib.Ctx) error {
 	return errors.NotFound(map[string]string{
 		"message":  "Resource not found",
 		"resource": "user",
@@ -704,18 +703,18 @@ func notFoundErrorHandler(c *router.Ctx) error {
 	}, nil)
 }
 
-func conflictHandler(c *router.Ctx) error {
+func conflictHandler(c *glib.Ctx) error {
 	return errors.Conflict(map[string]string{
 		"message": "Resource already exists",
 		"email":   "user@example.com",
 	}, nil)
 }
 
-func internalErrorHandler(c *router.Ctx) error {
+func internalErrorHandler(c *glib.Ctx) error {
 	return errors.InternalServerError("Something went wrong", fmt.Errorf("database connection failed"))
 }
 
-func customErrorHandler(c *router.Ctx) error {
+func customErrorHandler(c *glib.Ctx) error {
 	return errors.NewApi(422, map[string]interface{}{
 		"message": "Unprocessable Entity: Validation failed",
 		"errors":  []string{"Invalid data format", "Missing required fields"},
@@ -723,23 +722,23 @@ func customErrorHandler(c *router.Ctx) error {
 }
 
 // Middleware Handlers
-func timedHandler(c *router.Ctx) error {
+func timedHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]string{
 		"message": "This request was timed by middleware",
 	})
 }
 
-func fastHandler(c *router.Ctx) error {
+func fastHandler(c *glib.Ctx) error {
 	time.Sleep(500 * time.Millisecond)
 	return c.JSON(map[string]string{"message": "Fast response"})
 }
 
-func slowHandler(c *router.Ctx) error {
+func slowHandler(c *glib.Ctx) error {
 	time.Sleep(3 * time.Second)
 	return c.JSON(map[string]string{"message": "Slow response (not actually timing out without timeout middleware)"})
 }
 
-func requestIDHandler(c *router.Ctx) error {
+func requestIDHandler(c *glib.Ctx) error {
 	// Request ID would be available from Chi middleware if configured
 	requestID := c.Get("X-Request-Id")
 	if requestID == "" {
@@ -752,7 +751,7 @@ func requestIDHandler(c *router.Ctx) error {
 }
 
 // Advanced Handlers
-func contentNegotiationHandler(c *router.Ctx) error {
+func contentNegotiationHandler(c *glib.Ctx) error {
 	data := map[string]string{
 		"message": "Content negotiation example",
 		"format":  "auto-detected",
@@ -768,7 +767,7 @@ func contentNegotiationHandler(c *router.Ctx) error {
 	return c.SendString("Plain text response")
 }
 
-func getContextValueHandler(c *router.Ctx) error {
+func getContextValueHandler(c *glib.Ctx) error {
 	// Retrieve value set by middleware
 	userID := c.GetValue("user_id")
 
@@ -778,7 +777,7 @@ func getContextValueHandler(c *router.Ctx) error {
 	})
 }
 
-func protectedHandler(c *router.Ctx) error {
+func protectedHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]string{
 		"message": "This route is protected by multiple middleware",
 		"user_id": c.GetValue("user_id").(string),
@@ -786,7 +785,7 @@ func protectedHandler(c *router.Ctx) error {
 }
 
 // Validation Handlers
-func validateUserHandler(c *router.Ctx) error {
+func validateUserHandler(c *glib.Ctx) error {
 	var req CreateUserRequest
 
 	if err := c.ValidateBody(&req); err != nil {
@@ -799,7 +798,7 @@ func validateUserHandler(c *router.Ctx) error {
 	})
 }
 
-func validateProductHandler(c *router.Ctx) error {
+func validateProductHandler(c *glib.Ctx) error {
 	var req CreateProductRequest
 
 	if err := c.ValidateBody(&req); err != nil {
@@ -812,7 +811,7 @@ func validateProductHandler(c *router.Ctx) error {
 	})
 }
 
-func validateFrenchHandler(c *router.Ctx) error {
+func validateFrenchHandler(c *glib.Ctx) error {
 	// Send request with header: Accept-Language: fr
 	var req CreateUserRequest
 
@@ -826,7 +825,7 @@ func validateFrenchHandler(c *router.Ctx) error {
 	})
 }
 
-func validateSpanishHandler(c *router.Ctx) error {
+func validateSpanishHandler(c *glib.Ctx) error {
 	// Send request with header: Accept-Language: es
 	var req CreateUserRequest
 
@@ -841,7 +840,7 @@ func validateSpanishHandler(c *router.Ctx) error {
 }
 
 // Admin Handlers
-func adminStatsHandler(c *router.Ctx) error {
+func adminStatsHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"total_users":    1234,
 		"total_products": 567,
@@ -849,7 +848,7 @@ func adminStatsHandler(c *router.Ctx) error {
 	})
 }
 
-func adminUsersHandler(c *router.Ctx) error {
+func adminUsersHandler(c *glib.Ctx) error {
 	return c.JSON(map[string]interface{}{
 		"message": "Admin users list",
 		"users":   []string{"admin1", "admin2"},
@@ -860,8 +859,8 @@ func adminUsersHandler(c *router.Ctx) error {
 // MIDDLEWARE
 // ====================
 
-func loggingMiddleware(next router.HandleFunc) router.HandleFunc {
-	return func(c *router.Ctx) error {
+func loggingMiddleware(next glib.HandleFunc) glib.HandleFunc {
+	return func(c *glib.Ctx) error {
 		start := time.Now()
 
 		c.Logger().Info("Request started",
@@ -883,8 +882,8 @@ func loggingMiddleware(next router.HandleFunc) router.HandleFunc {
 	}
 }
 
-func authMiddleware(next router.HandleFunc) router.HandleFunc {
-	return func(c *router.Ctx) error {
+func authMiddleware(next glib.HandleFunc) glib.HandleFunc {
+	return func(c *glib.Ctx) error {
 		authHeader := c.Authorization()
 
 		if authHeader == "" {
@@ -904,8 +903,8 @@ func authMiddleware(next router.HandleFunc) router.HandleFunc {
 	}
 }
 
-func timingMiddleware(next router.HandleFunc) router.HandleFunc {
-	return func(c *router.Ctx) error {
+func timingMiddleware(next glib.HandleFunc) glib.HandleFunc {
+	return func(c *glib.Ctx) error {
 		start := time.Now()
 
 		err := next(c)
@@ -917,8 +916,8 @@ func timingMiddleware(next router.HandleFunc) router.HandleFunc {
 	}
 }
 
-func setContextValueMiddleware(next router.HandleFunc) router.HandleFunc {
-	return func(c *router.Ctx) error {
+func setContextValueMiddleware(next glib.HandleFunc) glib.HandleFunc {
+	return func(c *glib.Ctx) error {
 		c.SetValue("user_id", "demo-user-123")
 		c.SetValue("request_time", time.Now())
 

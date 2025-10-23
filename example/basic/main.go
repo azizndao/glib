@@ -7,7 +7,6 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/router"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
 	est "github.com/go-playground/validator/v10/translations/es"
@@ -49,12 +48,12 @@ func main() {
 
 	// Register routes using the router
 	// Simple hello endpoint
-	r.Get("/hello", func(c *router.Ctx) error {
+	r.Get("/hello", func(c *glib.Ctx) error {
 		return c.JSON(map[string]string{"message": "Hello World"})
 	})
 
 	// Hello with name parameter
-	r.Get("/hello/{name}", func(c *router.Ctx) error {
+	r.Get("/hello/{name}", func(c *glib.Ctx) error {
 		return c.JSON(map[string]string{
 			"message": fmt.Sprintf("Hello %s", c.PathValue("name")),
 			"query":   c.Query("q"),
@@ -62,7 +61,7 @@ func main() {
 	})
 
 	// Error example
-	r.Get("/error", func(c *router.Ctx) error {
+	r.Get("/error", func(c *glib.Ctx) error {
 		return errors.BadRequest("Bad request example", nil)
 	})
 
@@ -74,7 +73,7 @@ func main() {
 	r.Post("/products", createProduct)
 
 	// Request ID demonstration
-	r.Get("/request-id", func(c *router.Ctx) error {
+	r.Get("/request-id", func(c *glib.Ctx) error {
 		// Request ID can be available from Chi middleware if configured
 		requestID := c.Get("X-Request-Id")
 		if requestID == "" {
@@ -87,8 +86,8 @@ func main() {
 	})
 
 	// Demonstrate slow endpoint using route group
-	r.Route("/slow", func(slow router.Router) {
-		slow.Get("/endpoint", func(c *router.Ctx) error {
+	r.Route("/slow", func(slow glib.Router) {
+		slow.Get("/endpoint", func(c *glib.Ctx) error {
 			// Simulate slow processing
 			time.Sleep(3 * time.Second)
 			return c.JSON(map[string]string{"message": "Slow response completed"})
@@ -100,7 +99,7 @@ func main() {
 	}
 }
 
-func registerUser(c *router.Ctx) error {
+func registerUser(c *glib.Ctx) error {
 	var req RegisterRequest
 
 	// ValidateBody automatically uses Accept-Language header
@@ -112,7 +111,7 @@ func registerUser(c *router.Ctx) error {
 	return c.Status(201).JSON(req)
 }
 
-func createProduct(c *router.Ctx) error {
+func createProduct(c *glib.Ctx) error {
 	var req CreateProductRequest
 
 	// Parse and validate in one call

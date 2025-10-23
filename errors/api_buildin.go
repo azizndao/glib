@@ -136,3 +136,93 @@ func RequestEntityTooLarge(data any, internal error) *ApiError {
 		internal: internal,
 	}
 }
+
+// UnsupportedMediaType creates a 415 Unsupported Media Type error
+func UnsupportedMediaType(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusUnsupportedMediaType,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// RequestTimeout creates a 408 Request Timeout error
+func RequestTimeout(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusRequestTimeout,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// PreconditionFailed creates a 412 Precondition Failed error
+func PreconditionFailed(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusPreconditionFailed,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// PreconditionRequired creates a 428 Precondition Required error
+func PreconditionRequired(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusPreconditionRequired,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// PaymentRequired creates a 402 Payment Required error
+func PaymentRequired(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusPaymentRequired,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// NotAcceptable creates a 406 Not Acceptable error
+func NotAcceptable(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusNotAcceptable,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// LengthRequired creates a 411 Length Required error
+func LengthRequired(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusLengthRequired,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// Locked creates a 423 Locked error
+func Locked(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusLocked,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// RequestHeaderFieldsTooLarge creates a 431 Request Header Fields Too Large error
+func RequestHeaderFieldsTooLarge(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusRequestHeaderFieldsTooLarge,
+		Data:     data,
+		internal: internal,
+	}
+}
+
+// UnavailableForLegalReasons creates a 451 Unavailable For Legal Reasons error
+func UnavailableForLegalReasons(data any, internal error) *ApiError {
+	return &ApiError{
+		Code:     http.StatusUnavailableForLegalReasons,
+		Data:     data,
+		internal: internal,
+	}
+}

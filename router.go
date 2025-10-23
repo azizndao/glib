@@ -1,5 +1,5 @@
 // Package router provides utilities for HTTP routing using Chi
-package router
+package glib
 
 import (
 	"net/http"
@@ -27,7 +27,7 @@ func DefaultRouterOptions() RouterConfig {
 }
 
 // New creates a new router with default options
-func New(logger *slog.Logger, validator *validation.Validator, options ...RouterConfig) Router {
+func Default(logger *slog.Logger, validator *validation.Validator, options ...RouterConfig) Router {
 	chiRouter := chi.NewRouter()
 
 	opts := DefaultRouterOptions()
@@ -118,7 +118,7 @@ func (r *router) Group(fn func(r Router)) Router {
 
 // Route mounts a sub-Router along a pattern string
 func (r *router) Route(pattern string, fn func(r Router)) Router {
-	subRouter := New(r.logger, r.validator, r.config)
+	subRouter := Default(r.logger, r.validator, r.config)
 	if fn != nil {
 		fn(subRouter)
 	}
