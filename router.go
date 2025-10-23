@@ -109,21 +109,40 @@ func (r *router) With(middlewares ...Middleware) Router {
 
 // Group adds a new inline-Router along the current routing path
 func (r *router) Group(fn func(r Router)) Router {
-	im := r.With()
-	if fn != nil {
-		fn(im)
+	chiRouter := r.chi.Group(func(chiRouter chi.Router) {
+		router := &router{
+			chi:       chiRouter,
+			config:    r.config,
+			logger:    r.logger,
+			validator: r.validator,
+		}
+		fn(router)
+	})
+	return &router{
+		chi:       chiRouter,
+		config:    r.config,
+		logger:    r.logger,
+		validator: r.validator,
 	}
-	return im
 }
 
 // Route mounts a sub-Router along a pattern string
 func (r *router) Route(pattern string, fn func(r Router)) Router {
-	subRouter := Default(r.logger, r.validator, r.config)
-	if fn != nil {
+	chiRouter := r.chi.Route(pattern, func(chiRouter chi.Router) {
+		subRouter := &router{
+			chi:       chiRouter,
+			config:    r.config,
+			logger:    r.logger,
+			validator: r.validator,
+		}
 		fn(subRouter)
+	})
+	return &router{
+		chi:       chiRouter,
+		config:    r.config,
+		logger:    r.logger,
+		validator: r.validator,
 	}
-	r.Mount(pattern, subRouter)
-	return subRouter
 }
 
 // Mount attaches another http.Handler along ./pattern/*
