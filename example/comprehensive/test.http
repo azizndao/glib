@@ -1,0 +1,401 @@
+### Comprehensive glib Example API Tests
+### This file contains examples of all endpoints in the comprehensive example
+### Use with REST Client extension in VS Code or similar tools
+
+@baseUrl = http://localhost:8080
+
+### =====================================
+### BASIC ROUTES
+### =====================================
+
+### Home - Welcome message
+GET {{baseUrl}}/
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Heartbeat (Chi middleware)
+GET {{baseUrl}}/ping
+
+### =====================================
+### USER ROUTES - CRUD Operations
+### =====================================
+
+### List Users (with query parameters)
+GET {{baseUrl}}/users?page=1&limit=10&search=john&active=true
+
+### Get User by ID
+GET {{baseUrl}}/users/123
+
+### Create User (with validation)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "password": "securePassword123",
+  "name": "John Doe",
+  "age": 25
+}
+
+### Create User - Invalid Email (validation error)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "invalid-email",
+  "password": "short",
+  "name": "J",
+  "age": 15
+}
+
+### Update User (PUT)
+PUT {{baseUrl}}/users/123
+Content-Type: application/json
+
+{
+  "name": "Jane Doe Updated",
+  "age": 30
+}
+
+### Partial Update User (PATCH)
+PATCH {{baseUrl}}/users/123
+Content-Type: application/json
+
+{
+  "name": "Jane Partial Update"
+}
+
+### Delete User
+DELETE {{baseUrl}}/users/123
+
+### Check User Exists (HEAD - no response body)
+HEAD {{baseUrl}}/users/123
+
+### User Options (OPTIONS method)
+OPTIONS {{baseUrl}}/users/123
+
+### =====================================
+### PRODUCT ROUTES (with Auth)
+### =====================================
+
+### List Products (requires auth)
+GET {{baseUrl}}/products
+Authorization: Bearer valid-token
+
+### List Products - No Auth (should fail)
+GET {{baseUrl}}/products
+
+### Get Product by ID
+GET {{baseUrl}}/products/456
+Authorization: Bearer valid-token
+
+### Create Product
+POST {{baseUrl}}/products
+Authorization: Bearer valid-token
+Content-Type: application/json
+
+{
+  "name": "New Product",
+  "description": "This is a great product with detailed description",
+  "price": 99.99,
+  "stock": 50,
+  "sku": "PROD1234"
+}
+
+### Create Product - Validation Error
+POST {{baseUrl}}/products
+Authorization: Bearer valid-token
+Content-Type: application/json
+
+{
+  "name": "AB",
+  "description": "Too short",
+  "price": -10,
+  "stock": -5,
+  "sku": "TOOLONG123"
+}
+
+### Update Product
+PUT {{baseUrl}}/products/456
+Authorization: Bearer valid-token
+Content-Type: application/json
+
+{
+  "name": "Updated Product",
+  "description": "Updated description for the product",
+  "price": 149.99,
+  "stock": 75,
+  "sku": "UPDT5678"
+}
+
+### Delete Product
+DELETE {{baseUrl}}/products/456
+Authorization: Bearer valid-token
+
+### Search Products (route added after group creation)
+GET {{baseUrl}}/products/search?q=laptop&min_price=100&max_price=2000
+Authorization: Bearer valid-token
+
+### =====================================
+### CONTEXT FEATURES
+### =====================================
+
+### Request Info (IP, method, headers, etc)
+GET {{baseUrl}}/context/request-info
+User-Agent: glib-test-client/1.0
+
+### Get All Headers
+GET {{baseUrl}}/context/headers
+Accept: application/json
+Authorization: Bearer test-token
+X-Custom-Header: custom-value
+
+### Get Cookies
+GET {{baseUrl}}/context/cookies
+Cookie: session=existing-session-value
+
+### Set Cookie
+POST {{baseUrl}}/context/set-cookie
+
+### Clear Cookie
+GET {{baseUrl}}/context/clear-cookie
+
+### Query Parameters Demo
+GET {{baseUrl}}/context/query-params?name=John&age=30&score=95.5&active=true&tags=go&tags=web&tags=api
+
+### IP Information
+GET {{baseUrl}}/context/ip-info
+X-Forwarded-For: 203.0.113.1, 198.51.100.1
+X-Real-IP: 203.0.113.1
+
+### =====================================
+### FILE OPERATIONS
+### =====================================
+
+### Upload File (multipart/form-data)
+POST {{baseUrl}}/files/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.txt"
+Content-Type: text/plain
+
+This is test file content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Download File
+GET {{baseUrl}}/files/download/document.pdf
+
+### Serve File Demo
+GET {{baseUrl}}/files/serve
+
+### =====================================
+### RESPONSE TYPES
+### =====================================
+
+### JSON Response
+GET {{baseUrl}}/responses/json
+
+### Plain Text Response
+GET {{baseUrl}}/responses/text
+
+### HTML Response
+GET {{baseUrl}}/responses/html
+
+### Redirect Response (will redirect to home)
+GET {{baseUrl}}/responses/redirect
+
+### No Content Response (204)
+DELETE {{baseUrl}}/responses/no-content
+
+### Custom Status Code (418 I'm a teapot)
+GET {{baseUrl}}/responses/custom-status
+
+### =====================================
+### ERROR HANDLING
+### =====================================
+
+### Bad Request (400)
+GET {{baseUrl}}/errors/bad-request
+
+### Unauthorized (401)
+GET {{baseUrl}}/errors/unauthorized
+
+### Forbidden (403)
+GET {{baseUrl}}/errors/forbidden
+
+### Not Found (404)
+GET {{baseUrl}}/errors/not-found
+
+### Conflict (409)
+GET {{baseUrl}}/errors/conflict
+
+### Internal Server Error (500)
+GET {{baseUrl}}/errors/internal
+
+### Custom Error (422)
+GET {{baseUrl}}/errors/custom
+
+### =====================================
+### MIDDLEWARE EXAMPLES
+### =====================================
+
+### Timed Handler (with timing middleware)
+GET {{baseUrl}}/middleware/timed
+
+### Fast Handler (with timeout middleware)
+GET {{baseUrl}}/middleware/timeout/fast
+
+### Slow Handler (will timeout after 2 seconds)
+GET {{baseUrl}}/middleware/timeout/slow
+
+### Request ID Demo
+GET {{baseUrl}}/middleware/request-id
+
+### =====================================
+### ADVANCED FEATURES
+### =====================================
+
+### Content Negotiation (JSON)
+GET {{baseUrl}}/advanced/negotiate
+Accept: application/json
+
+### Content Negotiation (HTML)
+GET {{baseUrl}}/advanced/negotiate
+Accept: text/html
+
+### Content Negotiation (Plain text)
+GET {{baseUrl}}/advanced/negotiate
+Accept: text/plain
+
+### Context Values (set by middleware)
+GET {{baseUrl}}/advanced/context-value
+
+### Protected Route (multiple middleware)
+GET {{baseUrl}}/advanced/protected
+Authorization: Bearer valid-token
+
+### Protected Route - No Auth (should fail)
+GET {{baseUrl}}/advanced/protected
+
+### =====================================
+### VALIDATION EXAMPLES
+### =====================================
+
+### Validate User (English - default)
+POST {{baseUrl}}/validation/user
+Content-Type: application/json
+
+{
+  "email": "invalid",
+  "password": "short",
+  "name": "A",
+  "age": 10
+}
+
+### Validate User - Valid Data
+POST {{baseUrl}}/validation/user
+Content-Type: application/json
+
+{
+  "email": "valid@example.com",
+  "password": "securePass123",
+  "name": "Valid User",
+  "age": 25
+}
+
+### Validate Product (English)
+POST {{baseUrl}}/validation/product
+Content-Type: application/json
+
+{
+  "name": "AB",
+  "description": "Short",
+  "price": -10,
+  "stock": -1,
+  "sku": "INVALID!"
+}
+
+### Validate French (with Accept-Language header)
+POST {{baseUrl}}/validation/french
+Content-Type: application/json
+Accept-Language: fr
+
+{
+  "email": "invalide",
+  "password": "court",
+  "name": "A",
+  "age": 10
+}
+
+### Validate Spanish (with Accept-Language header)
+POST {{baseUrl}}/validation/spanish
+Content-Type: application/json
+Accept-Language: es
+
+{
+  "email": "invalido",
+  "password": "corto",
+  "name": "A",
+  "age": 10
+}
+
+### =====================================
+### NESTED SUB-ROUTING
+### =====================================
+
+### API Version
+GET {{baseUrl}}/api/version
+
+### API v1 Status
+GET {{baseUrl}}/api/v1/status
+
+### API v1 Admin Stats (requires auth)
+GET {{baseUrl}}/api/v1/admin/stats
+Authorization: Bearer valid-token
+
+### API v1 Admin Stats - No Auth (should fail)
+GET {{baseUrl}}/api/v1/admin/stats
+
+### API v1 Admin Users (requires auth)
+GET {{baseUrl}}/api/v1/admin/users
+Authorization: Bearer valid-token
+
+### API v2 Status
+GET {{baseUrl}}/api/v2/status
+
+### =====================================
+### CUSTOM ERROR HANDLERS
+### =====================================
+
+### Custom 404 (route doesn't exist)
+GET {{baseUrl}}/this-route-does-not-exist
+
+### Custom 405 (method not allowed)
+POST {{baseUrl}}/health
+
+### =====================================
+### MULTIPLE HTTP METHODS ON SAME PATH
+### =====================================
+
+### Same path - Different methods
+GET {{baseUrl}}/users/1
+
+###
+PUT {{baseUrl}}/users/1
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "age": 35
+}
+
+###
+DELETE {{baseUrl}}/users/1
+
+###
+HEAD {{baseUrl}}/users/1
+
+###
+OPTIONS {{baseUrl}}/users/1

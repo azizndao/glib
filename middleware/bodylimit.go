@@ -1,12 +1,6 @@
 package middleware
 
 import (
-	"fmt"
-	"io"
-	"net/http"
-
-	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/router"
 	"github.com/azizndao/glib/util"
 )
 
@@ -25,17 +19,12 @@ type BodyLimitConfig struct {
 	// MaxSize is the maximum allowed size of request body in bytes
 	// Default: 4MB (DefaultBodyLimit)
 	MaxSize int64
-
-	// SkipFunc is a function that determines if body size check should be skipped
-	// Default: nil (check all requests)
-	SkipFunc func(*router.Ctx) bool
 }
 
 // DefaultBodyLimitConfig returns default configuration for body limit
 func DefaultBodyLimitConfig() BodyLimitConfig {
 	return BodyLimitConfig{
-		MaxSize:  int64(DefaultBodyLimit),
-		SkipFunc: nil,
+		MaxSize: int64(DefaultBodyLimit),
 	}
 }
 
@@ -58,88 +47,6 @@ func LoadBodyLimitConfig() *BodyLimitConfig {
 	}
 
 	return &BodyLimitConfig{
-		MaxSize:  size,
-		SkipFunc: nil,
+		MaxSize: size,
 	}
-}
-
-// BodyLimit creates a middleware that limits the maximum size of request bodies.
-// This helps prevent DoS attacks and excessive memory usage.
-//
-// Example usage:
-//
-//	// Use default limit (4MB)
-//	router.Use(middleware.BodyLimit())
-//
-//	// Custom configuration
-//	router.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
-//	    MaxSize: 10 * 1024 * 1024, // 10MB
-//	    SkipFunc: func(c *router.Ctx) bool {
-//	        // Skip limit for file upload endpoints
-//	        return strings.HasPrefix(c.Path(), "/upload")
-//	    },
-//	}))
-//
-//	// Using helper function
-//	router.Use(middleware.BodyLimitWithSize(10 * 1024 * 1024)) // 10MB
-func BodyLimit(config ...BodyLimitConfig) router.Middleware {
-	cfg := util.FirstOrDefault(config, DefaultBodyLimitConfig)
-
-	return func(next router.Handler) router.Handler {
-		return func(c *router.Ctx) error {
-			// Skip if skip function returns true
-			if cfg.SkipFunc != nil && cfg.SkipFunc(c) {
-				return next(c)
-			}
-
-			// Only check for methods that may have a body
-			method := c.Method()
-			if method != http.MethodPost && method != http.MethodPut &&
-				method != http.MethodPatch && method != http.MethodDelete {
-				return next(c)
-			}
-
-			// Wrap the request body with a limited reader
-			c.Request.Body = http.MaxBytesReader(c.Response, c.Request.Body, cfg.MaxSize)
-
-			// Execute handler
-			err := next(c)
-
-			// Check if error is due to body size limit
-			if err != nil {
-				if err.Error() == "http: request body too large" {
-					return errors.RequestEntityTooLarge(
-						fmt.Sprintf("Request body too large. Maximum size is %d bytes", cfg.MaxSize),
-						nil,
-					)
-				}
-			}
-
-			return err
-		}
-	}
-}
-
-// limitedReader wraps io.ReadCloser to enforce size limit
-type limitedReader struct {
-	reader    io.ReadCloser
-	remaining int64
-}
-
-func (lr *limitedReader) Read(p []byte) (n int, err error) {
-	if lr.remaining <= 0 {
-		return 0, io.EOF
-	}
-
-	if int64(len(p)) > lr.remaining {
-		p = p[:lr.remaining]
-	}
-
-	n, err = lr.reader.Read(p)
-	lr.remaining -= int64(n)
-	return n, err
-}
-
-func (lr *limitedReader) Close() error {
-	return lr.reader.Close()
 }

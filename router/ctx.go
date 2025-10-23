@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/validation"
+	"github.com/go-chi/chi/v5"
 )
 
 // Ctx provides easy access to request data and response helpers
@@ -43,6 +46,21 @@ func (c *Ctx) Context() context.Context {
 	return c.Request.Context()
 }
 
+// Deadline returns the time when work done on behalf of this context should be canceled
+func (c *Ctx) Deadline() (deadline time.Time, ok bool) {
+	return c.Request.Context().Deadline()
+}
+
+// Done returns a channel that's closed when work done on behalf of this context should be canceled
+func (c *Ctx) Done() <-chan struct{} {
+	return c.Request.Context().Done()
+}
+
+// Err returns the error if the context is canceled or has exceeded its deadline
+func (c *Ctx) Err() error {
+	return c.Request.Context().Err()
+}
+
 // Logger returns the logger instance for logging within routes and middleware
 func (c *Ctx) Logger() *slog.Logger {
 	return c.logger
@@ -59,13 +77,28 @@ func (c *Ctx) GetValue(key string) any {
 }
 
 // ParseBody parses the request body into the given struct
+// Validates that Content-Type is application/json before parsing
 func (c *Ctx) ParseBody(out any) error {
+	// Validate Content-Type
+	contentType := c.ContentType()
+	if contentType != "" && !strings.HasPrefix(strings.ToLower(contentType), "application/json") {
+		return errors.BadRequest("Invalid Content-Type", fmt.Errorf("expected application/json, got %s", contentType))
+	}
+
 	body, err := c.Body()
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal(body, out)
+	if len(body) == 0 {
+		return errors.BadRequest("Empty request body", nil)
+	}
+
+	if err := json.Unmarshal(body, out); err != nil {
+		return errors.BadRequest("Invalid JSON", err)
+	}
+
+	return nil
 }
 
 // ValidateBody parses and validates the request body in one call
@@ -86,10 +119,6 @@ func ValidateBody[T any](c *Ctx) (*T, error) {
 		return nil, err
 	}
 	return &out, nil
-}
-
-type Validator interface {
-	Validate(out any, locale ...string) error
 }
 
 // getLocaleFromHeader extracts the locale from Accept-Language header
@@ -146,9 +175,10 @@ func (c *Ctx) FormFile(key string) (multipart.File, *multipart.FileHeader, error
 	return c.Request.FormFile(key)
 }
 
-// PathValue gets a path value by key
+// PathValue gets a path parameter by key
+// Uses Chi's URL parameter extraction from request context
 func (c *Ctx) PathValue(key string) string {
-	return c.Request.PathValue(key)
+	return chi.URLParam(c.Request, key)
 }
 
 // Query gets a query parameter by key
@@ -241,6 +271,7 @@ func (c *Ctx) ContentType() string {
 
 // IP returns the client's IP address
 // When behind a proxy, it extracts the first IP from X-Forwarded-For header
+// Properly handles IPv6 addresses and strips port information
 func (c *Ctx) IP() string {
 	if xff := c.Request.Header.Get("X-Forwarded-For"); xff != "" {
 		// X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
@@ -253,7 +284,14 @@ func (c *Ctx) IP() string {
 	if ip := c.Request.Header.Get("X-Real-IP"); ip != "" {
 		return ip
 	}
-	return c.Request.RemoteAddr
+
+	// RemoteAddr includes port, strip it
+	host, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+	if err != nil {
+		// If splitting fails, return as-is (might be just IP without port)
+		return c.Request.RemoteAddr
+	}
+	return host
 }
 
 func (c *Ctx) UserAgent() string {
@@ -400,4 +438,11 @@ func (c *Ctx) AcceptsJSON() bool {
 func (c *Ctx) AcceptsHTML() bool {
 	accept := strings.ToLower(c.Get("Accept"))
 	return strings.Contains(accept, "text/html") || strings.Contains(accept, "*/*")
+}
+
+// Accepts checks if the client accepts a specific content type
+func (c *Ctx) Accepts(contentType string) bool {
+	accept := strings.ToLower(c.Get("Accept"))
+	contentType = strings.ToLower(contentType)
+	return strings.Contains(accept, contentType) || strings.Contains(accept, "*/*")
 }

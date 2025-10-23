@@ -13,7 +13,6 @@ import (
 
 	gerrors "github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/middleware"
-	"github.com/azizndao/glib/ratelimit"
 	"github.com/azizndao/glib/router"
 	logger "github.com/azizndao/glib/slog"
 	"github.com/azizndao/glib/util"
@@ -29,7 +28,6 @@ type Ctx = router.Ctx
 
 type Config struct {
 	Locales []LocaleConfig
-	Store   ratelimit.Store // Optional: Custom store for rate limiting (default: in-memory)
 }
 
 // Server represents the main glib HTTP server with integrated middleware and lifecycle management
@@ -38,7 +36,6 @@ type Server struct {
 	httpServer      *http.Server
 	logger          *logger.Logger
 	shutdownTimeout time.Duration
-	Stores          []ratelimit.Store // Track stores for cleanup
 	Validator       *validation.Validator
 }
 
@@ -75,11 +72,8 @@ func New(config Config) *Server {
 	r := router.New(logger, validator)
 
 	// Build and apply middleware stack from environment variables
-	middlewareStack := middleware.Stack(middleware.StackConfig{
-		Locales: config.Locales,
-		Store:   config.Store,
-	})
-	r.Use(middlewareStack...)
+	middlewareStack := middleware.Stack(logger.Logger)
+	r.UseHTTP(middlewareStack...)
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -96,13 +90,7 @@ func New(config Config) *Server {
 		httpServer:      httpServer,
 		logger:          logger,
 		shutdownTimeout: shutdownTimeout,
-		Stores:          make([]ratelimit.Store, 0),
 		Validator:       validator,
-	}
-
-	// Register custom store for cleanup if provided
-	if config.Store != nil {
-		server.RegisterStore(config.Store)
 	}
 
 	return server
@@ -153,13 +141,6 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		s.logger.ErrorWithSource(ctx, 0, gerrors.Errorf("server shutdown failed: %w", err))
 		return err
-	}
-
-	// Cleanup stores (rate limiters, etc.)
-	for _, store := range s.Stores {
-		if err := store.Close(); err != nil {
-			s.logger.ErrorWithSource(ctx, 0, gerrors.Errorf("failed to close store: %w", err))
-		}
 	}
 
 	s.logger.InfoWithSource(ctx, 0, "Server stopped")
@@ -228,10 +209,4 @@ func (s *Server) ListenTLSWithGracefulShutdown(certFile, keyFile string) error {
 	}
 
 	return nil
-}
-
-// RegisterStore registers a rate limit store for cleanup on shutdown
-// This is useful if you're using custom rate limit stores
-func (s *Server) RegisterStore(store ratelimit.Store) {
-	s.Stores = append(s.Stores, store)
 }

@@ -36,8 +36,6 @@ glib was created with specific design principles that prioritize developer exper
 - [Requirements](#requirements)
 - [License](#license)
 
-
-
 ## Features
 
 - **Clean API**: Intuitive routing interface with fluent/builder pattern

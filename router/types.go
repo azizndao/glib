@@ -3,57 +3,76 @@ package router
 import (
 	"net/http"
 
-	"github.com/azizndao/glib/slog"
+	"github.com/go-chi/chi/v5"
 )
 
+// Router consisting of the core routing methods used by chi's Mux,
+// using only the standard net/http.
 type Router interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	Logger() *slog.Logger
+	http.Handler
+	chi.Routes
 
-	// HTTP method routing within the group
-	Get(pattern string, handler Handler, middleware ...Middleware)
-	Post(pattern string, handler Handler, middleware ...Middleware)
-	Put(pattern string, handler Handler, middleware ...Middleware)
-	Patch(pattern string, handler Handler, middleware ...Middleware)
-	Delete(pattern string, handler Handler, middleware ...Middleware)
-	Option(pattern string, handler Handler, middleware ...Middleware)
-	Head(pattern string, handler Handler, middleware ...Middleware)
+	// Use appends one or more middlewares onto the Router stack.
+	Use(middlewares ...Middleware)
 
-	// Advanced routing within the group
-	Handle(method, pattern string, handler Handler, middleware ...Middleware)
+	// UseHTTP appends Chi's native middleware directly onto the Router stack.
+	// This allows using Chi's built-in middleware without conversion.
+	UseHTTP(chiMiddlewares ...func(http.Handler) http.Handler)
 
-	Route(prefix string, handler http.Handler)
+	// With adds inline middlewares for an endpoint handler.
+	With(middlewares ...Middleware) Router
 
-	// Nested groups
-	SubRouter(prefix string, middleware ...Middleware) Router
+	// Group adds a new inline-Router along the current routing
+	// path, with a fresh middleware stack for the inline-Router.
+	Group(fn func(r Router)) Router
 
-	Group(middleware ...Middleware) Router
+	// Route mounts a sub-Router along a `pattern`` string.
+	Route(pattern string, fn func(r Router)) Router
 
-	// Group middleware
-	Use(middleware ...Middleware) Router
+	// Mount attaches another http.Handler along ./pattern/*
+	Mount(pattern string, h http.Handler)
+
+	// Handle and HandleFunc adds routes for `pattern` that matches
+	// all HTTP methods.
+	Handle(pattern string, h http.Handler)
+	HandleFunc(pattern string, h HandleFunc)
+
+	// Method and MethodFunc adds routes for `pattern` that matches
+	// the `method` HTTP method.
+	Method(method, pattern string, h http.Handler)
+	MethodFunc(method, pattern string, h HandleFunc)
+
+	// HTTP-method routing along `pattern`
+	Connect(pattern string, h HandleFunc)
+	Delete(pattern string, h HandleFunc)
+	Get(pattern string, h HandleFunc)
+	Head(pattern string, h HandleFunc)
+	Options(pattern string, h HandleFunc)
+	Patch(pattern string, h HandleFunc)
+	Post(pattern string, h HandleFunc)
+	Put(pattern string, h HandleFunc)
+	Trace(pattern string, h HandleFunc)
+
+	// NotFound defines a handler to respond whenever a route could
+	// not be found.
+	NotFound(h HandleFunc)
+
+	// MethodNotAllowed defines a handler to respond whenever a method is
+	// not allowed.
+	MethodNotAllowed(h HandleFunc)
 }
+
+type RouterBlock func(block func(Router))
 
 // Deprecated: use Router instead of RouteGroup
 type RouteGroup = Router
 
-type Middleware func(Handler) Handler
+type Middleware func(HandleFunc) HandleFunc
 
-// Handler is the function signature for route handlers that can return errors
-type Handler func(*Ctx) error
+// HandleFunc is the function signature for route handlers that can return errors
+type HandleFunc func(*Ctx) error
 
-// RouteInfo contains information about a registered route
-type RouteInfo struct {
-	Method      string
-	Pattern     string
-	Handler     http.HandlerFunc
-	Middleware  []Middleware
-	Group       string
-	Description string
-}
-
-type RouterOptions struct {
-	AutoOptions bool
-
+type RouterConfig struct {
 	AutoHEAD bool
 
 	TrailingSlashRedirect bool

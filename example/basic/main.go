@@ -7,7 +7,6 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/middleware"
 	"github.com/azizndao/glib/router"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
@@ -46,9 +45,7 @@ func main() {
 	server := glib.New(options)
 
 	// Get the router from the server to register routes
-	rf := server.Router()
-
-	r := rf.SubRouter("/api")
+	r := server.Router()
 
 	// Register routes using the router
 	// Simple hello endpoint
@@ -78,21 +75,24 @@ func main() {
 
 	// Request ID demonstration
 	r.Get("/request-id", func(c *router.Ctx) error {
-		requestID := middleware.GetRequestID(c)
+		// Request ID can be available from Chi middleware if configured
+		requestID := c.Get("X-Request-Id")
+		if requestID == "" {
+			requestID = "not-configured"
+		}
 		return c.JSON(map[string]string{
 			"request_id": requestID,
-			"message":    "Request ID is automatically added to all requests",
+			"message":    "Request ID can be added by Chi middleware",
 		})
 	})
 
-	// Demonstrate timeout with a slow endpoint using route group
-	slowGroup := r.SubRouter("/slow", middleware.Timeout(middleware.TimeoutConfig{
-		Timeout: 2 * time.Second,
-	}))
-	slowGroup.Get("/endpoint", func(c *router.Ctx) error {
-		// Simulate slow processing (will timeout after 2 seconds)
-		time.Sleep(3 * time.Second)
-		return c.JSON(map[string]string{"message": "This should timeout"})
+	// Demonstrate slow endpoint using route group
+	r.Route("/slow", func(slow router.Router) {
+		slow.Get("/endpoint", func(c *router.Ctx) error {
+			// Simulate slow processing
+			time.Sleep(3 * time.Second)
+			return c.JSON(map[string]string{"message": "Slow response completed"})
+		})
 	})
 
 	if err := server.ListenWithGracefulShutdown(); err != nil {
@@ -105,6 +105,7 @@ func registerUser(c *router.Ctx) error {
 
 	// ValidateBody automatically uses Accept-Language header
 	if err := c.ValidateBody(&req); err != nil {
+		c.Logger().Error(err)
 		return err
 	}
 

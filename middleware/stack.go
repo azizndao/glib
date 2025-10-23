@@ -1,16 +1,18 @@
 package middleware
 
 import (
-	"github.com/azizndao/glib/ratelimit"
-	"github.com/azizndao/glib/router"
-	"github.com/azizndao/glib/validation"
-)
+	"encoding/json"
+	"log/slog"
+	"net/http"
 
-// StackConfig holds configuration for building the middleware stack
-type StackConfig struct {
-	Locales []validation.LocaleConfig
-	Store   ratelimit.Store // Optional: Custom store for rate limiting
-}
+	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/util"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httplog/v3"
+	"github.com/go-chi/httprate"
+)
 
 // Stack builds a middleware stack from environment variables.
 // Middleware are loaded and applied in this specific order:
@@ -26,53 +28,63 @@ type StackConfig struct {
 //
 // Each middleware can be disabled via its corresponding ENABLE_* environment variable.
 // Pass StackConfig with validation locales and optional custom store.
-func Stack(config StackConfig) []router.Middleware {
-	middlewares := make([]router.Middleware, 0)
+func Stack(logger *slog.Logger) chi.Middlewares {
+	middlewares := make([]func(http.Handler) http.Handler, 0)
 
 	// Order matters! These middleware are applied in the order specified
 
 	// RealIP should be early to extract correct client IP
-	if realIPCfg := LoadRealIPConfig(); realIPCfg != nil {
-		middlewares = append(middlewares, RealIP(*realIPCfg))
+	if util.GetEnvBool("ENABLE_REAL_IP", true) {
+		middlewares = append(middlewares, middleware.RealIP)
 	}
 
 	// RequestID early for logging
-	if requestIDCfg := LoadRequestIDConfig(); requestIDCfg != nil {
-		middlewares = append(middlewares, RequestID(*requestIDCfg))
-	}
-
-	// Recovery should be early to catch panics from other middleware
-	if LoadRecoveryConfig() {
-		middlewares = append(middlewares, Recovery())
+	if util.GetEnvBool("ENABLE_REQUEST_ID", true) {
+		middlewares = append(middlewares, middleware.RequestID)
 	}
 
 	// Logger after recovery and request ID
-	if loggerCfg := LoadLoggerConfig(); loggerCfg != nil {
-		middlewares = append(middlewares, Logger(*loggerCfg))
+	if util.GetEnvBool("ENABLE_LOGGER", true) {
+		if util.GetEnvBool("IS_DEBUG", false) {
+			middlewares = append(middlewares, middleware.Logger)
+		} else {
+			middlewares = append(middlewares, httplog.RequestLogger(logger, &httplog.Options{}))
+		}
+	}
+
+	// Recovery should be early to catch panics from other middleware
+	if util.GetEnvBool("ENABLE_RECOVERY", true) {
+		middlewares = append(middlewares, middleware.Recoverer)
 	}
 
 	// Compression
 	if compressCfg := LoadCompressConfig(); compressCfg != nil {
-		middlewares = append(middlewares, Compress(*compressCfg))
+		middlewares = append(middlewares, middleware.Compress(compressCfg.Level))
 	}
 
 	// Body limit
 	if bodyLimitCfg := LoadBodyLimitConfig(); bodyLimitCfg != nil {
-		middlewares = append(middlewares, BodyLimit(*bodyLimitCfg))
+		middlewares = append(middlewares, middleware.RequestSize(bodyLimitCfg.MaxSize))
 	}
 
 	// Rate limiting (if enabled via env)
-	if rateLimitCfg := ratelimit.LoadConfig(); rateLimitCfg != nil {
-		// Use custom store if provided
-		if config.Store != nil {
-			rateLimitCfg.Store = config.Store
-		}
-		middlewares = append(middlewares, ratelimit.RateLimit(*rateLimitCfg))
+	if rateLimitCfg := LoadRateLimitConfig(); rateLimitCfg != nil {
+		middlewares = append(middlewares, httprate.Limit(
+			rateLimitCfg.Max,
+			rateLimitCfg.Window,
+			httprate.WithKeyByRealIP(),
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				err := errors.NewApi(http.StatusTooManyRequests, "Rate-limited", nil)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(err)
+			}),
+		))
 	}
 
 	// CORS
-	if corsCfg := LoadCORSConfig(); corsCfg != nil {
-		middlewares = append(middlewares, CORS(*corsCfg))
+	if corsCfg := LoadCORSOptions(); corsCfg != nil {
+		middlewares = append(middlewares, cors.Handler(*corsCfg))
 	}
 	return middlewares
 }
