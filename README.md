@@ -5,6 +5,25 @@
 
 **glib is an opinionated HTTP framework for Go** that provides a modern, production-ready foundation for building REST APIs with minimal boilerplate.
 
+## 🚀 Framework Evolution
+
+**Current Status**: HTTP Framework (Stable)  
+**Next Phase**: Full-Stack Backend Framework
+
+glib is evolving from an HTTP framework into a comprehensive Laravel-inspired backend framework for Go. See [`.spec/`](./.spec/) for detailed specifications covering:
+
+- ✅ **Foundation**: Service container, providers, configuration
+- ✅ **Database**: GORM integration, ORM, relationships, migrations  
+- ✅ **CLI**: Artisan-style code generation (`glib make:*`, `glib new`, etc.)
+- ✅ **Authentication**: JWT, sessions, OAuth2, policies & gates
+- ✅ **Queues**: Multi-driver job queues with scheduling
+- ✅ **Cache & Storage**: Redis, file storage, cloud storage
+- ✅ **Testing**: Collections, factories, HTTP test helpers
+
+📚 **[Read Full Specifications →](./.spec/README.md)** | **[Implementation Roadmap →](./.spec/IMPLEMENTATION-ROADMAP.md)**
+
+The current HTTP framework (documented below) remains stable and production-ready while we build these additional features.
+
 ## Philosophy
 
 glib was created with specific design principles that prioritize developer experience and code clarity:

@@ -3,16 +3,16 @@ package errors
 
 import "fmt"
 
-// ApiError represents an error returned by a handler
-type ApiError struct {
+// APIError represents an error returned by a handler
+type APIError struct {
 	Code     int   `json:"code"`
 	Data     any   `json:"data,omitempty"`
 	internal error `json:"-"`
 }
 
-// NewApi creates a new Error with the given code, data, and internal error
-func NewApi(code int, data any, internal error) *ApiError {
-	return &ApiError{
+// NewAPI creates a new Error with the given code, data, and internal error
+func NewAPI(code int, data any, internal error) *APIError {
+	return &APIError{
 		Code:     code,
 		Data:     data,
 		internal: internal,
@@ -20,7 +20,7 @@ func NewApi(code int, data any, internal error) *ApiError {
 }
 
 // Error implements the error interface
-func (e *ApiError) Error() string {
+func (e *APIError) Error() string {
 	if e.internal != nil {
 		return e.internal.Error()
 	}

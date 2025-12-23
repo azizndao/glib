@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/azizndao/glib/errors"
 	"github.com/azizndao/glib/util"
@@ -74,10 +75,14 @@ func Stack(logger *slog.Logger) chi.Middlewares {
 			rateLimitCfg.Window,
 			httprate.WithKeyByRealIP(),
 			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-				err := errors.NewApi(http.StatusTooManyRequests, "Rate-limited", nil)
+				err := errors.NewAPI(http.StatusTooManyRequests, "Rate-limited", nil)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				json.NewEncoder(w).Encode(err)
+				e := json.NewEncoder(w).Encode(err)
+				if err != nil {
+					slog.Error(e.Error())
+					os.Exit(1)
+				}
 			}),
 		))
 	}

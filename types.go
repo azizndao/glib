@@ -64,9 +64,6 @@ type Router interface {
 
 type RouterBlock func(block func(Router))
 
-// Deprecated: use Router instead of RouteGroup
-type RouteGroup = Router
-
 type Middleware func(HandleFunc) HandleFunc
 
 // HandleFunc is the function signature for route handlers that can return errors

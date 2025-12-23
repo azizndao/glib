@@ -1,4 +1,4 @@
-// Package router provides utilities for HTTP routing using Chi
+// Package glib provides a simple and powerful web framework for Go
 package glib
 
 import (
@@ -26,7 +26,7 @@ func DefaultRouterOptions() RouterConfig {
 	}
 }
 
-// New creates a new router with default options
+// Default creates a new router with default options
 func Default(logger *slog.Logger, validator *validation.Validator, options ...RouterConfig) Router {
 	chiRouter := chi.NewRouter()
 
@@ -234,10 +234,10 @@ func (r *router) wrapHandler(handler HandleFunc) http.HandlerFunc {
 
 		// Execute the handler with Ctx
 		if err := handler(ctx); err != nil {
-			var glibErr *errors.ApiError
+			var glibErr *errors.APIError
 
 			switch t := err.(type) {
-			case *errors.ApiError:
+			case *errors.APIError:
 				glibErr = t
 			default:
 				glibErr = errors.InternalServerError("Server Error", err)
@@ -250,7 +250,10 @@ func (r *router) wrapHandler(handler HandleFunc) http.HandlerFunc {
 			}
 
 			// Send error response using Ctx
-			ctx.Status(glibErr.Code).JSON(glibErr)
+			err = ctx.Status(glibErr.Code).JSON(glibErr)
+			if err != nil {
+				r.logger.Error(err)
+			}
 		}
 	}
 }
@@ -273,10 +276,10 @@ func (r *router) convertMiddleware(mw Middleware) func(http.Handler) http.Handle
 			// Execute middleware with Ctx
 			if err := mw(nextHandler)(ctx); err != nil {
 				// Handle middleware error
-				var glibErr *errors.ApiError
+				var glibErr *errors.APIError
 
 				switch t := err.(type) {
-				case *errors.ApiError:
+				case *errors.APIError:
 					glibErr = t
 				default:
 					glibErr = errors.InternalServerError("Middleware Error", err)

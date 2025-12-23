@@ -61,7 +61,6 @@ func DefaultValidatorConfig() Config {
 
 // New creates a new validator instance with the given configuration
 func New(cfg Config) *Validator {
-
 	v := validator.New()
 
 	// Setup universal translator with English as default
@@ -69,13 +68,21 @@ func New(cfg Config) *Validator {
 	uni := ut.New(english, english)
 
 	for _, locale := range cfg.Locales {
-		uni.AddTranslator(locale.Locale, true)
+		err := uni.AddTranslator(locale.Locale, true)
+		if err != nil {
+			cfg.Logger.Error(err, "locale", locale.Locale.Locale())
+			os.Exit(1)
+		}
 		trans, ok := uni.GetTranslator(locale.Locale.Locale())
 		if !ok {
 			cfg.Logger.Error(errors.New("failed to get translator"), "locale", locale.Locale.Locale())
 			os.Exit(0)
 		}
-		locale.Registrar(v, trans)
+		err = locale.Registrar(v, trans)
+		if err != nil {
+			cfg.Logger.Error(err, "locale", locale.Locale.Locale())
+			os.Exit(1)
+		}
 	}
 
 	// Register JSON tag names if configured

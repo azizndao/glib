@@ -473,7 +473,7 @@ func (c *Ctx) JSON(data any) error {
 func (c *Ctx) XML(data any) error {
 	c.Set("Content-Type", "application/xml; charset=utf-8")
 	c.Response.WriteHeader(c.statusCode)
-	_, err := c.Response.Write([]byte(fmt.Sprintf("%v", data)))
+	_, err := fmt.Fprintf(c.Response, "%v", data)
 	return err
 }
 
