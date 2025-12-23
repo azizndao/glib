@@ -715,7 +715,7 @@ func internalErrorHandler(c *glib.Ctx) error {
 }
 
 func customErrorHandler(c *glib.Ctx) error {
-	return errors.NewApi(422, map[string]interface{}{
+	return errors.NewAPI(422, map[string]interface{}{
 		"message": "Unprocessable Entity: Validation failed",
 		"errors":  []string{"Invalid data format", "Missing required fields"},
 	}, nil)
