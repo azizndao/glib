@@ -1,3 +1,4 @@
+// Package controllers provides controllers for the fullstack example.
 package controllers
 
 import (
@@ -20,14 +21,10 @@ type PostController struct {
 	db *gorm.DB
 }
 
-// NewPostController creates a new post controller with dependencies injected.
-func NewPostController(app *foundation.Application) *PostController {
+func NewPost(app *foundation.Application) glib.APIResourceController {
 	dbManager, _ := container.Resolve[*database.Manager](app.Container())
 	conn, _ := dbManager.DB()
-
-	return &PostController{
-		db: conn.DB(),
-	}
+	return &PostController{db: conn.DB()}
 }
 
 // CreatePostRequest represents the post creation payload.
@@ -111,7 +108,6 @@ func (ctrl *PostController) Show(c *glib.Ctx) error {
 		Preload("Comments.User").
 		Where("id = ?", postID).
 		First(&post).Error
-
 	if err != nil {
 		return errors.NotFound("Post not found", err)
 	}
@@ -145,7 +141,7 @@ func (ctrl *PostController) Update(c *glib.Ctx) error {
 	}
 
 	// Update fields
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if req.Title != nil {
 		updates["title"] = *req.Title
 	}

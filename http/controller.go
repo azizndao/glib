@@ -1,8 +1,8 @@
 package glib
 
 // Controller is the base interface for all controllers.
-// Any struct can be a controller - no methods required.
-type Controller interface{}
+// Controllers are instantiated via constructor functions that receive the application instance.
+type Controller any
 
 // ResourceController provides standard RESTful CRUD operations.
 // Implements the full resource pattern with all 7 methods.
@@ -13,7 +13,8 @@ type Controller interface{}
 //	    db *gorm.DB
 //	}
 //
-//	func NewPostController(app *foundation.Application) *PostController {
+//	// Constructor function returns the interface type for compatibility
+//	func NewPostController(app *foundation.Application) glib.ResourceController {
 //	    dbManager, _ := container.Resolve[*database.Manager](app.Container())
 //	    conn, _ := dbManager.DB()
 //	    return &PostController{db: conn.DB()}
@@ -24,16 +25,12 @@ type Controller interface{}
 //	    ctrl.db.Find(&posts)
 //	    return c.JSON(posts)
 //	}
-//	// ... implement other methods
+//	// ... implement other 6 methods: Create, Store, Show, Edit, Update, Destroy
 //
 // Usage:
 //
-//	router.Resource("posts", func(app *foundation.Application) glib.Controller {
-//	    return NewPostController(app)
-//	})
+//	router.Resource("posts", controllers.NewPostController)
 type ResourceController interface {
-	Controller
-
 	// Index lists all resources
 	// GET /resource
 	Index(c *Ctx) error
@@ -72,20 +69,24 @@ type ResourceController interface {
 //	    db *gorm.DB
 //	}
 //
+//	// Constructor function returns the interface type for compatibility
+//	func NewUserController(app *foundation.Application) glib.APIResourceController {
+//	    dbManager, _ := container.Resolve[*database.Manager](app.Container())
+//	    conn, _ := dbManager.DB()
+//	    return &UserController{db: conn.DB()}
+//	}
+//
 //	func (ctrl *UserController) Index(c *glib.Ctx) error {
 //	    var users []models.User
 //	    ctrl.db.Find(&users)
 //	    return c.JSON(users)
 //	}
+//	// ... implement other 4 methods: Store, Show, Update, Destroy
 //
 // Usage:
 //
-//	router.APIResource("users", func(app *foundation.Application) glib.Controller {
-//	    return NewUserController(app)
-//	})
+//	router.APIResource("users", controllers.NewUserController)
 type APIResourceController interface {
-	Controller
-
 	// Index lists all resources
 	// GET /resource
 	Index(c *Ctx) error
@@ -116,6 +117,13 @@ type APIResourceController interface {
 //	    db *gorm.DB
 //	}
 //
+//	// Constructor function returns the interface type for compatibility
+//	func NewPublishPostController(app *foundation.Application) glib.InvokableController {
+//	    dbManager, _ := container.Resolve[*database.Manager](app.Container())
+//	    conn, _ := dbManager.DB()
+//	    return &PublishPostController{db: conn.DB()}
+//	}
+//
 //	func (ctrl *PublishPostController) Invoke(c *glib.Ctx) error {
 //	    id := c.PathValue("id")
 //	    // Publish post logic
@@ -124,12 +132,8 @@ type APIResourceController interface {
 //
 // Usage:
 //
-//	router.InvokableController("POST", "/posts/{id}/publish", func(app *foundation.Application) glib.Controller {
-//	    return NewPublishPostController(app)
-//	})
+//	router.InvokableController("POST", "/posts/{id}/publish", controllers.NewPublishPostController)
 type InvokableController interface {
-	Controller
-
 	// Invoke handles the single action
 	Invoke(c *Ctx) error
 }

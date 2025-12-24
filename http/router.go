@@ -333,7 +333,11 @@ func (r *router) SetApplication(app *foundation.Application) {
 }
 
 // Resource registers a resource controller with all RESTful routes.
-func (r *router) Resource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router {
+func (r *router) Resource(
+	pattern string,
+	resource ResourceController,
+	options ...ResourceOptions,
+) Router {
 	if r.app == nil {
 		panic("application not set - call SetApplication() before registering resources")
 	}
@@ -341,15 +345,6 @@ func (r *router) Resource(pattern string, constructor ControllerConstructor, opt
 	opts := DefaultResourceOptions()
 	if len(options) > 0 {
 		opts = options[0]
-	}
-
-	// Create controller instance once
-	ctrl := constructor(r.app)
-
-	// Type assert to ResourceController
-	resource, ok := ctrl.(ResourceController)
-	if !ok {
-		panic(fmt.Sprintf("controller does not implement ResourceController interface"))
 	}
 
 	// Build param pattern
@@ -390,7 +385,7 @@ func (r *router) Resource(pattern string, constructor ControllerConstructor, opt
 }
 
 // APIResource registers an API resource controller without form routes.
-func (r *router) APIResource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router {
+func (r *router) APIResource(pattern string, resource APIResourceController, options ...ResourceOptions) Router {
 	if r.app == nil {
 		panic("application not set - call SetApplication() before registering resources")
 	}
@@ -398,15 +393,6 @@ func (r *router) APIResource(pattern string, constructor ControllerConstructor, 
 	opts := DefaultResourceOptions()
 	if len(options) > 0 {
 		opts = options[0]
-	}
-
-	// Create controller instance once
-	ctrl := constructor(r.app)
-
-	// Type assert to APIResourceController
-	resource, ok := ctrl.(APIResourceController)
-	if !ok {
-		panic(fmt.Sprintf("controller does not implement APIResourceController interface"))
 	}
 
 	// Build param pattern
@@ -439,18 +425,9 @@ func (r *router) APIResource(pattern string, constructor ControllerConstructor, 
 }
 
 // InvokableController registers a single-action controller.
-func (r *router) InvokableController(method, pattern string, constructor ControllerConstructor) Router {
+func (r *router) InvokableController(method, pattern string, invokable InvokableController) Router {
 	if r.app == nil {
 		panic("application not set - call SetApplication() before registering controllers")
-	}
-
-	// Create controller instance once
-	ctrl := constructor(r.app)
-
-	// Type assert to InvokableController
-	invokable, ok := ctrl.(InvokableController)
-	if !ok {
-		panic(fmt.Sprintf("controller does not implement InvokableController interface"))
 	}
 
 	// Register the route

@@ -45,8 +45,8 @@ type PostController struct {
     db *gorm.DB
 }
 
-// Constructor with dependency injection
-func NewPostController(app *foundation.Application) *PostController {
+// Constructor with dependency injection - returns interface type
+func NewPostController(app *foundation.Application) glib.APIResourceController {
     dbManager, _ := container.Resolve[*database.Manager](app.Container())
     conn, _ := dbManager.DB()
     
@@ -72,10 +72,8 @@ server.SetApplicationDirect(app)
 
 router := server.Router()
 
-// Register as API resource
-router.APIResource("posts", func(app *foundation.Application) glib.Controller {
-    return controllers.NewPostController(app)
-})
+// Register as API resource - pass constructor function directly
+router.APIResource("posts", controllers.NewPostController)
 ```
 
 That's it! This automatically creates 5 RESTful routes.
@@ -149,7 +147,7 @@ type UserController struct {
     mailer *mail.Service
 }
 
-func NewUserController(app *foundation.Application) *UserController {
+func NewUserController(app *foundation.Application) glib.APIResourceController {
     // Resolve all dependencies once at startup
     dbManager, _ := container.Resolve[*database.Manager](app.Container())
     logger, _ := container.Resolve[*slog.Logger](app.Container())
@@ -204,9 +202,7 @@ func (ctrl *Controller) Handler(c *glib.Ctx) error {
 ### Full Resource Registration
 
 ```go
-router.Resource("posts", func(app *foundation.Application) glib.Controller {
-    return controllers.NewPostController(app)
-})
+router.Resource("posts", controllers.NewPostController)
 ```
 
 **Generated Routes:**
@@ -229,7 +225,7 @@ type PostController struct {
     db *gorm.DB
 }
 
-func NewPostController(app *foundation.Application) *PostController {
+func NewPostController(app *foundation.Application) glib.ResourceController {
     dbManager, _ := container.Resolve[*database.Manager](app.Container())
     conn, _ := dbManager.DB()
     return &PostController{db: conn.DB()}
@@ -289,9 +285,7 @@ func (ctrl *PostController) Destroy(c *glib.Ctx) error {
 ### API Resource Registration
 
 ```go
-router.APIResource("posts", func(app *foundation.Application) glib.Controller {
-    return controllers.NewPostController(app)
-})
+router.APIResource("posts", controllers.NewPostController)
 ```
 
 **Generated Routes:**
@@ -314,7 +308,7 @@ type PostController struct {
     db *gorm.DB
 }
 
-func NewPostController(app *foundation.Application) *PostController {
+func NewPostController(app *foundation.Application) glib.APIResourceController {
     dbManager, _ := container.Resolve[*database.Manager](app.Container())
     conn, _ := dbManager.DB()
     return &PostController{db: conn.DB()}
@@ -386,7 +380,7 @@ type PublishPostController struct {
     db *gorm.DB
 }
 
-func NewPublishPostController(app *foundation.Application) *PublishPostController {
+func NewPublishPostController(app *foundation.Application) glib.InvokableController {
     dbManager, _ := container.Resolve[*database.Manager](app.Container())
     conn, _ := dbManager.DB()
     return &PublishPostController{db: conn.DB()}
@@ -414,9 +408,7 @@ func (ctrl *PublishPostController) Invoke(c *glib.Ctx) error {
 ### Registration
 
 ```go
-router.InvokableController("POST", "/posts/{id}/publish", func(app *foundation.Application) glib.Controller {
-    return controllers.NewPublishPostController(app)
-})
+router.InvokableController("POST", "/posts/{id}/publish", controllers.NewPublishPostController)
 ```
 
 ## Route Registration
@@ -432,6 +424,52 @@ router.APIResource("posts", NewPostController)
 
 // Invokable (1 route)
 router.InvokableController("POST", "/posts/{id}/publish", NewPublishController)
+```
+
+### Auto-Detection (Convenience Method)
+
+The `Controller()` method automatically detects the controller type and registers appropriate routes:
+
+```go
+// Automatically detects APIResourceController and registers 5 routes
+// Pass constructor function directly
+router.Controller("/posts", controllers.NewPostController)
+
+// Or if your constructor signature matches ControllerConstructor:
+router.Controller("/posts", controllers.NewPostController)
+
+// Automatically detects ResourceController and registers 7 routes
+router.Controller("/articles", controllers.NewArticleController)
+```
+
+**How it works:**
+1. Inspects the controller instance to determine its type
+2. If it implements `ResourceController` → calls `Resource()`
+3. If it implements `APIResourceController` → calls `APIResource()`
+4. If it implements `InvokableController` → returns error (requires explicit HTTP method)
+5. Otherwise → returns error (unknown controller type)
+
+**Example with error handling:**
+
+```go
+// Recommended: Explicit registration (clear and self-documenting)
+router.APIResource("/posts", controllers.NewPostController)
+
+// Alternative: Auto-detection (convenient but less explicit)
+if _, err := router.Controller("/posts", controllers.NewPostController); err != nil {
+    log.Fatalf("Failed to register controller: %v", err)
+}
+```
+
+**When to use:**
+- ✅ Use `Controller()` for quick prototyping or when the controller type is obvious
+- ✅ Use explicit methods (`Resource`, `APIResource`) for production code (more readable)
+- ❌ Don't use `Controller()` for `InvokableController` (requires HTTP method specification)
+
+**Detection logs:**
+Auto-detection logs the detected controller type at INFO level:
+```
+INFO: Auto-detected APIResourceController for pattern: /posts
 ```
 
 ### With Middleware
@@ -616,9 +654,7 @@ func main() {
     server.SetApplicationDirect(app)
     
     router := server.Router()
-    router.APIResource("posts", func(app *foundation.Application) glib.Controller {
-        return controllers.NewPostController(app)
-    })
+    router.APIResource("posts", controllers.NewPostController)
     
     server.ListenWithGracefulShutdown()
 }
@@ -632,9 +668,7 @@ router.APIResource("posts", NewPostController)
 
 // Nested comment routes
 router.Route("/posts/{postId}/comments", func(r glib.Router) {
-    r.APIResource("", func(app *foundation.Application) glib.Controller {
-        return controllers.NewCommentController(app)
-    })
+    r.APIResource("", controllers.NewCommentController)
 })
 ```
 

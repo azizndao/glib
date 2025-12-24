@@ -10,6 +10,7 @@ import (
 
 	"github.com/azizndao/glib/common/errors"
 	"github.com/azizndao/glib/common/slog"
+	"github.com/azizndao/glib/foundation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -668,3 +669,76 @@ func TestRouter_ComplexScenario(t *testing.T) {
 		assert.Equal(t, "123", resp["id"])
 	})
 }
+
+// Test controllers for auto-detection
+type testAPIResourceController struct{}
+
+func newTestAPIResourceController(app *foundation.Application) APIResourceController {
+	return &testAPIResourceController{}
+}
+
+func (c *testAPIResourceController) Index(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Index"})
+}
+
+func (c *testAPIResourceController) Store(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Store"})
+}
+
+func (c *testAPIResourceController) Show(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Show"})
+}
+
+func (c *testAPIResourceController) Update(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Update"})
+}
+
+func (c *testAPIResourceController) Destroy(ctx *Ctx) error {
+	return ctx.NoContent()
+}
+
+type testResourceController struct{}
+
+func newTestResourceController(app *foundation.Application) ResourceController {
+	return &testResourceController{}
+}
+
+func (c *testResourceController) Index(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Index"})
+}
+
+func (c *testResourceController) Create(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Create"})
+}
+
+func (c *testResourceController) Store(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Store"})
+}
+
+func (c *testResourceController) Show(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Show"})
+}
+
+func (c *testResourceController) Edit(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Edit"})
+}
+
+func (c *testResourceController) Update(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Update"})
+}
+
+func (c *testResourceController) Destroy(ctx *Ctx) error {
+	return ctx.NoContent()
+}
+
+type testInvokableController struct{}
+
+func newTestInvokableController(app *foundation.Application) InvokableController {
+	return &testInvokableController{}
+}
+
+func (c *testInvokableController) Invoke(ctx *Ctx) error {
+	return ctx.JSON(map[string]string{"method": "Invoke"})
+}
+
+type testInvalidController struct{}

@@ -3,7 +3,6 @@ package controllers
 import (
 	"crypto/sha256"
 	"encoding/hex"
-
 	"glib/example/fullstack/middleware"
 	"glib/example/fullstack/models"
 
@@ -20,14 +19,10 @@ type AuthController struct {
 	db *gorm.DB
 }
 
-// NewAuthController creates a new auth controller with dependencies injected.
-func NewAuthController(app *foundation.Application) *AuthController {
+func NewAuth(app *foundation.Application) *AuthController {
 	dbManager, _ := container.Resolve[*database.Manager](app.Container())
 	conn, _ := dbManager.DB()
-
-	return &AuthController{
-		db: conn.DB(),
-	}
+	return &AuthController{db: conn.DB()}
 }
 
 // RegisterRequest represents the registration request payload.

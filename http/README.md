@@ -889,9 +889,8 @@ http (this module)
 
 See [example/](../example/) directory for more examples:
 
-- **[basic](../example/basic)** - Simple server setup
-- **[comprehensive](../example/comprehensive)** - Full-featured application
-- **[sub_routing](../example/sub_routing)** - Advanced routing patterns
+- **[quickstart](../example/quickstart)** - Minimal server setup
+- **[fullstack](../example/fullstack)** - Full-featured application with authentication, database, and controllers
 
 ## Contributing
 

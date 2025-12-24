@@ -17,12 +17,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"time"
-
 	"glib/example/fullstack/controllers"
 	"glib/example/fullstack/middleware"
 	"glib/example/fullstack/models"
+	"log"
+	"time"
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/common/config"
@@ -78,13 +77,13 @@ func main() {
 	// 8. Setup Routes with Controllers
 	router := server.Router()
 
-	// Create controllers once - dependencies resolved at startup, not per-request
-	authCtrl := controllers.NewAuthController(app)
-	postCtrl := controllers.NewPostController(app)
-
-	// Public routes
+	// Auth routes (public)
+	authCtrl := controllers.NewAuth(app)
 	router.Post("/auth/register", authCtrl.Register)
 	router.Post("/auth/login", authCtrl.Login)
+
+	// Public post routes (no authentication)
+	postCtrl := controllers.NewPost(app)
 	router.Get("/posts", postCtrl.Index)
 	router.Get("/posts/{id}", postCtrl.Show)
 
@@ -92,20 +91,10 @@ func main() {
 	router.Route("/api", func(api glib.Router) {
 		api.Use(middleware.Auth)
 
-		// Option 1: Manual route registration (explicit, clear)
-		api.Post("/posts", postCtrl.Store)
-		api.Put("/posts/{id}", postCtrl.Update)
-		api.Patch("/posts/{id}", postCtrl.Update)
-		api.Delete("/posts/{id}", postCtrl.Destroy)
-		api.Post("/posts/{id}/comments", postCtrl.AddComment)
-
-		// Option 2: Automatic resource routing (Laravel-style)
-		// Uncomment to use APIResource instead of manual routes above:
-		// api.APIResource("posts", func(app *foundation.Application) glib.Controller {
-		//     return controllers.NewPostController(app)
-		// }, glib.ResourceOptions{
-		//     Except: []string{"Index", "Show"}, // Public routes already registered
-		// })
+		// Register remaining post routes (Store, Update, Destroy)
+		api.APIResource("/posts", postCtrl, glib.ResourceOptions{
+			Except: []string{"Index", "Show"}, // Already registered as public
+		})
 	})
 
 	// 9. Print Routes
