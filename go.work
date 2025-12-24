@@ -3,9 +3,7 @@ go 1.25.5
 use (
 	./cli
 	./common
-	./core
 	./database
-	./foundation
 	./example/basic
 	./example/cli-demo
 	./example/comprehensive
@@ -14,6 +12,8 @@ use (
 	./example/orm
 	./example/relationships
 	./example/sub_routing
+	./foundation
+	./http
 	./ratelimit
 	./validation
 )

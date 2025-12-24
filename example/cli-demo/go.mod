@@ -2,7 +2,7 @@ module github.com/azizndao/glib/example/cli-demo
 
 go 1.25.1
 
-replace github.com/azizndao/glib => ../../core
+replace github.com/azizndao/glib => ../../http
 
 replace github.com/azizndao/glib/common => ../../common
 

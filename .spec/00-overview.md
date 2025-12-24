@@ -1,5 +1,32 @@
 # glib Framework - Complete Specification
 
+## v2.0.0 Update: Modular Architecture
+
+**Status:** ✅ Implemented in v2.0.0-alpha
+
+As of v2.0.0, glib has been fully modularized into independent packages. This specification document describes the original vision - see [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md) for implementation details.
+
+### Current Module Structure
+
+```
+glib (v2.0.0)
+├── http/            # HTTP server (github.com/azizndao/glib)
+├── common/          # Utilities (github.com/azizndao/glib/common)
+├── foundation/      # DI framework (github.com/azizndao/glib/foundation)
+├── database/        # Database & ORM (github.com/azizndao/glib/database)
+├── validation/      # Validation (github.com/azizndao/glib/validation)
+├── ratelimit/       # Rate limiting (github.com/azizndao/glib/ratelimit)
+└── cli/             # Dev tools (github.com/azizndao/glib/cli)
+```
+
+For detailed module documentation:
+- [http/README.md](../http/README.md)
+- [common/README.md](../common/README.md)
+- [foundation/README.md](../foundation/README.md)
+- [database/README.md](../database/README.md)
+
+---
+
 ## Vision
 
 Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired backend framework for Go that provides everything needed for full-stack backend development with minimal external dependencies.

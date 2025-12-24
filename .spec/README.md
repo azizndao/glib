@@ -2,6 +2,36 @@
 
 This directory contains comprehensive specifications for the glib framework, a Laravel-inspired web framework for Go.
 
+## v2.0.0 Modular Architecture
+
+As of v2.0.0, glib has been restructured into independent modules for better flexibility and maintainability:
+
+- **[http](../http)** - HTTP server with routing, middleware, and context abstraction
+- **[common](../common)** - Shared utilities (errors, logging, config, DI container)
+- **[foundation](../foundation)** - Application lifecycle and ServiceProvider pattern
+- **[database](../database)** - Database manager and ORM with relationships
+- **[validation](../validation)** - Request validation with i18n support
+- **[ratelimit](../ratelimit)** - Rate limiting utilities
+- **[cli](../cli)** - Code generation and project scaffolding tools
+
+### Module Dependency Graph
+
+```
+common (pure utilities)
+  ↑
+  ├── foundation (DI framework) ──→ database
+  │                                    ↑
+  ├── http                             │
+  ├── validation                       │
+  └── ratelimit                        │
+                                       │
+  cli (independent)                    │
+```
+
+For migration information from v1.x to v2.0.0, see [MIGRATION.md](../MIGRATION.md).
+
+For complete restructuring history, see [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md).
+
 ## Table of Contents
 
 ### Core Specifications
@@ -29,88 +59,125 @@ This directory contains comprehensive specifications for the glib framework, a L
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
-- Service container & DI
-- Service providers
-- Enhanced configuration
-- Application lifecycle
+### Phase 1-4: Core Modules (✅ COMPLETED - v2.0.0-alpha)
+- ✅ Service container & DI (`common/container`, `foundation`)
+- ✅ Service providers (`foundation`)
+- ✅ Configuration management (`common/config`)
+- ✅ Application lifecycle (`foundation`)
+- ✅ HTTP server with routing (`http`)
+- ✅ Middleware stack (`http/middleware`)
+- ✅ Request validation (`validation`)
+- ✅ Error handling (`common/errors`)
+- ✅ Structured logging (`common/slog`)
+- ✅ GORM integration (`database`)
+- ✅ Active Record ORM (`database/orm`)
+- ✅ Model relationships (`database/orm`)
+- ✅ Soft deletes & scopes (`database/orm`)
+- ✅ CLI framework (`cli`)
+- ✅ Code generators (`cli/generators`)
+- ✅ Project scaffolding (`cli`)
 
-### Phase 2: Database Layer (Weeks 3-6)
-- GORM integration
-- Active Record pattern
-- Relationships
-- Migrations system
-
-### Phase 3: CLI Tool (Weeks 7-8)
-- CLI framework
-- Code generators
-- Project scaffolding
-
-### Phase 4: Authentication (Weeks 9-13)
-- Auth foundation
+### Phase 5: Authentication (Planned - v2.1.0)
 - JWT & sessions
 - OAuth2 providers
 - Policies & gates
+- User authentication
 
-### Phase 5: Queues & Scheduling (Weeks 14-16)
+### Phase 6: Queues & Scheduling (Planned - v2.2.0)
 - Queue system
 - Multiple drivers
 - Job chaining
 - Task scheduler
 
-### Phase 6: Cache & Storage (Weeks 17-18)
+### Phase 7: Cache & Storage (Planned - v2.3.0)
 - Cache drivers
 - File storage
 - Cloud storage
 
-### Phase 7: Developer Experience (Weeks 19-20)
+### Phase 8: Developer Experience (Planned - v2.4.0)
 - Collections API
 - Factories & seeders
-- Testing utilities
+- Enhanced testing utilities
 
 ## Reading Guide
 
 ### For Framework Users
 Start with:
-1. `00-overview.md` - Understand the vision
-2. `02-database.md` - Learn the ORM
-3. `04-authentication.md` - Implement auth
-4. `07-developer-experience.md` - Testing and helpers
+1. `00-overview.md` - Understand the vision and architecture
+2. [Root README](../README.md) - Module overview and quick start
+3. [MIGRATION.md](../MIGRATION.md) - Upgrading from v1.x to v2.0.0
+4. Module READMEs - Detailed documentation:
+   - [http](../http/README.md) - HTTP server
+   - [database](../database/README.md) - Database & ORM
+   - [foundation](../foundation/README.md) - DI framework
+   - [common](../common/README.md) - Utilities
+5. `04-authentication.md` - Future auth system (planned)
 
 ### For Contributors
 Read in order:
-1. All specifications to understand the complete picture
-2. `08-package-structure.md` - Understand organization
-3. `09-testing-strategy.md` - Testing requirements
-4. Pick a phase and start contributing
+1. [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md) - Understand v2.0 modularization
+2. All specifications to understand the complete picture
+3. Module READMEs for implementation details
+4. Pick a feature from planned phases and contribute
 
 ### For Architects
 Focus on:
 1. `00-overview.md` - Architecture decisions
-2. `01-foundation.md` - Core patterns
-3. `10-performance.md` - Performance requirements
+2. [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md) - Modular design rationale
+3. `01-foundation.md` - Core patterns (note: now split across modules)
+4. Module dependency graph (see above)
 
 ## Status
 
-### Core Specifications (Complete ✅)
+### v2.0.0-alpha Status (Current Release)
+
+**Core Modules (✅ Complete)**
+- ✅ HTTP Server - Routing, middleware, context abstraction
+- ✅ Common Utilities - Errors, logging, config, DI container
+- ✅ Foundation - ServiceProvider pattern, application lifecycle
+- ✅ Database - GORM integration, ORM, relationships, soft deletes
+- ✅ Validation - Request validation with i18n
+- ✅ CLI - Code generators, scaffolding
+
+**Documentation (✅ Complete)**
+- ✅ Root README.md - Modular architecture overview
+- ✅ MIGRATION.md - v1.x → v2.0.0 upgrade guide
+- ✅ http/README.md - HTTP server documentation (~1,200 lines)
+- ✅ common/README.md - Utilities documentation (~900 lines)
+- ✅ foundation/README.md - DI framework documentation (~850 lines)
+- ✅ database/README.md - Database & ORM documentation (~1,100 lines)
+- ✅ database/orm/README.md - ORM detailed guide
+- ✅ RESTRUCTURE-SUMMARY.md - Complete modularization history
+
+### Core Specifications (✅ Complete)
 - ✅ 00-overview.md - Architecture decisions and vision
-- ✅ 01-foundation.md - Service container, providers, configuration
-- ✅ 02-database.md - GORM integration, ORM, migrations
-- ✅ 03-cli.md - CLI tool and code generators
-- ✅ 04-authentication.md - Auth system, JWT, sessions, OAuth2
-- ✅ 05-queue-scheduling.md - Queues and task scheduling
-- ✅ 06-cache-storage.md - Cache and file storage
-- ✅ 07-developer-experience.md - Collections, factories, testing
+- ✅ 01-foundation.md - Service container, providers, configuration  
+  _(Note: Implementation now split across `common/container` and `foundation`)_
+- ✅ 02-database.md - GORM integration, ORM, migrations  
+  _(Note: Implemented in `database` module)_
+- ✅ 03-cli.md - CLI tool and code generators  
+  _(Note: Implemented in `cli` module)_
+- ✅ 04-authentication.md - Auth system, JWT, sessions, OAuth2 _(Planned)_
+- ✅ 05-queue-scheduling.md - Queues and task scheduling _(Planned)_
+- ✅ 06-cache-storage.md - Cache and file storage _(Planned)_
+- ✅ 07-developer-experience.md - Collections, factories, testing _(Planned)_
 
 ### Supporting Documentation (Planned ⏳)
-- ⏳ 08-package-structure.md - Package organization
+- ⏳ 08-package-structure.md - Package organization _(Superseded by module READMEs)_
 - ⏳ 09-testing-strategy.md - Testing approach
 - ⏳ 10-performance.md - Performance benchmarks
 
 ### Implementation Status
-- 🎯 **Ready to Start**: All core phases fully specified
-- 📝 **Next Priority**: Begin Phase 1 implementation
-- 🚀 **Timeline**: 20 weeks for complete implementation
+- 🎉 **v2.0.0-alpha Released**: Fully modular architecture complete
+- ✅ **Core Functionality**: HTTP, Database, ORM, DI, CLI all working
+- ✅ **Documentation**: Comprehensive README for each module (~4,000 lines total)
+- 📝 **Next Priority**: Begin Phase 5 (Authentication) after v2.0.0 stable release
+- 🚀 **Release Plan**: 
+  - v2.0.0-beta (after community feedback)
+  - v2.0.0 stable
+  - v2.1.0 (Authentication)
+  - v2.2.0 (Queues & Scheduling)
+  - v2.3.0 (Cache & Storage)
 
 ## Contributing
 
