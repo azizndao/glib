@@ -1,2 +1,23 @@
-**/tmp/
-**/.env
+# CLI binary
+tools/cli/glib
+
+# Temp files from glib serve
+glib-serve-*
+
+# Environment
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test coverage
+*.out
+coverage.txt

@@ -1,0 +1,13 @@
+# Binary
+sub_routing
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+
+# Temp files
+tmp/

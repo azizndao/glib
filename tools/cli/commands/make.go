@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -9,26 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewMakeCommand creates the "glib make" parent command with all generators
-func NewMakeCommand() *cobra.Command {
+// NewMakeModelCommand creates the "glib make:model" command
+func NewMakeModelCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "make",
-		Short: "Generate boilerplate code",
-		Long:  `Generate models, controllers, migrations, and other boilerplate code.`,
-	}
-
-	// Add all make subcommands
-	cmd.AddCommand(newMakeModelCommand())
-	cmd.AddCommand(newMakeControllerCommand())
-	cmd.AddCommand(newMakeMigrationCommand())
-	cmd.AddCommand(newMakeMiddlewareCommand())
-
-	return cmd
-}
-
-func newMakeModelCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "model [name]",
+		Use:   "make:model [name]",
 		Short: "Generate a new model",
 		Long: `Generate a new model class.
 
@@ -44,6 +29,60 @@ Example:
 	cmd.Flags().BoolP("controller", "c", false, "Also create a controller")
 
 	return cmd
+}
+
+// NewMakeControllerCommand creates the "glib make:controller" command
+func NewMakeControllerCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "make:controller [name]",
+		Short: "Generate a new controller",
+		Long: `Generate a new controller class.
+
+Example:
+  glib make:controller UserController
+  glib make:controller UserController --resource
+  glib make:controller Api/UserController`,
+		Args: cobra.ExactArgs(1),
+		RunE: runMakeController,
+	}
+
+	cmd.Flags().BoolP("resource", "r", false, "Generate a resource controller with CRUD methods")
+
+	return cmd
+}
+
+// NewMakeMigrationCommand creates the "glib make:migration" command
+func NewMakeMigrationCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "make:migration [name]",
+		Short: "Generate a new migration file",
+		Long: `Generate a new database migration file.
+
+Example:
+  glib make:migration create_users_table
+  glib make:migration add_published_to_posts`,
+		Args: cobra.ExactArgs(1),
+		RunE: runMakeMigration,
+	}
+
+	cmd.Flags().String("type", "sql", "Migration type (sql, go)")
+
+	return cmd
+}
+
+// NewMakeMiddlewareCommand creates the "glib make:middleware" command
+func NewMakeMiddlewareCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "make:middleware [name]",
+		Short: "Generate a new middleware",
+		Long: `Generate a new middleware.
+
+Example:
+  glib make:middleware AdminOnly
+  glib make:middleware Auth/RequireRole`,
+		Args: cobra.ExactArgs(1),
+		RunE: runMakeMiddleware,
+	}
 }
 
 func runMakeModel(cmd *cobra.Command, args []string) error {
@@ -133,25 +172,6 @@ func toSnakeCase(s string) string {
 	return string(result)
 }
 
-func newMakeControllerCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "controller [name]",
-		Short: "Generate a new controller",
-		Long: `Generate a new controller class.
-
-Example:
-  glib make:controller UserController
-  glib make:controller UserController --resource
-  glib make:controller Api/UserController`,
-		Args: cobra.ExactArgs(1),
-		RunE: runMakeController,
-	}
-
-	cmd.Flags().BoolP("resource", "r", false, "Generate a resource controller with CRUD methods")
-
-	return cmd
-}
-
 func runMakeController(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	resource, _ := cmd.Flags().GetBool("resource")
@@ -196,24 +216,6 @@ func runMakeController(cmd *cobra.Command, args []string) error {
 	cmd.Println("\n✓ Controller created successfully!")
 
 	return nil
-}
-
-func newMakeMigrationCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "migration [name]",
-		Short: "Generate a new migration file",
-		Long: `Generate a new database migration file.
-
-Example:
-  glib make:migration create_users_table
-  glib make:migration add_published_to_posts`,
-		Args: cobra.ExactArgs(1),
-		RunE: runMakeMigration,
-	}
-
-	cmd.Flags().String("type", "sql", "Migration type (sql, go)")
-
-	return cmd
 }
 
 func runMakeMigration(cmd *cobra.Command, args []string) error {
@@ -289,20 +291,6 @@ func extractTableName(migrationName string) string {
 	return migrationName
 }
 
-func newMakeMiddlewareCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "middleware [name]",
-		Short: "Generate a new middleware",
-		Long: `Generate a new middleware.
-
-Example:
-  glib make:middleware AdminOnly
-  glib make:middleware Auth/RequireRole`,
-		Args: cobra.ExactArgs(1),
-		RunE: runMakeMiddleware,
-	}
-}
-
 func runMakeMiddleware(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
@@ -331,6 +319,165 @@ func runMakeMiddleware(cmd *cobra.Command, args []string) error {
 	cmd.Printf("  Created: %s\n", middlewarePath)
 
 	cmd.Println("\n✓ Middleware created successfully!")
+
+	return nil
+}
+
+// NewMakeSeederCommand creates the "glib make:seeder" command
+func NewMakeSeederCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "make:seeder [name]",
+		Short: "Generate a new database seeder",
+		Long: `Generate a new database seeder.
+
+Example:
+  glib make:seeder UserSeeder
+  glib make:seeder DatabaseSeeder`,
+		Args: cobra.ExactArgs(1),
+		RunE: runMakeSeeder,
+	}
+}
+
+func runMakeSeeder(cmd *cobra.Command, args []string) error {
+	name := args[0]
+
+	cmd.Printf("Creating seeder: %s\n", name)
+
+	// Ensure name ends with "Seeder"
+	if !strings.HasSuffix(name, "Seeder") {
+		name = name + "Seeder"
+	}
+
+	// Create seeder template data (we'll create a simple struct)
+	content := fmt.Sprintf(`package seeders
+
+import (
+	"gorm.io/gorm"
+)
+
+// %s seeds the database
+type %s struct{}
+
+// Run executes the seeder
+func (s *%s) Run(db *gorm.DB) error {
+	// TODO: Implement seeding logic
+	// Example:
+	// users := []models.User{
+	//     {Name: "John Doe", Email: "john@example.com"},
+	//     {Name: "Jane Smith", Email: "jane@example.com"},
+	// }
+	// return db.Create(&users).Error
+	
+	return nil
+}
+`, name, name, name)
+
+	// Generate seeder file
+	seederPath := filepath.Join("database", "seeders", toSnakeCase(name)+".go")
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(seederPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	if err := os.WriteFile(seederPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write seeder: %w", err)
+	}
+
+	cmd.Printf("  Created: %s\n", seederPath)
+	cmd.Println("\n✓ Seeder created successfully!")
+
+	return nil
+}
+
+// NewMakePolicyCommand creates the "glib make:policy" command
+func NewMakePolicyCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "make:policy [name]",
+		Short: "Generate a new policy class",
+		Long: `Generate a new policy class for authorization.
+
+Example:
+  glib make:policy PostPolicy
+  glib make:policy UserPolicy`,
+		Args: cobra.ExactArgs(1),
+		RunE: runMakePolicy,
+	}
+}
+
+func runMakePolicy(cmd *cobra.Command, args []string) error {
+	name := args[0]
+
+	cmd.Printf("Creating policy: %s\n", name)
+
+	// Ensure name ends with "Policy"
+	if !strings.HasSuffix(name, "Policy") {
+		name = name + "Policy"
+	}
+
+	// Extract model name
+	modelName := strings.TrimSuffix(name, "Policy")
+
+	content := fmt.Sprintf(`package policies
+
+import (
+	"github.com/azizndao/glib"
+	"app/models"
+)
+
+// %s handles authorization for %s resources
+type %s struct{}
+
+// ViewAny determines if the user can view any %s
+func (p *%s) ViewAny(c *glib.Ctx, user *models.User) bool {
+	// TODO: Implement authorization logic
+	return true
+}
+
+// View determines if the user can view the %s
+func (p *%s) View(c *glib.Ctx, user *models.User, %s *models.%s) bool {
+	// TODO: Implement authorization logic
+	return true
+}
+
+// Create determines if the user can create %s
+func (p *%s) Create(c *glib.Ctx, user *models.User) bool {
+	// TODO: Implement authorization logic
+	return true
+}
+
+// Update determines if the user can update the %s
+func (p *%s) Update(c *glib.Ctx, user *models.User, %s *models.%s) bool {
+	// TODO: Implement authorization logic
+	return true
+}
+
+// Delete determines if the user can delete the %s
+func (p *%s) Delete(c *glib.Ctx, user *models.User, %s *models.%s) bool {
+	// TODO: Implement authorization logic
+	return true
+}
+`, name, modelName, name,
+		modelName, name,
+		modelName, name, toSnakeCase(modelName), modelName,
+		modelName, name,
+		modelName, name, toSnakeCase(modelName), modelName,
+		modelName, name, toSnakeCase(modelName), modelName)
+
+	// Generate policy file
+	policyPath := filepath.Join("app", "policies", toSnakeCase(name)+".go")
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(policyPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	if err := os.WriteFile(policyPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write policy: %w", err)
+	}
+
+	cmd.Printf("  Created: %s\n", policyPath)
+	cmd.Println("\n✓ Policy created successfully!")
 
 	return nil
 }

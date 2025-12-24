@@ -1,0 +1,13 @@
+# Binary
+basic
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+
+# Temp files
+tmp/
