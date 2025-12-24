@@ -4,14 +4,8 @@ use (
 	./cli
 	./common
 	./database
-	./example/basic
-	./example/cli-demo
-	./example/comprehensive
-	./example/database
-	./example/foundation
-	./example/orm
-	./example/relationships
-	./example/sub_routing
+	./example/fullstack
+	./example/quickstart
 	./foundation
 	./http
 	./ratelimit

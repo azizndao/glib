@@ -1,0 +1,61 @@
+### Health Check
+GET http://localhost:8080/health
+
+### List all todos
+GET http://localhost:8080/api/todos
+
+### Get a specific todo
+GET http://localhost:8080/api/todos/1
+
+### Create a new todo
+POST http://localhost:8080/api/todos
+Content-Type: application/json
+
+{
+  "title": "Learn Glib framework"
+}
+
+### Create another todo
+POST http://localhost:8080/api/todos
+Content-Type: application/json
+
+{
+  "title": "Build REST API"
+}
+
+### Update a todo
+PUT http://localhost:8080/api/todos/1
+Content-Type: application/json
+
+{
+  "title": "Master Glib framework",
+  "completed": true
+}
+
+### Update only completion status
+PUT http://localhost:8080/api/todos/2
+Content-Type: application/json
+
+{
+  "completed": true
+}
+
+### Delete a todo
+DELETE http://localhost:8080/api/todos/1
+
+### Validation Error Example - Title too short
+POST http://localhost:8080/api/todos
+Content-Type: application/json
+
+{
+  "title": "Hi"
+}
+
+### Validation Error Example - Missing title
+POST http://localhost:8080/api/todos
+Content-Type: application/json
+
+{}
+
+### Not Found Error Example
+GET http://localhost:8080/api/todos/999
