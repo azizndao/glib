@@ -42,24 +42,25 @@ For complete restructuring history, see [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-S
 
 ### Feature Specifications
 
-4. **[03-cli.md](./03-cli.md)** - Command-line tool, code generators, and project scaffolding
-5. **[04-authentication.md](./04-authentication.md)** - Authentication system, JWT, sessions, OAuth2, and authorization
-6. **[05-queue-scheduling.md](./05-queue-scheduling.md)** - Job queues, multiple drivers, task scheduling
-7. **[06-cache-storage.md](./06-cache-storage.md)** - Caching system and file storage abstraction
+1. **[03-cli.md](./03-cli.md)** - Command-line tool, code generators, and project scaffolding
+2. **[04-authentication.md](./04-authentication.md)** - Authentication system, JWT, sessions, OAuth2, and authorization
+3. **[05-queue-scheduling.md](./05-queue-scheduling.md)** - Job queues, multiple drivers, task scheduling
+4. **[06-cache-storage.md](./06-cache-storage.md)** - Caching system and file storage abstraction
 
 ### Developer Experience
 
-8. **[07-developer-experience.md](./07-developer-experience.md)** - Collections API, factories, seeders, testing utilities
+1. **[07-developer-experience.md](./07-developer-experience.md)** - Collections API, factories, seeders, testing utilities
 
 ### Additional Documentation (To Be Created)
 
-9. **[08-package-structure.md](./08-package-structure.md)** - Project structure, organization, and conventions
-10. **[09-testing-strategy.md](./09-testing-strategy.md)** - Testing approach, utilities, and best practices
-11. **[10-performance.md](./10-performance.md)** - Performance goals, benchmarks, and optimization strategies
+1. **[08-package-structure.md](./08-package-structure.md)** - Project structure, organization, and conventions
+2. **[09-testing-strategy.md](./09-testing-strategy.md)** - Testing approach, utilities, and best practices
+3. **[10-performance.md](./10-performance.md)** - Performance goals, benchmarks, and optimization strategies
 
 ## Implementation Roadmap
 
 ### Phase 1-4: Core Modules (✅ COMPLETED - v2.0.0-alpha)
+
 - ✅ Service container & DI (`common/container`, `foundation`)
 - ✅ Service providers (`foundation`)
 - ✅ Configuration management (`common/config`)
@@ -78,23 +79,27 @@ For complete restructuring history, see [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-S
 - ✅ Project scaffolding (`cli`)
 
 ### Phase 5: Authentication (Planned - v2.1.0)
+
 - JWT & sessions
 - OAuth2 providers
 - Policies & gates
 - User authentication
 
 ### Phase 6: Queues & Scheduling (Planned - v2.2.0)
+
 - Queue system
 - Multiple drivers
 - Job chaining
 - Task scheduler
 
 ### Phase 7: Cache & Storage (Planned - v2.3.0)
+
 - Cache drivers
 - File storage
 - Cloud storage
 
 ### Phase 8: Developer Experience (Planned - v2.4.0)
+
 - Collections API
 - Factories & seeders
 - Enhanced testing utilities
@@ -102,7 +107,9 @@ For complete restructuring history, see [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-S
 ## Reading Guide
 
 ### For Framework Users
+
 Start with:
+
 1. `00-overview.md` - Understand the vision and architecture
 2. [Root README](../README.md) - Module overview and quick start
 3. [MIGRATION.md](../MIGRATION.md) - Upgrading from v1.x to v2.0.0
@@ -114,14 +121,18 @@ Start with:
 5. `04-authentication.md` - Future auth system (planned)
 
 ### For Contributors
+
 Read in order:
+
 1. [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md) - Understand v2.0 modularization
 2. All specifications to understand the complete picture
 3. Module READMEs for implementation details
 4. Pick a feature from planned phases and contribute
 
 ### For Architects
+
 Focus on:
+
 1. `00-overview.md` - Architecture decisions
 2. [RESTRUCTURE-SUMMARY.md](./RESTRUCTURE-SUMMARY.md) - Modular design rationale
 3. `01-foundation.md` - Core patterns (note: now split across modules)
@@ -132,6 +143,7 @@ Focus on:
 ### v2.0.0-alpha Status (Current Release)
 
 **Core Modules (✅ Complete)**
+
 - ✅ HTTP Server - Routing, middleware, context abstraction
 - ✅ Common Utilities - Errors, logging, config, DI container
 - ✅ Foundation - ServiceProvider pattern, application lifecycle
@@ -140,6 +152,7 @@ Focus on:
 - ✅ CLI - Code generators, scaffolding
 
 **Documentation (✅ Complete)**
+
 - ✅ Root README.md - Modular architecture overview
 - ✅ MIGRATION.md - v1.x → v2.0.0 upgrade guide
 - ✅ http/README.md - HTTP server documentation (~1,200 lines)
@@ -150,6 +163,7 @@ Focus on:
 - ✅ RESTRUCTURE-SUMMARY.md - Complete modularization history
 
 ### Core Specifications (✅ Complete)
+
 - ✅ 00-overview.md - Architecture decisions and vision
 - ✅ 01-foundation.md - Service container, providers, configuration  
   _(Note: Implementation now split across `common/container` and `foundation`)_
@@ -163,16 +177,18 @@ Focus on:
 - ✅ 07-developer-experience.md - Collections, factories, testing _(Planned)_
 
 ### Supporting Documentation (Planned ⏳)
+
 - ⏳ 08-package-structure.md - Package organization _(Superseded by module READMEs)_
 - ⏳ 09-testing-strategy.md - Testing approach
 - ⏳ 10-performance.md - Performance benchmarks
 
 ### Implementation Status
+
 - 🎉 **v2.0.0-alpha Released**: Fully modular architecture complete
 - ✅ **Core Functionality**: HTTP, Database, ORM, DI, CLI all working
 - ✅ **Documentation**: Comprehensive README for each module (~4,000 lines total)
 - 📝 **Next Priority**: Begin Phase 5 (Authentication) after v2.0.0 stable release
-- 🚀 **Release Plan**: 
+- 🚀 **Release Plan**:
   - v2.0.0-beta (after community feedback)
   - v2.0.0 stable
   - v2.1.0 (Authentication)

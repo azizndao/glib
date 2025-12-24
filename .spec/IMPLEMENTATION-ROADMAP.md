@@ -11,6 +11,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Pre-Implementation Checklist
 
 ### Repository Setup
+
 - [ ] Initialize monorepo structure with proper module layout
 - [ ] Set up CI/CD pipeline (GitHub Actions)
 - [ ] Configure linting (golangci-lint) and formatting (gofumpt)
@@ -20,16 +21,18 @@ This document provides a practical roadmap for implementing the glib framework f
 - [ ] Configure dependabot for dependency updates
 
 ### Development Environment
+
 - [ ] Define Go version requirement (1.21+ for generics)
 - [ ] Set up development Docker containers
 - [ ] Create docker-compose.yaml for local development
   - PostgreSQL
-  - MySQL  
+  - MySQL
   - Redis
   - Mailhog (email testing)
 - [ ] Document local setup instructions
 
 ### Project Structure
+
 - [ ] Create package structure as defined in specifications
 - [ ] Set up internal/external package boundaries
 - [ ] Initialize go.mod with dependencies
@@ -44,6 +47,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 1: Core Container
 
 #### Tasks
+
 1. **Service Container** (20 hours)
    - [ ] Create `container/container.go`
    - [ ] Implement basic Bind/Singleton methods
@@ -72,7 +76,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 2: Application Core
 
 #### Tasks
-4. **Application Structure** (15 hours)
+
+1. **Application Structure** (15 hours)
    - [ ] Create `foundation/application.go`
    - [ ] Implement bootstrap sequence
    - [ ] Add environment detection
@@ -81,14 +86,14 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Implement graceful shutdown
    - [ ] Write application tests
 
-5. **Environment Management** (10 hours)
+2. **Environment Management** (10 hours)
    - [ ] Create `.env` parser
    - [ ] Add environment validation
    - [ ] Implement environment-specific config loading
    - [ ] Add config:cache command structure
    - [ ] Write environment tests
 
-6. **Integration & Documentation** (10 hours)
+3. **Integration & Documentation** (10 hours)
    - [ ] Integration tests for Phase 1
    - [ ] Write package documentation
    - [ ] Create usage examples
@@ -96,6 +101,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Code review and refactoring
 
 ### Success Criteria - Phase 1
+
 - [ ] Container can bind and resolve dependencies
 - [ ] Configuration loads from multiple sources
 - [ ] Service providers register and boot correctly
@@ -112,6 +118,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 3: Database Manager
 
 #### Tasks
+
 1. **Database Manager** (20 hours)
    - [ ] Create `database/manager.go`
    - [ ] Implement connection management
@@ -131,7 +138,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 4: ORM Layer
 
 #### Tasks
-3. **Model Base** (20 hours)
+
+1. **Model Base** (20 hours)
    - [ ] Create `orm/model.go` base struct
    - [ ] Implement timestamps (CreatedAt, UpdatedAt)
    - [ ] Add soft delete support
@@ -139,7 +147,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Add model scopes
    - [ ] Write model tests
 
-4. **Query Builder** (25 hours)
+2. **Query Builder** (25 hours)
    - [ ] Create `orm/builder.go`
    - [ ] Implement fluent query API
    - [ ] Add Where, OrWhere, WhereIn, etc.
@@ -151,7 +159,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 5: Relationships
 
 #### Tasks
-5. **Relationship System** (30 hours)
+
+1. **Relationship System** (30 hours)
    - [ ] Implement HasOne relationship
    - [ ] Implement HasMany relationship
    - [ ] Implement BelongsTo relationship
@@ -164,7 +173,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 6: Migrations
 
 #### Tasks
-6. **Migration System** (25 hours)
+
+1. **Migration System** (25 hours)
    - [ ] Create `database/migrations/migrator.go`
    - [ ] Implement migration file structure
    - [ ] Add schema builder methods
@@ -173,14 +183,14 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Create migrations table
    - [ ] Write migration tests
 
-7. **Schema Builder** (15 hours)
+2. **Schema Builder** (15 hours)
    - [ ] Create table creation API
    - [ ] Add column types (string, integer, etc.)
    - [ ] Implement indexes and foreign keys
    - [ ] Add table modification methods
    - [ ] Write schema tests
 
-8. **Integration & Documentation** (10 hours)
+3. **Integration & Documentation** (10 hours)
    - [ ] Integration tests for Phase 2
    - [ ] Write database documentation
    - [ ] Create ORM usage examples
@@ -188,6 +198,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Migration guides
 
 ### Success Criteria - Phase 2
+
 - [ ] Can connect to multiple databases
 - [ ] Models can CRUD operations
 - [ ] All relationship types work correctly
@@ -205,6 +216,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 7: CLI Foundation
 
 #### Tasks
+
 1. **CLI Framework** (15 hours)
    - [ ] Create `cmd/glib/main.go`
    - [ ] Integrate cobra for CLI
@@ -232,7 +244,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 8: Make Commands & Templates
 
 #### Tasks
-4. **Make Commands** (20 hours)
+
+1. **Make Commands** (20 hours)
    - [ ] Implement `glib make:model`
    - [ ] Implement `glib make:controller`
    - [ ] Implement `glib make:migration`
@@ -242,20 +255,21 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Implement `glib make:factory`
    - [ ] Write make command tests
 
-5. **Templates** (5 hours)
+2. **Templates** (5 hours)
    - [ ] Create model template
    - [ ] Create controller template
    - [ ] Create migration template
    - [ ] Create middleware template
    - [ ] Create provider template
 
-6. **Integration & Documentation** (5 hours)
+3. **Integration & Documentation** (5 hours)
    - [ ] Integration tests for CLI
    - [ ] Write CLI documentation
    - [ ] Create usage examples
    - [ ] Build and test binary
 
 ### Success Criteria - Phase 3
+
 - [ ] CLI can generate new projects
 - [ ] All make commands work correctly
 - [ ] Generated code compiles without errors
@@ -273,6 +287,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 9: Auth Foundation
 
 #### Tasks
+
 1. **Auth Manager** (20 hours)
    - [ ] Create `auth/manager.go`
    - [ ] Implement guard interface
@@ -290,7 +305,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 10: JWT Guard
 
 #### Tasks
-3. **JWT Implementation** (30 hours)
+
+1. **JWT Implementation** (30 hours)
    - [ ] Create `auth/guards/jwt.go`
    - [ ] Implement token generation
    - [ ] Add token validation
@@ -299,7 +315,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Implement claims management
    - [ ] Write JWT tests
 
-4. **JWT Middleware** (10 hours)
+2. **JWT Middleware** (10 hours)
    - [ ] Create JWT auth middleware
    - [ ] Add token extraction from headers
    - [ ] Implement user resolution
@@ -309,7 +325,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 11: Session Guard
 
 #### Tasks
-5. **Session Implementation** (30 hours)
+
+1. **Session Implementation** (30 hours)
    - [ ] Create `auth/guards/session.go`
    - [ ] Implement session storage (database/redis)
    - [ ] Add cookie management
@@ -317,7 +334,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Add session lifecycle management
    - [ ] Write session tests
 
-6. **Session Middleware** (10 hours)
+2. **Session Middleware** (10 hours)
    - [ ] Create session auth middleware
    - [ ] Add CSRF protection
    - [ ] Implement session regeneration
@@ -326,7 +343,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 12: OAuth2 & Authorization
 
 #### Tasks
-7. **OAuth2 Providers** (40 hours)
+
+1. **OAuth2 Providers** (40 hours)
    - [ ] Create `auth/oauth/provider.go` interface
    - [ ] Implement Google OAuth2
    - [ ] Implement GitHub OAuth2
@@ -335,7 +353,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Implement callback handling
    - [ ] Write OAuth2 tests
 
-8. **Authorization System** (20 hours)
+2. **Authorization System** (20 hours)
    - [ ] Create `auth/gates/gate.go`
    - [ ] Implement policy system
    - [ ] Add ability checks (can, cannot)
@@ -345,18 +363,19 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 13: Additional Features
 
 #### Tasks
-9. **Password Reset** (15 hours)
+
+1. **Password Reset** (15 hours)
    - [ ] Implement password reset tokens
    - [ ] Add token generation and verification
    - [ ] Create reset flow helpers
    - [ ] Write password reset tests
 
-10. **Email Verification** (10 hours)
+2. **Email Verification** (10 hours)
     - [ ] Implement email verification tokens
     - [ ] Add verification flow helpers
     - [ ] Write verification tests
 
-11. **Integration & Documentation** (15 hours)
+3. **Integration & Documentation** (15 hours)
     - [ ] Integration tests for auth system
     - [ ] Write authentication guide
     - [ ] Create OAuth2 setup guide
@@ -364,6 +383,7 @@ This document provides a practical roadmap for implementing the glib framework f
     - [ ] Security best practices doc
 
 ### Success Criteria - Phase 4
+
 - [ ] JWT authentication works end-to-end
 - [ ] Session authentication works correctly
 - [ ] OAuth2 providers integrate successfully
@@ -382,6 +402,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 14: Queue System
 
 #### Tasks
+
 1. **Queue Manager** (15 hours)
    - [ ] Create `queue/manager.go`
    - [ ] Implement queue interface
@@ -406,7 +427,8 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 15: Queue Workers & Additional Drivers
 
 #### Tasks
-4. **Queue Worker** (25 hours)
+
+1. **Queue Worker** (25 hours)
    - [ ] Create `queue/worker.go`
    - [ ] Implement job processing loop
    - [ ] Add retry logic with exponential backoff
@@ -414,13 +436,13 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Add graceful shutdown
    - [ ] Write worker tests
 
-5. **Redis Driver** (15 hours)
+2. **Redis Driver** (15 hours)
    - [ ] Create `queue/drivers/redis.go`
    - [ ] Implement Redis queue operations
    - [ ] Add blocking pop for efficiency
    - [ ] Write Redis driver tests
 
-6. **In-Memory Driver** (5 hours)
+3. **In-Memory Driver** (5 hours)
    - [ ] Create `queue/drivers/memory.go`
    - [ ] Implement for testing purposes
    - [ ] Write memory driver tests
@@ -428,17 +450,18 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 16: Advanced Features & Scheduler
 
 #### Tasks
-7. **Job Chaining** (10 hours)
+
+1. **Job Chaining** (10 hours)
    - [ ] Implement job chain structure
    - [ ] Add chain execution logic
    - [ ] Write chain tests
 
-8. **Job Batching** (10 hours)
+2. **Job Batching** (10 hours)
    - [ ] Implement batch tracking
    - [ ] Add batch callbacks
    - [ ] Write batch tests
 
-9. **Task Scheduler** (30 hours)
+3. **Task Scheduler** (30 hours)
    - [ ] Create `schedule/scheduler.go`
    - [ ] Implement cron expression parser
    - [ ] Add schedule builder (daily, hourly, etc.)
@@ -446,7 +469,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Add schedule overlap prevention
    - [ ] Write scheduler tests
 
-10. **Integration & Documentation** (10 hours)
+4. **Integration & Documentation** (10 hours)
     - [ ] Integration tests for queues
     - [ ] Write queue documentation
     - [ ] Create scheduling guide
@@ -454,6 +477,7 @@ This document provides a practical roadmap for implementing the glib framework f
     - [ ] Performance tuning guide
 
 ### Success Criteria - Phase 5
+
 - [ ] Jobs can be dispatched and processed
 - [ ] All drivers work correctly
 - [ ] Worker handles failures gracefully
@@ -472,6 +496,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 17: Cache System
 
 #### Tasks
+
 1. **Cache Manager** (10 hours)
    - [ ] Create `cache/manager.go`
    - [ ] Implement cache interface
@@ -494,13 +519,14 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 18: File Storage
 
 #### Tasks
-4. **Storage Manager** (10 hours)
+
+1. **Storage Manager** (10 hours)
    - [ ] Create `storage/manager.go`
    - [ ] Implement storage interface
    - [ ] Add disk registration
    - [ ] Write manager tests
 
-5. **Storage Drivers** (30 hours)
+2. **Storage Drivers** (30 hours)
    - [ ] Create `storage/drivers/local.go`
    - [ ] Create `storage/drivers/s3.go`
    - [ ] Add temporary URL generation
@@ -508,7 +534,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Add visibility management
    - [ ] Write driver tests
 
-6. **Integration & Documentation** (10 hours)
+3. **Integration & Documentation** (10 hours)
    - [ ] Integration tests
    - [ ] Write cache documentation
    - [ ] Create storage guide
@@ -516,6 +542,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Performance optimization guide
 
 ### Success Criteria - Phase 6
+
 - [ ] All cache drivers work correctly
 - [ ] Cache tags work for grouped invalidation
 - [ ] Distributed locks function properly
@@ -533,6 +560,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 19: Collections & Factories
 
 #### Tasks
+
 1. **Collections API** (25 hours)
    - [ ] Create `collections/collection.go`
    - [ ] Implement core methods (Map, Filter, Reduce)
@@ -558,26 +586,27 @@ This document provides a practical roadmap for implementing the glib framework f
 ### Week 20: Testing Utilities
 
 #### Tasks
-4. **HTTP Testing** (15 hours)
+
+1. **HTTP Testing** (15 hours)
    - [ ] Create `testing/http.go`
    - [ ] Implement fluent request API
    - [ ] Add response assertions
    - [ ] Implement JSON assertions
    - [ ] Write testing tests (meta!)
 
-5. **Database Testing** (10 hours)
+2. **Database Testing** (10 hours)
    - [ ] Create `testing/database.go`
    - [ ] Implement database assertions
    - [ ] Add test database helpers
    - [ ] Write database testing tests
 
-6. **Fake Implementations** (10 hours)
+3. **Fake Implementations** (10 hours)
    - [ ] Create fake cache
    - [ ] Create fake storage
    - [ ] Create fake queue
    - [ ] Write fake tests
 
-7. **Integration & Documentation** (10 hours)
+4. **Integration & Documentation** (10 hours)
    - [ ] Integration tests
    - [ ] Write testing guide
    - [ ] Create collections documentation
@@ -585,6 +614,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - [ ] Best practices guide
 
 ### Success Criteria - Phase 7
+
 - [ ] Collections API is type-safe and ergonomic
 - [ ] Factories generate test data easily
 - [ ] HTTP testing is fluent and intuitive
@@ -596,6 +626,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Post-Implementation Tasks
 
 ### Documentation (Weeks 21-22)
+
 - [ ] Create comprehensive documentation site
 - [ ] Write getting started guide
 - [ ] Create tutorial series (blog, e-commerce, etc.)
@@ -607,6 +638,7 @@ This document provides a practical roadmap for implementing the glib framework f
 - [ ] Deployment guides
 
 ### Examples & Templates (Week 23)
+
 - [ ] Create starter template project
 - [ ] Build blog example application
 - [ ] Build REST API example
@@ -615,6 +647,7 @@ This document provides a practical roadmap for implementing the glib framework f
 - [ ] Add to awesome-go list
 
 ### Community & Release (Week 24)
+
 - [ ] Set up community channels (Discord/Slack)
 - [ ] Create contribution guidelines
 - [ ] Set up code of conduct
@@ -627,6 +660,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Key Dependencies
 
 ### Required External Packages
+
 - **GORM**: Database ORM (v2)
 - **Chi**: HTTP router (existing)
 - **Cobra**: CLI framework
@@ -638,6 +672,7 @@ This document provides a practical roadmap for implementing the glib framework f
 - **Faker**: Test data generation
 
 ### Development Tools
+
 - golangci-lint
 - gofumpt
 - mockery (mocks)
@@ -647,11 +682,13 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Resource Requirements
 
 ### Team Composition (Ideal)
+
 - 2-3 Senior Go Developers (full-time)
 - 1 Technical Writer (part-time)
 - 1 DevOps Engineer (part-time)
 
 ### Infrastructure
+
 - GitHub Actions CI/CD
 - Test databases (PostgreSQL, MySQL)
 - Redis instance
@@ -661,6 +698,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Risk Mitigation
 
 ### Technical Risks
+
 1. **GORM Integration Complexity**
    - Mitigation: Extensive testing, wrapper isolation
 
@@ -671,6 +709,7 @@ This document provides a practical roadmap for implementing the glib framework f
    - Mitigation: Semantic versioning, deprecation warnings
 
 ### Project Risks
+
 1. **Scope Creep**
    - Mitigation: Stick to specifications, defer nice-to-haves
 
@@ -683,6 +722,7 @@ This document provides a practical roadmap for implementing the glib framework f
 ## Success Metrics
 
 ### Code Quality
+
 - [ ] Test coverage >= 85% overall
 - [ ] Zero critical security vulnerabilities
 - [ ] All linting rules passing
@@ -690,6 +730,7 @@ This document provides a practical roadmap for implementing the glib framework f
 - [ ] Performance benchmarks meet targets
 
 ### Developer Experience
+
 - [ ] New project setup < 5 minutes
 - [ ] CRUD API built in < 30 minutes
 - [ ] Authentication working out of box
@@ -697,6 +738,7 @@ This document provides a practical roadmap for implementing the glib framework f
 - [ ] Error messages clear and actionable
 
 ### Adoption
+
 - [ ] 100+ GitHub stars in first month
 - [ ] 10+ community contributions
 - [ ] 5+ production deployments
@@ -705,23 +747,24 @@ This document provides a practical roadmap for implementing the glib framework f
 
 ## Timeline Summary
 
-| Phase | Weeks | Effort | Priority | Status |
-|-------|-------|--------|----------|--------|
-| Foundation | 1-2 | 80h | CRITICAL | ⏳ Ready |
-| Database | 3-6 | 160h | HIGH | ⏳ Ready |
-| CLI | 7-8 | 80h | HIGH | ⏳ Ready |
-| Authentication | 9-13 | 200h | HIGH | ⏳ Ready |
-| Queues | 14-16 | 120h | HIGH | ⏳ Ready |
-| Cache & Storage | 17-18 | 80h | HIGH | ⏳ Ready |
-| Developer Experience | 19-20 | 80h | HIGH | ⏳ Ready |
-| Documentation | 21-22 | 80h | MEDIUM | 📝 Planned |
-| Examples | 23 | 40h | MEDIUM | 📝 Planned |
-| Community | 24 | 20h | MEDIUM | 📝 Planned |
-| **TOTAL** | **24** | **920h** | | |
+| Phase                | Weeks  | Effort   | Priority | Status     |
+| -------------------- | ------ | -------- | -------- | ---------- |
+| Foundation           | 1-2    | 80h      | CRITICAL | ⏳ Ready   |
+| Database             | 3-6    | 160h     | HIGH     | ⏳ Ready   |
+| CLI                  | 7-8    | 80h      | HIGH     | ⏳ Ready   |
+| Authentication       | 9-13   | 200h     | HIGH     | ⏳ Ready   |
+| Queues               | 14-16  | 120h     | HIGH     | ⏳ Ready   |
+| Cache & Storage      | 17-18  | 80h      | HIGH     | ⏳ Ready   |
+| Developer Experience | 19-20  | 80h      | HIGH     | ⏳ Ready   |
+| Documentation        | 21-22  | 80h      | MEDIUM   | 📝 Planned |
+| Examples             | 23     | 40h      | MEDIUM   | 📝 Planned |
+| Community            | 24     | 20h      | MEDIUM   | 📝 Planned |
+| **TOTAL**            | **24** | **920h** |          |            |
 
 ## Getting Started with Implementation
 
 ### Step 1: Set Up Repository
+
 ```bash
 mkdir -p glib
 cd glib
@@ -730,11 +773,13 @@ git init
 ```
 
 ### Step 2: Create Package Structure
+
 ```bash
 mkdir -p {container,config,foundation,database,orm,auth,queue,schedule,cache,storage,collections,factories,seeders,testing,cmd/glib}
 ```
 
 ### Step 3: Start with Phase 1
+
 ```bash
 # Begin with service container
 touch container/container.go
@@ -742,12 +787,14 @@ touch container/container_test.go
 ```
 
 ### Step 4: Follow TDD
+
 1. Write test first
 2. Make test pass
 3. Refactor
 4. Repeat
 
 ### Step 5: Document as You Go
+
 - Add godoc comments to all exported functions
 - Create examples in tests
 - Update README.md with progress
@@ -757,6 +804,7 @@ touch container/container_test.go
 This roadmap provides a clear path from specifications to a production-ready framework. All core phases are fully specified and ready for implementation. The 20-week timeline is ambitious but achievable with focused effort.
 
 The key to success is:
+
 1. **Follow the specifications** - They're detailed and battle-tested
 2. **Test everything** - High coverage ensures reliability
 3. **Document as you go** - Good docs drive adoption

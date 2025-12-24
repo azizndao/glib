@@ -6,6 +6,7 @@
 ## Overview
 
 The foundation establishes the core patterns that the entire framework will build upon:
+
 - Service Container for dependency management
 - Service Providers for organized bootstrapping
 - Enhanced Configuration system
@@ -242,8 +243,8 @@ type DatabaseProvider struct {
 // Do NOT resolve other services here
 func (p *DatabaseProvider) Register(app *Application) {
     p.app = app
-    
-    app.Container().Singleton((*database.Manager)(nil), 
+
+    app.Container().Singleton((*database.Manager)(nil),
         func(c *container.Container) (interface{}, error) {
             cfg := app.Config()
             return database.NewManager(cfg)
@@ -269,7 +270,7 @@ func (p *DatabaseProvider) Boot(app *Application) error {
 type CacheProvider struct{}
 
 func (p *CacheProvider) Register(app *Application) {
-    app.Container().Singleton((*cache.Manager)(nil), 
+    app.Container().Singleton((*cache.Manager)(nil),
         func(c *container.Container) (interface{}, error) {
             return cache.NewManager(app.Config())
         })
@@ -292,29 +293,34 @@ func (p *CacheProvider) IsDeferred() bool {
 #### Built-in Providers
 
 **AppServiceProvider**
+
 - Register basic application services
 - Load configuration
 - Set up error handler
 - Register helpers
 
 **DatabaseServiceProvider**
+
 - Register database manager
 - Set up connections
 - Register migration system
 - Register seeders
 
 **CacheServiceProvider** (Deferred)
+
 - Register cache manager
 - Configure cache drivers
 - Set up default cache
 
 **QueueServiceProvider** (Deferred)
+
 - Register queue manager
 - Configure queue drivers
 - Register job dispatcher
 - Set up failed job handler
 
 **AuthServiceProvider**
+
 - Register authentication manager
 - Configure guards
 - Register user provider
@@ -433,6 +439,7 @@ dbConfig := config.GetStringMap("database.connections.mysql")
 #### Configuration Files
 
 **config/app.go**
+
 ```go
 package config
 
@@ -451,6 +458,7 @@ func App() map[string]interface{} {
 ```
 
 **config/database.go**
+
 ```go
 package config
 
@@ -462,7 +470,7 @@ import (
 func Database() map[string]interface{} {
     return map[string]interface{}{
         "default": util.GetEnv("DB_CONNECTION", "mysql"),
-        
+
         "connections": map[string]interface{}{
             "mysql": map[string]interface{}{
                 "driver":   "mysql",
@@ -481,7 +489,7 @@ func Database() map[string]interface{} {
                     "max_lifetime": util.GetEnvDuration("DB_MAX_LIFETIME", 1*time.Hour),
                 },
             },
-            
+
             "postgres": map[string]interface{}{
                 "driver":   "postgres",
                 "host":     util.GetEnv("DB_HOST", "localhost"),
@@ -497,7 +505,7 @@ func Database() map[string]interface{} {
                     "max_lifetime": util.GetEnvDuration("DB_MAX_LIFETIME", 1*time.Hour),
                 },
             },
-            
+
             "sqlite": map[string]interface{}{
                 "driver":   "sqlite",
                 "database": util.GetEnv("DB_DATABASE", "storage/database.sqlite"),
@@ -510,6 +518,7 @@ func Database() map[string]interface{} {
 #### Environment Variables
 
 **.env**
+
 ```bash
 # Application
 APP_NAME=glib
@@ -563,6 +572,7 @@ if config.IsCached() {
 ```
 
 **CLI Commands:**
+
 ```bash
 glib config:cache   # Cache configuration
 glib config:clear   # Clear config cache
@@ -593,30 +603,30 @@ glib config:clear   # Clear config cache
 func Bootstrap(basePath string) (*Application, error) {
     // 1. Create application instance
     app := NewApplication(basePath)
-    
+
     // 2. Load environment variables
     if err := loadEnvironment(app); err != nil {
         return nil, err
     }
-    
+
     // 3. Load configuration
     if err := loadConfiguration(app); err != nil {
         return nil, err
     }
-    
+
     // 4. Register service providers
     registerProviders(app)
-    
+
     // 5. Boot providers
     if err := app.Boot(); err != nil {
         return nil, err
     }
-    
+
     // 6. Load routes
     if err := loadRoutes(app); err != nil {
         return nil, err
     }
-    
+
     return app, nil
 }
 
@@ -642,15 +652,15 @@ func registerProviders(app *Application) {
 
 func loadRoutes(app *Application) error {
     router := app.Container().MustResolve((*Router)(nil)).(Router)
-    
+
     // Load API routes
     apiRoutes := routes.API()
     apiRoutes(router.Group("/api"))
-    
+
     // Load web routes
     webRoutes := routes.Web()
     webRoutes(router)
-    
+
     return nil
 }
 ```
@@ -669,13 +679,13 @@ type Kernel struct {
 func (k *Kernel) Handle(w http.ResponseWriter, r *http.Request) {
     // Create request context
     ctx := glib.NewCtx(w, r, k.app.Logger(), k.app.Validator())
-    
+
     // Run through middleware pipeline
     handler := k.router.Handler()
     for i := len(k.middleware) - 1; i >= 0; i-- {
         handler = k.middleware[i](handler)
     }
-    
+
     // Execute
     handler.ServeHTTP(w, r)
 }
@@ -696,18 +706,18 @@ func (k *Kernel) Terminate(w http.ResponseWriter, r *http.Request) {
 // Current code in glib.go
 func New(config Config) *Server {
     // OLD WAY: Direct instantiation
-    
+
     // NEW WAY: Use application foundation
     app := foundation.NewApplication(".")
-    
+
     // Bootstrap application
     if err := foundation.Bootstrap(app); err != nil {
         log.Fatal(err)
     }
-    
+
     // Create router from container
     router := app.Container().MustResolve((*Router)(nil)).(Router)
-    
+
     // Build server
     server := &Server{
         app:     app,
@@ -715,7 +725,7 @@ func New(config Config) *Server {
         logger:  app.Logger(),
         // ...
     }
-    
+
     return server
 }
 ```
@@ -736,11 +746,11 @@ func New(config Config) *Server {
 ```go
 func TestContainerBinding(t *testing.T) {
     c := container.New()
-    
+
     c.Bind((*Database)(nil), func(c *Container) (interface{}, error) {
         return &MockDatabase{}, nil
     })
-    
+
     db, err := c.Resolve((*Database)(nil))
     assert.NoError(t, err)
     assert.NotNil(t, db)
@@ -748,14 +758,14 @@ func TestContainerBinding(t *testing.T) {
 
 func TestContainerSingleton(t *testing.T) {
     c := container.New()
-    
+
     c.Singleton((*Cache)(nil), func(c *Container) (interface{}, error) {
         return &RedisCache{}, nil
     })
-    
+
     cache1, _ := c.Resolve((*Cache)(nil))
     cache2, _ := c.Resolve((*Cache)(nil))
-    
+
     // Same instance
     assert.Equal(t, cache1, cache2)
 }
@@ -767,19 +777,19 @@ func TestContainerSingleton(t *testing.T) {
 func TestDatabaseProviderRegistration(t *testing.T) {
     app := foundation.NewApplication(".")
     provider := &DatabaseProvider{}
-    
+
     provider.Register(app)
-    
+
     assert.True(t, app.Container().Bound((*database.Manager)(nil)))
 }
 
 func TestDeferredProvider(t *testing.T) {
     app := foundation.NewApplication(".")
     provider := &CacheProvider{}
-    
+
     // Should be deferred
     assert.True(t, provider.IsDeferred())
-    
+
     // Should provide cache manager
     provides := provider.Provides()
     assert.Contains(t, provides, (*cache.Manager)(nil))
@@ -792,17 +802,17 @@ func TestDeferredProvider(t *testing.T) {
 func TestConfigDotNotation(t *testing.T) {
     config := config.New()
     config.Set("database.connections.mysql.host", "localhost")
-    
+
     host := config.GetString("database.connections.mysql.host")
     assert.Equal(t, "localhost", host)
 }
 
 func TestConfigEnvironmentFallback(t *testing.T) {
     os.Setenv("DB_HOST", "production.db")
-    
+
     config := loadDatabaseConfig()
     host := config.GetString("database.connections.mysql.host")
-    
+
     assert.Equal(t, "production.db", host)
 }
 ```
@@ -852,7 +862,7 @@ func TestConfigEnvironmentFallback(t *testing.T) {
 
 ## Success Metrics
 
-### Phase 1 Complete When:
+### Phase 1 Complete When
 
 - ✅ Service container can manage dependencies
 - ✅ Service providers organize bootstrapping
@@ -868,6 +878,7 @@ func TestConfigEnvironmentFallback(t *testing.T) {
 ## Next Phase Preview
 
 Once foundation is complete, Phase 2 will build the database layer on top of:
+
 - Container provides database connections
 - Configuration defines database settings
 - Service provider bootstraps database manager

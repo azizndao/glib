@@ -20,6 +20,7 @@ glib (v2.0.0)
 ```
 
 For detailed module documentation:
+
 - [http/README.md](../http/README.md)
 - [common/README.md](../common/README.md)
 - [foundation/README.md](../foundation/README.md)
@@ -43,7 +44,9 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 ## Architecture Decisions
 
 ### Dependency Injection / Service Container
+
 **Decision**: Custom lightweight container (Option B)
+
 - Build our own minimal DI container
 - Keep dependencies minimal
 - Interface-based registration
@@ -54,7 +57,9 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 **Rationale**: Maintains control, keeps framework lightweight, follows Go idioms
 
 ### ORM Strategy
+
 **Decision**: GORM Integration (Option B)
+
 - Use GORM v2 as the ORM foundation
 - Proven, feature-rich, community support
 - Wrap with Laravel-style Active Record API
@@ -63,7 +68,9 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 **Rationale**: GORM is battle-tested and feature-complete. Building a custom ORM would take months and likely result in bugs. We can provide a better API on top of GORM while leveraging its maturity.
 
 ### Project Structure & CLI
+
 **Decision**: Built-in CLI Tool (Option A)
+
 - Ship a `glib` command-line tool with the framework
 - Commands: `glib new`, `glib make:*`, `glib migrate`, etc.
 - Artisan-inspired code generation
@@ -72,7 +79,9 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 **Rationale**: CLI tools dramatically improve developer productivity and ensure consistency across projects.
 
 ### Authentication Strategy
+
 **Decision**: Full Auth Package (Option A)
+
 - JWT tokens (stateless API auth)
 - Session-based auth (traditional web)
 - OAuth2 support (social login)
@@ -82,7 +91,9 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 **Rationale**: Authentication is foundational for most applications. Providing a complete, secure solution out of the box saves weeks of development time.
 
 ### Queue System Backend
+
 **Decision**: Multiple Drivers (Option C)
+
 - Database driver (PostgreSQL/MySQL)
 - Redis driver (production scale)
 - In-memory driver (development/testing)
@@ -93,6 +104,7 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 ## Technology Stack
 
 ### Core Dependencies
+
 - **Router**: Chi v5 (already integrated)
 - **ORM**: GORM v2
 - **Validation**: go-playground/validator (already integrated)
@@ -101,6 +113,7 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 - **AWS SDK**: for S3 storage support
 
 ### Standard Library Usage
+
 - `database/sql` - Database connections
 - `encoding/json` - JSON handling
 - `net/http` - HTTP server
@@ -109,6 +122,7 @@ Transform **glib** from an HTTP framework into a comprehensive, Laravel-inspired
 - `time` - Time handling
 
 ### Optional Dependencies (User Choice)
+
 - PostgreSQL driver: `lib/pq`
 - MySQL driver: `go-sql-driver/mysql`
 - SQLite driver: `modernc.org/sqlite`
@@ -139,12 +153,14 @@ glib/
 ## Implementation Phases
 
 ### Phase 1: Foundation & Core Architecture (Weeks 1-2)
+
 - Service container
 - Service providers
 - Enhanced configuration system
 - Application lifecycle management
 
 ### Phase 2: Database Layer (Weeks 3-6)
+
 - GORM integration & connection management
 - Model base & Active Record pattern
 - Relationships (HasOne, HasMany, BelongsTo, ManyToMany)
@@ -152,12 +168,14 @@ glib/
 - Query builder enhancements
 
 ### Phase 3: CLI Tool (Weeks 7-8)
+
 - CLI framework setup
 - Code generators (model, controller, middleware, etc.)
 - Project scaffolding (`glib new`)
 - Database commands (migrate, seed, etc.)
 
 ### Phase 4: Authentication & Authorization (Weeks 9-13)
+
 - Authentication foundation
 - JWT implementation
 - Session-based auth
@@ -166,6 +184,7 @@ glib/
 - Password reset flows
 
 ### Phase 5: Queue System & Scheduling (Weeks 14-16)
+
 - Queue foundation & interfaces
 - Database queue driver
 - Redis queue driver
@@ -174,6 +193,7 @@ glib/
 - Task scheduling (cron-like)
 
 ### Phase 6: Caching & Storage (Weeks 17-18)
+
 - Cache system with multiple drivers
 - In-memory cache
 - Redis cache
@@ -182,6 +202,7 @@ glib/
 - S3 storage driver
 
 ### Phase 7: Developer Experience (Weeks 19-20)
+
 - Collections API (using generics)
 - Model factories & seeders
 - Testing utilities
@@ -204,6 +225,7 @@ A project is considered successful when:
 ## Documentation Structure
 
 Each phase will have detailed documentation:
+
 - API specifications
 - Code examples
 - Migration guides
@@ -234,6 +256,7 @@ Each phase will have detailed documentation:
 ## Contributing Guidelines
 
 To be established:
+
 - Code style guide
 - PR process
 - Testing requirements

@@ -7,6 +7,7 @@
 ## Overview
 
 Build a comprehensive database layer that wraps GORM with a Laravel Eloquent-inspired API, providing:
+
 - Multiple database connection management
 - Active Record pattern for models
 - Fluent query builder
@@ -17,6 +18,7 @@ Build a comprehensive database layer that wraps GORM with a Laravel Eloquent-ins
 ## Why GORM?
 
 **Advantages:**
+
 - ✅ Battle-tested and mature (v2 is stable)
 - ✅ Feature-rich (relationships, hooks, transactions, migrations)
 - ✅ Good performance with proper usage
@@ -25,6 +27,7 @@ Build a comprehensive database layer that wraps GORM with a Laravel Eloquent-ins
 - ✅ Plugin system for extensions
 
 **Our Value Add:**
+
 - Better API (Laravel-style fluent interface)
 - Integrated with our container and config
 - Custom logger using our slog
@@ -43,7 +46,7 @@ Build a comprehensive database layer that wraps GORM with a Laravel Eloquent-ins
 ```
 database/
 ├── manager.go          # Database manager (multiple connections)
-├── connection.go       # Single database connection wrapper  
+├── connection.go       # Single database connection wrapper
 ├── factory.go         # Connection factory
 ├── gorm_logger.go     # Custom GORM logger using slog
 ├── transaction.go     # Transaction helpers
@@ -163,7 +166,7 @@ func (l *GormLogger) Error(ctx context.Context, msg string, data ...interface{})
 func (l *GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
     elapsed := time.Since(begin)
     sql, rows := fc()
-    
+
     if err != nil {
         l.logger.Error("SQL Error",
             "error", err,
@@ -197,12 +200,12 @@ err := manager.DB().Transaction(func(tx *Connection) error {
     if err := tx.Create(user); err != nil {
         return err // Automatic rollback
     }
-    
+
     profile := &Profile{UserID: user.ID}
     if err := tx.Create(profile); err != nil {
         return err // Automatic rollback
     }
-    
+
     return nil // Automatic commit
 })
 
@@ -288,7 +291,7 @@ type User struct {
     Password string    `gorm:"not null" json:"-"` // Hidden from JSON
     Age      int       `json:"age"`
     Active   bool      `gorm:"default:true" json:"active"`
-    
+
     // Relationships
     Posts    []Post    `gorm:"foreignKey:UserID" json:"posts,omitempty"`
     Profile  *Profile  `gorm:"foreignKey:UserID" json:"profile,omitempty"`
@@ -510,11 +513,11 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
     if count > 0 {
         return errors.New("email already exists")
     }
-    
+
     // Hash password
     hashed, _ := bcrypt.GenerateFromPassword([]byte(u.Password), 10)
     u.Password = string(hashed)
-    
+
     return nil
 }
 
@@ -868,7 +871,7 @@ type AddPublishedToPosts struct{}
 
 func (m *AddPublishedToPosts) Up(db *gorm.DB) error {
     return db.Exec(`
-        ALTER TABLE posts 
+        ALTER TABLE posts
         ADD COLUMN published BOOLEAN DEFAULT false,
         ADD INDEX idx_published (published)
     `).Error
@@ -876,7 +879,7 @@ func (m *AddPublishedToPosts) Up(db *gorm.DB) error {
 
 func (m *AddPublishedToPosts) Down(db *gorm.DB) error {
     return db.Exec(`
-        ALTER TABLE posts 
+        ALTER TABLE posts
         DROP INDEX idx_published,
         DROP COLUMN published
     `).Error
@@ -915,7 +918,7 @@ func (r *Repository) GetRan() ([]string, error) {
     if err != nil {
         return nil, err
     }
-    
+
     versions := make([]string, len(migrations))
     for i, m := range migrations {
         versions[i] = m.Version
@@ -955,7 +958,7 @@ func (r *Repository) GetMigrations(batch int) ([]string, error) {
     if err != nil {
         return nil, err
     }
-    
+
     versions := make([]string, len(migrations))
     for i, m := range migrations {
         versions[i] = m.Version
@@ -994,44 +997,44 @@ func (m *Migrator) Run() error {
     if err := m.repository.CreateMigrationsTable(); err != nil {
         return err
     }
-    
+
     // Get already run migrations
     ran, err := m.repository.GetRan()
     if err != nil {
         return err
     }
-    
+
     // Get next batch number
     batch, err := m.repository.GetLastBatchNumber()
     if err != nil {
         return err
     }
     batch++
-    
+
     // Run pending migrations
     for _, migration := range m.migrations {
         version := migration.Version()
-        
+
         // Skip if already ran
         if contains(ran, version) {
             continue
         }
-        
+
         // Run migration
         fmt.Printf("Migrating: %s\n", version)
-        
+
         if err := migration.Up(m.db); err != nil {
             return fmt.Errorf("migration %s failed: %w", version, err)
         }
-        
+
         // Log migration
         if err := m.repository.Log(version, batch); err != nil {
             return err
         }
-        
+
         fmt.Printf("Migrated: %s\n", version)
     }
-    
+
     return nil
 }
 
@@ -1042,39 +1045,39 @@ func (m *Migrator) Rollback() error {
     if err != nil {
         return err
     }
-    
+
     if batch == 0 {
         fmt.Println("Nothing to rollback")
         return nil
     }
-    
+
     // Get migrations in last batch
     versions, err := m.repository.GetMigrations(batch)
     if err != nil {
         return err
     }
-    
+
     // Rollback each migration
     for _, version := range versions {
         migration := m.findMigration(version)
         if migration == nil {
             return fmt.Errorf("migration not found: %s", version)
         }
-        
+
         fmt.Printf("Rolling back: %s\n", version)
-        
+
         if err := migration.Down(m.db); err != nil {
             return fmt.Errorf("rollback %s failed: %w", version, err)
         }
-        
+
         // Remove from log
         if err := m.repository.Delete(version); err != nil {
             return err
         }
-        
+
         fmt.Printf("Rolled back: %s\n", version)
     }
-    
+
     return nil
 }
 
@@ -1105,13 +1108,13 @@ func (m *Migrator) Fresh() error {
     // Drop all tables
     tables := []string{}
     m.db.Raw("SHOW TABLES").Scan(&tables)
-    
+
     for _, table := range tables {
         if err := m.db.Migrator().DropTable(table); err != nil {
             return err
         }
     }
-    
+
     return m.Run()
 }
 
@@ -1121,10 +1124,10 @@ func (m *Migrator) Status() error {
     if err != nil {
         return err
     }
-    
+
     fmt.Println("Migration Status:")
     fmt.Println("----------------------------------------")
-    
+
     for _, migration := range m.migrations {
         version := migration.Version()
         status := "Pending"
@@ -1133,7 +1136,7 @@ func (m *Migrator) Status() error {
         }
         fmt.Printf("%s ... %s\n", version, status)
     }
-    
+
     return nil
 }
 ```
@@ -1177,7 +1180,7 @@ glib make:migration add_published_to_posts
 type DatabaseServiceProvider struct{}
 
 func (p *DatabaseServiceProvider) Register(app *foundation.Application) {
-    app.Container().Singleton((*database.Manager)(nil), 
+    app.Container().Singleton((*database.Manager)(nil),
         func(c *container.Container) (interface{}, error) {
             cfg := app.Config()
             return database.NewManager(cfg), nil
@@ -1189,10 +1192,10 @@ func (p *DatabaseServiceProvider) Boot(app *foundation.Application) error {
     if app.Config().GetBool("database.auto_migrate", false) {
         mgr := app.Container().MustResolve((*database.Manager)(nil)).(*database.Manager)
         migrator := migrations.NewMigrator(mgr.DB().GORM())
-        
+
         // Register all migrations
         migrator.Register(migrations.All()...)
-        
+
         // Run migrations
         return migrator.Run()
     }
@@ -1213,33 +1216,33 @@ func NewUserController(db *database.Manager) *UserController {
 
 func (ctrl *UserController) Index(c *glib.Ctx) error {
     users := []User{}
-    
+
     err := orm.Query(&User{}).
         Where("active = ?", true).
         Preload("Posts").
         Find(&users)
-    
+
     if err != nil {
         return err
     }
-    
+
     return c.JSON(users)
 }
 
 func (ctrl *UserController) Show(c *glib.Ctx) error {
     id := c.PathValue("id")
-    
+
     user := &User{}
     err := orm.Query(&User{}).
         Where("id = ?", id).
         Preload("Posts").
         Preload("Profile").
         FirstOrFail(user)
-    
+
     if err != nil {
         return errors.NotFound("User not found", err)
     }
-    
+
     return c.JSON(user)
 }
 
@@ -1248,11 +1251,11 @@ func (ctrl *UserController) Store(c *glib.Ctx) error {
     if err := c.ValidateBody(user); err != nil {
         return err
     }
-    
+
     if err := orm.Create(user); err != nil {
         return errors.InternalServerError("Failed to create user", err)
     }
-    
+
     return c.Status(201).JSON(user)
 }
 ```
@@ -1267,12 +1270,12 @@ func (ctrl *UserController) Store(c *glib.Ctx) error {
 func TestUserCreate(t *testing.T) {
     db := setupTestDB()
     defer cleanupTestDB(db)
-    
+
     user := &User{
         Name:  "John Doe",
         Email: "john@example.com",
     }
-    
+
     err := orm.Create(user)
     assert.NoError(t, err)
     assert.NotZero(t, user.ID)
@@ -1281,23 +1284,23 @@ func TestUserCreate(t *testing.T) {
 func TestUserWithPosts(t *testing.T) {
     db := setupTestDB()
     defer cleanupTestDB(db)
-    
+
     user := &User{Name: "John", Email: "john@example.com"}
     orm.Create(user)
-    
+
     post := &Post{
         UserID: user.ID,
         Title:  "Test Post",
         Body:   "Content",
     }
     orm.Create(post)
-    
+
     // Eager load
     result := &User{}
     orm.Query(&User{}).
         Preload("Posts").
         First(result)
-    
+
     assert.Len(t, result.Posts, 1)
     assert.Equal(t, "Test Post", result.Posts[0].Title)
 }
@@ -1309,15 +1312,15 @@ func TestUserWithPosts(t *testing.T) {
 func TestMigrationUpDown(t *testing.T) {
     db := setupTestDB()
     defer cleanupTestDB(db)
-    
+
     migrator := migrations.NewMigrator(db)
     migration := &CreateUsersTable{}
-    
+
     // Up
     err := migration.Up(db)
     assert.NoError(t, err)
     assert.True(t, db.Migrator().HasTable(&User{}))
-    
+
     // Down
     err = migration.Down(db)
     assert.NoError(t, err)
@@ -1384,7 +1387,7 @@ func GetActiveUsers() []User {
 
 ## Success Metrics
 
-### Phase 2 Complete When:
+### Phase 2 Complete When
 
 - ✅ Database connections work with all supported drivers
 - ✅ Models can perform CRUD operations
@@ -1403,6 +1406,7 @@ func GetActiveUsers() []User {
 ## Next Steps
 
 Phase 3 will build the CLI tool to:
+
 - Generate model files: `glib make:model User`
 - Generate migrations: `glib make:migration create_users_table`
 - Run migrations: `glib migrate`

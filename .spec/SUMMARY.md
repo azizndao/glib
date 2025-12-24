@@ -9,22 +9,27 @@ Transform **glib** from an HTTP framework into a comprehensive Laravel-inspired 
 ## Core Decisions Made
 
 ### 1. Dependency Injection
+
 **Choice:** Custom lightweight container  
 **Why:** Maintains control, minimal dependencies, Go-idiomatic approach
 
-### 2. ORM Strategy  
+### 2. ORM Strategy
+
 **Choice:** GORM v2 integration  
 **Why:** Mature, feature-rich, battle-tested with active community
 
 ### 3. CLI Tool
+
 **Choice:** Built-in `glib` command  
 **Why:** Dramatic productivity improvement, enforces best practices
 
 ### 4. Authentication
+
 **Choice:** Full auth package (JWT + Sessions + OAuth2)  
 **Why:** Most apps need auth, providing complete secure solution saves weeks
 
-### 5. Queue System  
+### 5. Queue System
+
 **Choice:** Multiple drivers (Database, Redis, In-Memory)  
 **Why:** Flexibility without forcing infrastructure requirements
 
@@ -51,24 +56,29 @@ github.com/azizndao/glib/
 ## Phase Breakdown
 
 ### Phase 1: Foundation (Weeks 1-2) ✅ Specified
+
 **Files:** `01-foundation.md`
 
 **Components:**
+
 - Service Container with type-safe bindings
-- Service Providers for organized bootstrapping  
+- Service Providers for organized bootstrapping
 - Enhanced Configuration with dot notation and env cascading
 - Application lifecycle management
 
 **Key Features:**
+
 - Singleton and factory bindings
 - Contextual binding support
 - Deferred provider loading
 - Configuration caching
 
-### Phase 2: Database Layer (Weeks 3-6) ✅ Specified  
+### Phase 2: Database Layer (Weeks 3-6) ✅ Specified
+
 **Files:** `02-database.md`
 
 **Components:**
+
 - Database Manager (multiple connections)
 - GORM integration with custom logger
 - Active Record pattern for models
@@ -77,16 +87,19 @@ github.com/azizndao/glib/
 - Query scopes and model events
 
 **Key Features:**
-- Fluent query builder  
+
+- Fluent query builder
 - Eager loading to prevent N+1
 - Soft deletes
 - Transaction helpers
 - Connection pooling
 
 ### Phase 3: CLI Tool (Weeks 7-8) ✅ Specified
+
 **Files:** `03-cli.md`
 
 **Commands:**
+
 ```bash
 glib new <project>                  # Create new project
 glib serve                          # Development server
@@ -102,15 +115,18 @@ glib schedule:work                  # Start scheduler
 ```
 
 **Key Features:**
+
 - Complete project scaffolding
 - Code generation from templates
 - Interactive prompts
 - Progress indicators
 
-### Phase 4: Authentication (Weeks 9-13) ✅ Specified  
+### Phase 4: Authentication (Weeks 9-13) ✅ Specified
+
 **Files:** `04-authentication.md`
 
 **Components:**
+
 - Auth Manager with multiple guards
 - JWT authentication (access + refresh tokens)
 - Session-based authentication
@@ -121,6 +137,7 @@ glib schedule:work                  # Start scheduler
 - Auth middleware
 
 **Key Features:**
+
 - Multiple auth strategies
 - Token blacklist for logout
 - Remember me functionality
@@ -129,9 +146,11 @@ glib schedule:work                  # Start scheduler
 - Email verification
 
 ### Phase 5: Queues & Scheduling (Weeks 14-16) ✅ Specified
+
 **Files:** `05-queue-scheduling.md`
 
 **Components:**
+
 - Queue Manager
 - Multiple drivers (Database, Redis, In-Memory, SQS)
 - Job interface and dispatcher
@@ -142,6 +161,7 @@ glib schedule:work                  # Start scheduler
 - Task Scheduler (cron-like)
 
 **Key Features:**
+
 - Delayed job execution
 - Automatic retries with exponential backoff
 - Job chaining for sequences
@@ -150,9 +170,11 @@ glib schedule:work                  # Start scheduler
 - Multiple queue priorities
 
 ### Phase 6: Cache & Storage (Weeks 17-18) ✅ Specified
+
 **Files:** `06-cache-storage.md`
 
 **Components:**
+
 - Cache Manager with multiple stores
 - Cache drivers (In-Memory, Redis, Database, File)
 - Tagged caching for grouped invalidation
@@ -164,6 +186,7 @@ glib schedule:work                  # Start scheduler
 - File streaming and chunking
 
 **Key Features:**
+
 - Multiple cache backends
 - Cache tags for easy invalidation
 - Distributed locking primitives
@@ -173,9 +196,11 @@ glib schedule:work                  # Start scheduler
 - Presigned URL generation
 
 ### Phase 7: Developer Experience (Weeks 19-20) ✅ Specified
+
 **Files:** `07-developer-experience.md`
 
 **Components:**
+
 - Collections API using Go generics
 - Model Factories for test data generation
 - Database Seeders for populating data
@@ -186,6 +211,7 @@ glib schedule:work                  # Start scheduler
 - Helper functions and utilities
 
 **Key Features:**
+
 - Laravel-style Collections API
 - Type-safe collection operations
 - Easy test data generation
@@ -239,12 +265,14 @@ myapp/
 ## Typical Workflow
 
 ### 1. Create New Project
+
 ```bash
 glib new blog
 cd blog
 ```
 
 ### 2. Configure Database
+
 ```bash
 # Edit .env
 DB_CONNECTION=postgres
@@ -254,6 +282,7 @@ DB_DATABASE=blog
 ```
 
 ### 3. Generate Resources
+
 ```bash
 glib make:model Post --migration --controller
 glib make:model User --migration
@@ -261,6 +290,7 @@ glib make:migration create_posts_table
 ```
 
 ### 4. Define Models
+
 ```go
 // app/models/post.go
 type Post struct {
@@ -274,11 +304,13 @@ type Post struct {
 ```
 
 ### 5. Run Migrations
+
 ```bash
 glib migrate
 ```
 
 ### 6. Create Controller
+
 ```go
 // app/controllers/post_controller.go
 func (ctrl *PostController) Index(c *glib.Ctx) error {
@@ -288,21 +320,22 @@ func (ctrl *PostController) Index(c *glib.Ctx) error {
         Preload("User").
         OrderBy("created_at DESC").
         Find(&posts)
-    
+
     return c.JSON(posts)
 }
 ```
 
 ### 7. Define Routes
+
 ```go
 // routes/api.go
 func API(r glib.Router) {
     api := r.Group("/api")
-    
+
     // Public routes
     api.Get("/posts", postController.Index)
     api.Get("/posts/{id}", postController.Show)
-    
+
     // Protected routes
     protected := api.Group("/", middleware.Auth())
     protected.Post("/posts", postController.Store)
@@ -312,6 +345,7 @@ func API(r glib.Router) {
 ```
 
 ### 8. Add Background Jobs
+
 ```go
 // Dispatch job
 queue.Dispatch(&jobs.SendEmailJob{
@@ -322,6 +356,7 @@ queue.Dispatch(&jobs.SendEmailJob{
 ```
 
 ### 9. Schedule Tasks
+
 ```go
 // Schedule cleanup
 scheduler.Job(&jobs.CleanupJob{}).Daily()
@@ -329,11 +364,12 @@ scheduler.Job(&jobs.BackupJob{}).DailyAt("01:00")
 ```
 
 ### 10. Run Application
+
 ```bash
 # Development
 glib serve
 
-# Production  
+# Production
 go build -o blog cmd/main.go
 ./blog
 
@@ -349,10 +385,10 @@ func TestCreatePost(t *testing.T) {
     // Setup test database
     db := testing.SetupTestDB()
     defer testing.CleanupTestDB(db)
-    
+
     // Create user
     user := testing.Factory(&models.User{}).Create()
-    
+
     // Create post
     post := &models.Post{
         Title:  "Test Post",
@@ -360,14 +396,14 @@ func TestCreatePost(t *testing.T) {
         UserID: user.ID,
     }
     err := orm.Create(post)
-    
+
     assert.NoError(t, err)
     assert.NotZero(t, post.ID)
-    
+
     // Test HTTP endpoint
     req := testing.NewRequest("GET", "/api/posts/"+post.ID)
     resp := testing.PerformRequest(req)
-    
+
     assert.Equal(t, 200, resp.StatusCode)
     assert.Contains(t, resp.Body, "Test Post")
 }
@@ -389,21 +425,21 @@ The framework is successful when:
 
 ## Comparison with Laravel
 
-| Feature | Laravel (PHP) | glib (Go) |
-|---------|--------------|-----------|
-| **Routing** | ✅ | ✅ (Chi-based) |
-| **ORM** | Eloquent | GORM wrapper |
-| **Migrations** | ✅ | ✅ |
-| **Authentication** | ✅ | ✅ (JWT + Sessions) |
-| **Authorization** | Policies & Gates | ✅ Same pattern |
-| **Queue Jobs** | ✅ | ✅ (Multi-driver) |
-| **Task Scheduling** | ✅ | ✅ (Cron-like) |
-| **Validation** | ✅ | ✅ (i18n support) |
-| **CLI Tool** | Artisan | glib |
-| **Blade Templates** | ✅ | N/A (API focused) |
-| **Performance** | Good | Excellent (Go) |
-| **Type Safety** | No | Yes (Go) |
-| **Concurrency** | Limited | Native (goroutines) |
+| Feature             | Laravel (PHP)    | glib (Go)           |
+| ------------------- | ---------------- | ------------------- |
+| **Routing**         | ✅               | ✅ (Chi-based)      |
+| **ORM**             | Eloquent         | GORM wrapper        |
+| **Migrations**      | ✅               | ✅                  |
+| **Authentication**  | ✅               | ✅ (JWT + Sessions) |
+| **Authorization**   | Policies & Gates | ✅ Same pattern     |
+| **Queue Jobs**      | ✅               | ✅ (Multi-driver)   |
+| **Task Scheduling** | ✅               | ✅ (Cron-like)      |
+| **Validation**      | ✅               | ✅ (i18n support)   |
+| **CLI Tool**        | Artisan          | glib                |
+| **Blade Templates** | ✅               | N/A (API focused)   |
+| **Performance**     | Good             | Excellent (Go)      |
+| **Type Safety**     | No               | Yes (Go)            |
+| **Concurrency**     | Limited          | Native (goroutines) |
 
 ## Next Steps
 

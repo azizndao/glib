@@ -7,6 +7,7 @@
 ## Overview
 
 Build a comprehensive authentication and authorization system inspired by Laravel's Auth system with:
+
 - Multiple authentication guards (JWT, Session, API Token)
 - User providers (flexible user storage)
 - Password hashing and verification
@@ -206,16 +207,16 @@ func (g *JWTGuard) Attempt(credentials map[string]string) (Authenticatable, stri
     if err != nil {
         return nil, "", ErrInvalidCredentials
     }
-    
+
     if !g.provider.ValidateCredentials(user, credentials) {
         return nil, "", ErrInvalidCredentials
     }
-    
+
     token, err := g.generateToken(user)
     if err != nil {
         return nil, "", err
     }
-    
+
     g.user = user
     return user, token, nil
 }
@@ -226,24 +227,24 @@ func (g *JWTGuard) Authenticate(c *glib.Ctx) error {
     if tokenString == "" {
         return ErrUnauthorized
     }
-    
+
     // Check blacklist
     if g.blacklist.IsBlacklisted(tokenString) {
         return ErrTokenBlacklisted
     }
-    
+
     // Validate token
     claims, err := g.validateToken(tokenString)
     if err != nil {
         return err
     }
-    
+
     // Retrieve user
     user, err := g.provider.RetrieveByID(claims.Subject)
     if err != nil {
         return ErrUnauthorized
     }
-    
+
     g.user = user
     return nil
 }
@@ -254,7 +255,7 @@ func (g *JWTGuard) generateToken(user Authenticatable) (string, error) {
         user.GetAuthIdentifier(),
         time.Now().Add(g.ttl),
     )
-    
+
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     return token.SignedString([]byte(g.secret))
 }
@@ -263,7 +264,7 @@ func (g *JWTGuard) generateToken(user Authenticatable) (string, error) {
 func (g *JWTGuard) Refresh(oldToken string) (string, error) {
     // Blacklist old token
     g.blacklist.Add(oldToken, g.ttl)
-    
+
     // Generate new token
     return g.generateToken(g.user)
 }
@@ -347,20 +348,20 @@ func (g *SessionGuard) Attempt(c *glib.Ctx, credentials map[string]string, remem
     if err != nil {
         return nil, ErrInvalidCredentials
     }
-    
+
     if !g.provider.ValidateCredentials(user, credentials) {
         return nil, ErrInvalidCredentials
     }
-    
+
     // Store in session
     g.session.Set(c, "user_id", user.GetAuthIdentifier())
-    
+
     // Remember me
     if remember {
         token := generateRememberToken()
         user.SetRememberToken(token)
         // Save user
-        
+
         c.SetCookie(&http.Cookie{
             Name:     "remember_token",
             Value:    token,
@@ -369,7 +370,7 @@ func (g *SessionGuard) Attempt(c *glib.Ctx, credentials map[string]string, remem
             Secure:   c.IsSecure(),
         })
     }
-    
+
     g.user = user
     return user, nil
 }
@@ -384,7 +385,7 @@ func (g *SessionGuard) Authenticate(c *glib.Ctx) error {
             return nil
         }
     }
-    
+
     // Check remember me cookie
     if cookie, err := c.GetCookie("remember_token"); err == nil {
         user, err := g.provider.RetrieveByToken(cookie.Value)
@@ -394,7 +395,7 @@ func (g *SessionGuard) Authenticate(c *glib.Ctx) error {
             return nil
         }
     }
-    
+
     return ErrUnauthorized
 }
 
@@ -450,19 +451,19 @@ func (p *GormUserProvider) RetrieveByID(id interface{}) (Authenticatable, error)
 
 func (p *GormUserProvider) RetrieveByCredentials(credentials map[string]string) (Authenticatable, error) {
     user := reflect.New(reflect.TypeOf(p.model).Elem()).Interface()
-    
+
     query := p.db
     for key, value := range credentials {
         if key != "password" {
             query = query.Where(fmt.Sprintf("%s = ?", key), value)
         }
     }
-    
+
     err := query.First(user).Error
     if err != nil {
         return nil, err
     }
-    
+
     return user.(Authenticatable), nil
 }
 
@@ -471,7 +472,7 @@ func (p *GormUserProvider) ValidateCredentials(user Authenticatable, credentials
     if !exists {
         return false
     }
-    
+
     return p.hashCheck(user.GetAuthPassword(), password)
 }
 ```
@@ -513,13 +514,13 @@ func (gm *GateManager) Authorize(user Authenticatable, ability string, args ...i
             return *response
         }
     }
-    
+
     // Check gates
     if gate, exists := gm.gates[ability]; exists {
         response := gate(user, args...)
         return gm.runAfter(user, ability, response)
     }
-    
+
     // Check policies
     if len(args) > 0 {
         model := args[0]
@@ -528,7 +529,7 @@ func (gm *GateManager) Authorize(user Authenticatable, ability string, args ...i
             return gm.runAfter(user, ability, response)
         }
     }
-    
+
     return gm.runAfter(user, ability, Deny("Unauthorized"))
 }
 
@@ -552,12 +553,12 @@ func (p *PostPolicy) View(user auth.Authenticatable, post *models.Post) auth.Aut
     if post.Published {
         return auth.Allow()
     }
-    
+
     // Only author can view unpublished
     if user.GetAuthIdentifier() == post.UserID {
         return auth.Allow()
     }
-    
+
     return auth.Deny("You don't have permission to view this post")
 }
 
@@ -565,23 +566,23 @@ func (p *PostPolicy) Update(user auth.Authenticatable, post *models.Post) auth.A
     if user.GetAuthIdentifier() == post.UserID {
         return auth.Allow()
     }
-    
+
     return auth.Deny("You don't own this post")
 }
 
 func (p *PostPolicy) Delete(user auth.Authenticatable, post *models.Post) auth.AuthResponse {
     userModel := user.(*models.User)
-    
+
     // Admin can delete any post
     if userModel.IsAdmin() {
         return auth.Allow()
     }
-    
+
     // Owner can delete
     if user.GetAuthIdentifier() == post.UserID {
         return auth.Allow()
     }
-    
+
     return auth.Deny("Insufficient permissions")
 }
 ```
@@ -628,21 +629,21 @@ func Authenticate(guards ...string) glib.Middleware {
     return func(next glib.Handler) glib.Handler {
         return func(c *glib.Ctx) error {
             authManager := container.Resolve[*auth.Manager](app.Container())
-            
+
             guardName := "jwt"
             if len(guards) > 0 {
                 guardName = guards[0]
             }
-            
+
             guard := authManager.GuardNamed(guardName)
-            
+
             if err := guard.Authenticate(c); err != nil {
                 return errors.Unauthorized("Unauthenticated", err)
             }
-            
+
             // Store user in context
             c.SetValue("auth.user", guard.User())
-            
+
             return next(c)
         }
     }
@@ -661,11 +662,11 @@ func Guest() glib.Middleware {
     return func(next glib.Handler) glib.Handler {
         return func(c *glib.Ctx) error {
             authManager := container.Resolve[*auth.Manager](app.Container())
-            
+
             if authManager.Check() {
                 return errors.Forbidden("Already authenticated", nil)
             }
-            
+
             return next(c)
         }
     }
@@ -679,13 +680,13 @@ func Can(ability string) glib.Middleware {
     return func(next glib.Handler) glib.Handler {
         return func(c *glib.Ctx) error {
             user := auth.User(c)
-            
+
             gateManager := container.Resolve[*auth.GateManager](app.Container())
-            
+
             if !gateManager.Check(user, ability) {
                 return errors.Forbidden("Unauthorized action", nil)
             }
-            
+
             return next(c)
         }
     }
@@ -719,14 +720,14 @@ type PasswordResetService struct {
 func (s *PasswordResetService) SendResetLink(email string) error {
     // Generate token
     token := generateResetToken()
-    
+
     // Store token
     reset := &PasswordReset{
         Email: email,
         Token: hashToken(token),
     }
     s.db.Create(reset)
-    
+
     // Send email
     return s.mailer.Send(email, "Reset Password", token)
 }
@@ -737,22 +738,22 @@ func (s *PasswordResetService) Reset(token, password string) error {
     err := s.db.Where("token = ?", hashToken(token)).
         Where("created_at > ?", time.Now().Add(-1*time.Hour)).
         First(reset).Error
-    
+
     if err != nil {
         return ErrInvalidToken
     }
-    
+
     // Update user password
     user := &models.User{}
     s.db.Where("email = ?", reset.Email).First(user)
-    
+
     hashed, _ := auth.HashPassword(password)
     user.Password = hashed
     s.db.Save(user)
-    
+
     // Delete token
     s.db.Delete(reset)
-    
+
     return nil
 }
 ```
@@ -767,16 +768,16 @@ func (ctrl *AuthController) Login(c *glib.Ctx) error {
     if err := c.ValidateBody(&req); err != nil {
         return err
     }
-    
+
     user, token, err := auth.Attempt(map[string]string{
         "email":    req.Email,
         "password": req.Password,
     })
-    
+
     if err != nil {
         return errors.Unauthorized("Invalid credentials", err)
     }
-    
+
     return c.JSON(map[string]interface{}{
         "user":  user,
         "token": token,
@@ -804,13 +805,13 @@ func API(r glib.Router) {
     // Public routes
     r.Post("/login", authController.Login)
     r.Post("/register", authController.Register)
-    
+
     // Protected routes
     protected := r.Group("/", middleware.Auth())
     {
         protected.Get("/me", authController.Me)
         protected.Post("/logout", authController.Logout)
-        
+
         // Posts
         protected.Post("/posts", postController.Store)
         protected.Put("/posts/{id}", postController.Update).
@@ -823,7 +824,7 @@ func API(r glib.Router) {
 
 ## Success Metrics
 
-### Phase 4 Complete When:
+### Phase 4 Complete When
 
 - ✅ JWT authentication works
 - ✅ Session authentication works

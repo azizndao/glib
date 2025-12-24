@@ -7,6 +7,7 @@
 ## Overview
 
 Build a comprehensive command-line tool (`glib`) inspired by Laravel's Artisan that provides:
+
 - Project scaffolding (`glib new`)
 - Code generators (`glib make:*`)
 - Database operations (`glib migrate`, `glib db:seed`)
@@ -419,7 +420,7 @@ func (g *Generator) Generate(templateName, outputPath string, data interface{}) 
         return err
     }
     defer file.Close()
-    
+
     return g.templates.ExecuteTemplate(file, templateName, data)
 }
 ```
@@ -520,14 +521,14 @@ for i := 0; i < 100; i++ {
 ```go
 func TestNewProjectCommand(t *testing.T) {
     tmpDir := t.TempDir()
-    
+
     cmd := NewProjectCommand()
     cmd.SetArgs([]string{"testproject"})
     cmd.SetOut(new(bytes.Buffer))
-    
+
     err := cmd.Execute()
     assert.NoError(t, err)
-    
+
     // Verify structure created
     assert.DirExists(t, filepath.Join(tmpDir, "testproject"))
     assert.FileExists(t, filepath.Join(tmpDir, "testproject/go.mod"))
@@ -539,7 +540,7 @@ func TestNewProjectCommand(t *testing.T) {
 ```go
 func TestModelGenerator(t *testing.T) {
     gen := NewModelGenerator()
-    
+
     err := gen.Generate("User", GeneratorOptions{
         Package: "models",
         Fields: []Field{
@@ -547,10 +548,10 @@ func TestModelGenerator(t *testing.T) {
             {Name: "Email", Type: "string"},
         },
     })
-    
+
     assert.NoError(t, err)
     assert.FileExists(t, "app/models/user.go")
-    
+
     // Verify content
     content, _ := ioutil.ReadFile("app/models/user.go")
     assert.Contains(t, string(content), "type User struct")

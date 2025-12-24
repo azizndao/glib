@@ -7,6 +7,7 @@
 ## Overview
 
 Build a robust job queue and task scheduling system inspired by Laravel's Queue and Scheduler with support for:
+
 - Multiple queue drivers (Database, Redis, In-Memory, SQS)
 - Job dispatching and processing
 - Job chaining and batching
@@ -108,12 +109,12 @@ type ProcessVideoJob struct {
 func (j *ProcessVideoJob) Handle() error {
     video := &models.Video{}
     db.First(video, j.VideoID)
-    
+
     // Process video
     if err := processVideo(video); err != nil {
         return err
     }
-    
+
     video.Status = "processed"
     return db.Save(video).Error
 }
@@ -178,20 +179,20 @@ func (q *DatabaseQueue) PushOn(queue string, job Job) error {
     if err != nil {
         return err
     }
-    
+
     queueJob := &QueueJob{
         ID:          uuid.New().String(),
         Queue:       queue,
         Payload:     payload,
         AvailableAt: time.Now().Add(job.Delay()),
     }
-    
+
     return q.db.Create(queueJob).Error
 }
 
 func (q *DatabaseQueue) Pop(queue string) (*JobPayload, error) {
     var queueJob QueueJob
-    
+
     // Lock and get next available job
     err := q.db.Transaction(func(tx *gorm.DB) error {
         err := tx.Where("queue = ?", queue).
@@ -199,28 +200,28 @@ func (q *DatabaseQueue) Pop(queue string) (*JobPayload, error) {
             Where("reserved_at IS NULL").
             Order("available_at ASC").
             First(&queueJob).Error
-        
+
         if err != nil {
             return err
         }
-        
+
         // Reserve the job
         now := time.Now()
         queueJob.ReservedAt = &now
         queueJob.Attempts++
-        
+
         return tx.Save(&queueJob).Error
     })
-    
+
     if err != nil {
         return nil, err
     }
-    
+
     job, err := deserialize(queueJob.Payload)
     if err != nil {
         return nil, err
     }
-    
+
     return &JobPayload{
         ID:       queueJob.ID,
         Job:      job,
@@ -261,9 +262,9 @@ func (q *RedisQueue) PushOn(queue string, job Job) error {
     if err != nil {
         return err
     }
-    
+
     key := fmt.Sprintf("queues:%s", queue)
-    
+
     if job.Delay() > 0 {
         // Use sorted set for delayed jobs
         score := time.Now().Add(job.Delay()).Unix()
@@ -272,16 +273,16 @@ func (q *RedisQueue) PushOn(queue string, job Job) error {
             Member: payload,
         }).Err()
     }
-    
+
     return q.client.RPush(ctx, key, payload).Err()
 }
 
 func (q *RedisQueue) Pop(queue string) (*JobPayload, error) {
     key := fmt.Sprintf("queues:%s", queue)
-    
+
     // Move delayed jobs to main queue
     q.migrateDelayedJobs(queue)
-    
+
     // Pop job from queue
     result, err := q.client.LPop(ctx, key).Result()
     if err == redis.Nil {
@@ -290,12 +291,12 @@ func (q *RedisQueue) Pop(queue string) (*JobPayload, error) {
     if err != nil {
         return nil, err
     }
-    
+
     job, err := deserialize([]byte(result))
     if err != nil {
         return nil, err
     }
-    
+
     return &JobPayload{
         ID:    uuid.New().String(),
         Job:   job,
@@ -306,13 +307,13 @@ func (q *RedisQueue) Pop(queue string) (*JobPayload, error) {
 func (q *RedisQueue) migrateDelayedJobs(queue string) {
     key := fmt.Sprintf("queues:%s:delayed", queue)
     now := float64(time.Now().Unix())
-    
+
     // Get expired delayed jobs
     jobs, _ := q.client.ZRangeByScore(ctx, key, &redis.ZRangeBy{
         Min: "0",
         Max: fmt.Sprintf("%f", now),
     }).Result()
-    
+
     // Move to main queue
     for _, job := range jobs {
         q.client.RPush(ctx, fmt.Sprintf("queues:%s", queue), job)
@@ -371,11 +372,11 @@ func (w *Worker) processNextJob() {
             log.Error("Failed to pop job", "error", err)
             continue
         }
-        
+
         if payload == nil {
             continue // No jobs
         }
-        
+
         // Process job
         if err := w.runJob(payload); err != nil {
             w.handleFailedJob(payload, err)
@@ -383,26 +384,26 @@ func (w *Worker) processNextJob() {
             // Delete successful job
             w.manager.Queue().Delete(payload.ID)
         }
-        
+
         return // Processed one job
     }
-    
+
     // No jobs found, sleep
     time.Sleep(w.sleep)
 }
 
 func (w *Worker) runJob(payload *JobPayload) error {
     // Create timeout context
-    ctx, cancel := context.WithTimeout(context.Background(), 
+    ctx, cancel := context.WithTimeout(context.Background(),
         payload.Job.Timeout())
     defer cancel()
-    
+
     // Run job in goroutine with timeout
     errChan := make(chan error, 1)
     go func() {
         errChan <- payload.Job.Handle()
     }()
-    
+
     select {
     case err := <-errChan:
         return err
@@ -499,19 +500,19 @@ func (c *Chain) Dispatch() error {
     if len(c.jobs) == 0 {
         return nil
     }
-    
+
     // Wrap jobs to execute next on success
     for i := 0; i < len(c.jobs)-1; i++ {
         current := c.jobs[i]
         next := c.jobs[i+1]
-        
+
         // Create chained job
         c.jobs[i] = &ChainedJob{
             Job:  current,
             Next: next,
         }
     }
-    
+
     // Dispatch first job
     return Dispatch(c.jobs[0]).Dispatch()
 }
@@ -526,7 +527,7 @@ func (cj *ChainedJob) Handle() error {
     if err := cj.Job.Handle(); err != nil {
         return err
     }
-    
+
     // Dispatch next job
     return Dispatch(cj.Next).Dispatch()
 }
@@ -579,7 +580,7 @@ func (b *Batch) Finally(callback func()) *Batch {
 func (b *Batch) Dispatch() error {
     // Save batch metadata
     batchRepo.Save(b)
-    
+
     // Dispatch all jobs
     for _, job := range b.Jobs {
         wrapped := &BatchedJob{
@@ -588,7 +589,7 @@ func (b *Batch) Dispatch() error {
         }
         Dispatch(wrapped).Dispatch()
     }
-    
+
     return nil
 }
 
@@ -699,10 +700,10 @@ func (e *Event) IsDue(now time.Time) bool {
     if e.timezone != nil {
         now = now.In(e.timezone)
     }
-    
+
     schedule, _ := cron.Parse(e.expression)
     next := schedule.Next(now.Add(-1 * time.Minute))
-    
+
     return now.After(next) && now.Before(next.Add(1*time.Minute))
 }
 
@@ -710,7 +711,7 @@ func (e *Event) IsDue(now time.Time) bool {
 func (s *Scheduler) Run() {
     ticker := time.NewTicker(1 * time.Minute)
     defer ticker.Stop()
-    
+
     for {
         select {
         case now := <-ticker.C:
@@ -732,12 +733,12 @@ func (s *Scheduler) runEvent(event *Event) {
     for _, before := range event.before {
         before()
     }
-    
+
     // Run command
     if err := event.command(); err != nil {
         log.Error("Scheduled task failed", "error", err)
     }
-    
+
     // After callbacks
     for _, after := range event.after {
         after()
@@ -814,7 +815,7 @@ glib schedule:run
 
 ## Success Metrics
 
-### Phase 5 Complete When:
+### Phase 5 Complete When
 
 - ✅ Jobs dispatch to multiple queue drivers
 - ✅ Workers process jobs reliably
