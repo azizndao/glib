@@ -1,867 +1,345 @@
-# glib
+# glib - A Laravel-Inspired Go Backend Framework
 
-[![Go Version](https://img.shields.io/badge/Go-%3E%3D%201.25-blue)](https://go.dev/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+**glib** is a comprehensive, Laravel-inspired Go backend framework that provides an elegant and expressive syntax for building modern web applications.
 
-**glib is an opinionated HTTP framework for Go** that provides a modern, production-ready foundation for building REST APIs with minimal boilerplate.
+## 🎯 Features
 
-## 🚀 Framework Evolution
+- **Foundation Layer** - Application lifecycle, service providers, dependency injection
+- **Routing** - Elegant HTTP routing with middleware support (powered by Chi)
+- **Database** - Type-safe ORM with relationships, scopes, and soft deletes (powered by GORM)
+- **Validation** - Powerful request validation
+- **CLI Tool** - Code generation and project management
+- **Middleware** - Built-in middleware for common tasks
+- **Configuration** - Environment-based configuration management
 
-**Current Status**: HTTP Framework (Stable)  
-**Next Phase**: Full-Stack Backend Framework
+## 📦 Project Structure
 
-glib is evolving from an HTTP framework into a comprehensive Laravel-inspired backend framework for Go. See [`.spec/`](./.spec/) for detailed specifications covering:
+This project uses **Go workspaces** for clean separation:
 
-- ✅ **Foundation**: Service container, providers, configuration
-- ✅ **Database**: GORM integration, ORM, relationships, migrations  
-- ✅ **CLI**: Artisan-style code generation (`glib make:*`, `glib new`, etc.)
-- ✅ **Authentication**: JWT, sessions, OAuth2, policies & gates
-- ✅ **Queues**: Multi-driver job queues with scheduling
-- ✅ **Cache & Storage**: Redis, file storage, cloud storage
-- ✅ **Testing**: Collections, factories, HTTP test helpers
+```
+glib/
+├── go.work                 # Workspace configuration
+├── go.mod                  # Framework module (no CLI deps!)
+├── foundation/             # Application foundation
+├── orm/                    # ORM and database
+├── database/               # Database management
+├── middleware/             # HTTP middleware
+├── validation/             # Request validation
+├── config/                 # Configuration
+├── tools/
+│   └── cli/               # CLI tool (separate module)
+│       ├── go.mod         # CLI dependencies only
+│       ├── commands/      # CLI commands
+│       └── generators/    # Code generators
+└── example/               # Example applications
+```
 
-📚 **[Read Full Specifications →](./.spec/README.md)** | **[Implementation Roadmap →](./.spec/IMPLEMENTATION-ROADMAP.md)**
+## 🚀 Installation
 
-The current HTTP framework (documented below) remains stable and production-ready while we build these additional features.
-
-## Philosophy
-
-glib was created with specific design principles that prioritize developer experience and code clarity:
-
-- **Ctx-based middleware**: Uses `*Ctx` instead of `http.Handler` for cleaner composition and richer APIs
-- **Builder/fluent pattern**: Chainable method calls for elegant request handling
-- **Integrated validation**: Built-in `go-playground/validator` with i18n support out of the box
-- **Structured errors**: Proper HTTP status codes with consistent JSON error responses
-- **Integrated logger**: Access logger from anywhere via `c.Logger()` for consistent, centralized logging
-- **Rich context helpers**: 30+ utility methods to minimize boilerplate
-- **Environment-driven**: All configuration via environment variables for 12-factor app compliance
-
-## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Environment Configuration](#environment-configuration)
-- [API Reference](#api-reference)
-  - [Server Creation](#server-creation)
-  - [Server Methods](#server-methods)
-  - [Router Methods](#router-methods)
-  - [Context Methods](#context-methods)
-  - [Middleware](#middleware)
-  - [Error Handling](#error-handling)
-  - [Validation](#validation)
-  - [Logging](#logging)
-- [Advanced Usage](#advanced-usage)
-- [Requirements](#requirements)
-- [License](#license)
-
-## Features
-
-- **Clean API**: Intuitive routing interface with fluent/builder pattern
-- **Enhanced HTTP routing**: Built on Go 1.22+ `net/http` improvements with enhanced pattern matching
-- **Request validation**: Integrated `go-playground/validator` with struct tags
-- **i18n support**: Multi-language validation error messages (auto-detect from `Accept-Language`)
-- **Integrated logging**: Access logger via `c.Logger()` in any handler/middleware for consistent logging
-- **Colorful dev logging**: Beautiful, configurable request logging with ANSI colors for development
-- **Structured production logging**: JSON logging with slog for production environments
-- **Error handling**: Graceful error handling with structured error responses
-- **Middleware support**: Ctx-based middleware with built-in implementations:
-  - **RealIP**: Extract real client IP from proxy headers
-  - **RequestID**: Generate unique request IDs for tracing
-  - **Recovery**: Panic recovery with stack traces
-  - **Logger**: Request/response logging (dev and production modes)
-  - **Compress**: Automatic gzip/deflate compression
-  - **BodyLimit**: Request body size limits (prevent DoS)
-  - **RateLimit**: Configurable rate limiting per IP or custom key
-  - **CORS**: Cross-origin resource sharing
-  - **Timeout**: Request timeout handling
-  - **Validation**: Optional validation middleware (enabled when locales configured)
-- **Route groups**: Organize routes with prefixes and group-specific middleware
-- **Request tracking**: Built-in request ID generation and tracking
-- **Compression**: Automatic gzip compression for responses
-- **Security**: Body size limits, CORS, secure cookie handling
-- **Rich context helpers**: 30+ utility methods for requests, responses, validation, cookies
-- **Type safety**: Full type safety with Go's type system
-- **Graceful shutdown**: Automatic signal handling (SIGINT/SIGTERM) with configurable timeout
-- **Production ready**: Battle-tested with comprehensive error handling
-
-## Installation
+### Framework
 
 ```bash
+# Add to your project
 go get github.com/azizndao/glib
 ```
 
-## Quick Start
+### CLI Tool
+
+```bash
+# Install CLI globally
+go install github.com/azizndao/glib/tools/cli@latest
+
+# Verify installation
+glib --version
+```
+
+## 📖 Quick Start
+
+### 1. Create a New Project (Manual)
 
 ```go
 package main
 
 import (
-    "fmt"
-
+    "log"
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/router"
+    "github.com/azizndao/glib/foundation"
 )
 
 func main() {
-    // Create server - all configuration loaded from environment variables
-    // See Environment Configuration section below for available options
-    server := glib.New(glib.Config{})
-
-    // Get the router to register routes
-    r := server.Router()
-
-    // Define routes
-    r.Get("/hello", func(c *router.Ctx) error {
-        return c.JSON(map[string]string{"message": "Hello World"})
-    })
-
-    r.Get("/hello/{name}", func(c *router.Ctx) error {
+    // Create application
+    app := foundation.NewApplication()
+    
+    // Register routes
+    router := glib.New()
+    router.Get("/", func(c *glib.Ctx) error {
         return c.JSON(map[string]string{
-            "message": fmt.Sprintf("Hello %s", c.PathValue("name")),
-            "query":   c.Query("q"),
+            "message": "Hello from glib!",
         })
     })
-
-    // Start server with automatic graceful shutdown on SIGINT/SIGTERM
-    server.Logger().Info("Starting server", "address", server.Address())
-    if err := server.ListenWithGracefulShutdown(); err != nil {
-        server.Logger().Error(err)
-    }
+    
+    // Start server
+    log.Fatal(router.Listen(":8080"))
 }
 ```
 
-Run the server:
+### 2. Use CLI for Code Generation
 
 ```bash
-# Set environment variables (or create .env file)
-export HOST=localhost
-export PORT=8080
-export IS_DEBUG=true
+# Generate a model
+glib make model User --migration
 
-# Run the server
-go run main.go
+# Generate a controller
+glib make controller UserController --resource
+
+# Generate a migration
+glib make migration create_posts_table
+
+# Generate middleware
+glib make middleware Auth
 ```
 
-## Environment Configuration
+## 💻 CLI Commands
 
-glib is fully configurable via environment variables. Create a `.env` file in your project root:
+### Code Generation
 
-```env
-# Server Configuration
-IS_DEBUG=false              # Debug mode (enables colored DevMode logging)
+```bash
+# Models
+glib make model User                    # Simple model
+glib make model User --migration        # Model + migration
+glib make model Post --migration --controller  # All together
 
-# Server settings
-HOST=localhost              # Server host
-PORT=8080                   # Server port
+# Controllers
+glib make controller UserController     # Simple controller
+glib make controller UserController --resource  # CRUD controller
 
-# Timeouts (Go duration format: 10s, 1m, 1h30m)
-READ_TIMEOUT=10s            # Maximum duration for reading request
-WRITE_TIMEOUT=10s           # Maximum duration for writing response
-IDLE_TIMEOUT=120s           # Maximum idle time between requests
-SHUTDOWN_TIMEOUT=30s        # Maximum time to wait for graceful shutdown
+# Migrations
+glib make migration create_users_table  # SQL migration
+glib make migration add_email_to_users --type=go  # Go migration
 
-# Middleware enable/disable (true/false, 1/0, yes/no, on/off)
-ENABLE_REAL_IP=true         # Extract real client IP from proxy headers
-ENABLE_REQUEST_ID=true      # Generate unique request IDs
-ENABLE_RECOVERY=true        # Panic recovery with stack traces
-ENABLE_LOGGER=true          # Request/response logging
-ENABLE_COMPRESS=true        # Gzip/deflate compression
-ENABLE_CORS=true            # CORS support
-ENABLE_RATE_LIMIT=true      # Rate limiting
-
-# CORS Configuration
-CORS_ALLOWED_ORIGINS=*                              # Comma-separated origins
-CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
-CORS_ALLOWED_HEADERS=Authorization,Content-Type,Accept
-CORS_EXPOSED_HEADERS=                               # Optional: headers browsers can access
-CORS_ALLOW_CREDENTIALS=false                        # Allow cookies/credentials
-CORS_MAX_AGE=24h                                    # Preflight cache duration
-
-# Body limit (in bytes, e.g., 4194304 = 4MB)
-BODY_LIMIT=5242880          # 5MB
-
-# Rate limiting
-RATE_LIMIT_MAX=100          # Maximum requests per window
-RATE_LIMIT_WINDOW=1m        # Time window for rate limiting
-
-# Logger configuration (format options only apply when IS_DEBUG=true)
-LOGGER_FORMAT=default       # Options: default, combined, short, tiny
-LOGGER_TIME_FORMAT=15:04:05 # Go time layout
+# Middleware
+glib make middleware Auth
 ```
 
-Copy `.env.example` from the repository to get started.
+### Coming Soon
 
-## API Reference
+```bash
+glib new blog                # Create new project
+glib serve                   # Development server
+glib migrate                 # Run migrations
+glib migrate:rollback        # Rollback migrations
+```
 
-### Server Creation
+## 🗂️ Examples
+
+The `example/` directory contains complete working examples:
+
+- **basic** - Simple HTTP server
+- **comprehensive** - Full-featured application
+- **database** - Database integration
+- **orm** - ORM usage with generics
+- **relationships** - Model relationships
+- **foundation** - Application foundation
+- **cli-demo** - CLI code generation demo
+
+Each example is a standalone project that can be copied and used as a template.
+
+## 🗄️ Database Migrations
+
+glib keeps the core framework lean by not including migration dependencies. Choose the approach that fits your needs:
+
+### Option 1: Goose (Production-Grade)
+
+For version-controlled migrations with rollback support:
+
+```bash
+# Install goose
+go get github.com/pressly/goose/v3
+```
 
 ```go
-import (
-    "github.com/azizndao/glib"
-    "github.com/go-playground/locales/fr"
-    "github.com/go-playground/locales/es"
-    frt "github.com/go-playground/validator/v10/translations/fr"
-    est "github.com/go-playground/validator/v10/translations/es"
+import "github.com/pressly/goose/v3"
+
+sqlDB, _ := gormDB.DB()
+goose.SetDialect("postgres")
+goose.Up(sqlDB, "migrations")
+```
+
+**Resources:**
+- [Goose Documentation](https://github.com/pressly/goose)
+- [Goose Best Practices](https://github.com/pressly/goose#best-practices)
+
+### Option 2: GORM AutoMigrate (Simple Cases)
+
+For automatic schema generation without version control:
+
+```go
+db.AutoMigrate(&User{}, &Post{})
+```
+
+**Resources:**
+- [GORM Migration Guide](https://gorm.io/docs/migration.html)
+
+## 🏗️ Architecture
+
+### Foundation Layer
+
+```go
+// Create and bootstrap application
+app := foundation.NewApplication()
+
+// Register service providers
+app.Register(&database.DatabaseServiceProvider{})
+app.Register(&YourCustomProvider{})
+
+// Bootstrap
+if err := app.Bootstrap(); err != nil {
+    log.Fatal(err)
+}
+```
+
+### Database & ORM
+
+```go
+// Define models
+type User struct {
+    orm.Model
+    Name  string `json:"name"`
+    Email string `json:"email" gorm:"unique"`
+    Posts []Post `gorm:"foreignKey:UserID"`
+}
+
+// Query with generics
+user, err := orm.First[User](ctx, db, orm.Where("email = ?", "user@example.com"))
+
+// Use scopes
+publishedPosts, err := orm.Find[Post](ctx, db, 
+    Post{}.PublishedScope,
+    Post{}.RecentScope,
 )
-
-// Create server with default configuration (loads from environment variables)
-server := glib.New(glib.Config{})
-
-// Create server with validation locales for i18n error messages
-server := glib.New(glib.Config{
-    Locales: []glib.LocaleConfig{
-        glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
-        glib.Locale(es.New(), est.RegisterDefaultTranslations),
-    },
-})
-
-// Access the router
-r := server.Router()
-
-// Access the logger
-logger := server.Logger()
-
-// Get server address
-addr := server.Address() // Returns "host:port"
 ```
 
-### Server Methods
+### Relationships
 
 ```go
-// Start HTTP server with graceful shutdown (recommended)
-err := server.ListenWithGracefulShutdown()
+// Eager loading
+user, err := orm.LoadWith[User](ctx, db, userID, "Posts", "Profile")
 
-// Start HTTP server without graceful shutdown
-err := server.Listen()
-
-// Start HTTPS server with graceful shutdown
-err := server.ListenTLSWithGracefulShutdown(certFile, keyFile)
-
-// Start HTTPS server without graceful shutdown
-err := server.ListenTLS(certFile, keyFile)
-
-// Manually shutdown the server
-ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-defer cancel()
-err := server.Shutdown(ctx)
-
-// Register custom rate limit stores for cleanup
-server.RegisterStore(redisStore)
+// Many-to-many
+orm.Association(db, &user, "Roles").Append(&adminRole)
 ```
 
-### Router Methods
-
-#### HTTP Methods
+### Routing & Middleware
 
 ```go
-router.Get("/path", handler)
-router.Post("/path", handler)
-router.Put("/path", handler)
-router.Patch("/path", handler)
-router.Delete("/path", handler)
-router.Option("/path", handler)
-router.Head("/path", handler)
+router := glib.New()
 
-// Generic method handler
-router.Handle("METHOD", "/path", handler)
+// Global middleware
+router.Use(middleware.CORS())
+router.Use(middleware.RateLimit(100))
 
-// Direct http.Handler registration
-router.Route("/prefix", httpHandler)
-```
-
-#### Route Groups
-
-```go
-// Create a group with prefix
+// Route groups
 api := router.Group("/api")
-api.Get("/users", getUsersHandler)
-api.Post("/users", createUserHandler)
+api.Use(middleware.Auth)
 
-// Groups with middleware
-admin := router.Group("/admin", authMiddleware, adminMiddleware)
-admin.Get("/dashboard", dashboardHandler)
-
-// Nested groups
-v1 := router.Group("/api/v1")
-users := v1.Group("/users")
-users.Get("/", listUsers)
-users.Get("/{id}", getUser)
+// Routes
+api.Get("/users", userController.Index)
+api.Post("/users", userController.Store)
+api.Get("/users/{id}", userController.Show)
 ```
 
-### Context Methods
+## 📚 Documentation
 
-The `Ctx` type uses a builder/fluent pattern where setter methods return `*Ctx`, allowing you to chain method calls:
+- [Foundation Layer](foundation/README.md)
+- [ORM Guide](orm/README.md)
+- [CLI Tool](example/cli-demo/README.md)
+- [Examples](example/)
 
-```go
-// Chain multiple operations together
-return c.Status(201).
-    Set("X-Custom-Header", "value").
-    Set("Location", "/users/123").
-    JSON(user)
+## 🛠️ Development
+
+### Working with the Workspace
+
+This project uses Go workspaces for development:
+
+```bash
+# Clone the repository
+git clone https://github.com/azizndao/glib.git
+cd glib
+
+# The workspace is already configured (go.work)
+# Build framework and CLI together
+go work sync
+
+# Run tests
+go test ./...
+
+# Install CLI for development
+go install ./tools/cli
 ```
 
-#### Request Data
+### Project Structure
 
-```go
-func handler(c *router.Ctx) error {
-    // Path parameters (Go 1.22+ routing)
-    id := c.PathValue("id")
+- **Framework code** → Root directory (`go.mod`)
+- **CLI tool** → `tools/cli/` (separate `go.mod`)
+- **Examples** → `example/` (each has own `go.mod`)
 
-    // Query parameters
-    search := c.Query("search")
-    page := c.QueryDefault("page", "1")
-    limit, err := c.QueryInt("limit")
-    price, err := c.QueryFloat("price")
-    active := c.QueryBool("active")
-    tags := c.QueryAll("tag") // Get all values for repeated param
+This structure ensures:
+- ✅ Framework users don't get CLI dependencies
+- ✅ CLI can evolve independently
+- ✅ Examples are self-contained and copyable
+- ✅ Easy development with workspace
 
-    // Headers
-    auth := c.Get("Authorization")
-    authAlt := c.Authorization()      // Convenience method
-    contentType := c.ContentType()    // Convenience method
-    allHeaders := c.GetHeaders()      // Get all headers
+## 🧪 Testing
 
-    // Request info
-    method := c.Method()
-    path := c.Path()
-    ip := c.IP()
-    userAgent := c.UserAgent()
-    baseURL := c.BaseURL()            // e.g. "https://example.com"
-    scheme := c.Scheme()              // "http" or "https"
-    host := c.Host()                  // "example.com"
-    isSecure := c.IsSecure()          // true if HTTPS
-    acceptsJSON := c.AcceptsJSON()    // Check Accept header
-    acceptsHTML := c.AcceptsHTML()    // Check Accept header
+```bash
+# Test everything
+go test ./...
 
-    // Parse JSON body
-    var user User
-    if err := c.ParseBody(&user); err != nil {
-        return err
-    }
+# Test specific package
+go test ./orm/...
+go test ./foundation/...
+go test ./tools/cli/generators/...
 
-    // Or get raw body
-    bodyBytes, err := c.Body()
+# Run with coverage
+go test -cover ./...
 
-    // Form data
-    email := c.FormValue("email")
-    file, header, err := c.FormFile("avatar")
-
-    // Cookies
-    sessionCookie, err := c.GetCookie("session")
-
-    // Logger - access the application logger
-    c.Logger().Info("Processing request", "user_id", id)
-    c.Logger().Error(err, "operation", "parse_body")
-
-    return nil
-}
+# Run examples
+cd example/relationships && go run main.go
+cd example/orm && go run main.go
 ```
 
-#### Response Helpers
+## 📋 Requirements
 
-```go
-func handler(c *router.Ctx) error {
-    // JSON response - chain Status() with JSON()
-    return c.Status(200).JSON(map[string]string{"status": "ok"})
+- Go 1.25.1 or later
+- SQLite, PostgreSQL, or MySQL (for database features)
 
-    // Text response - chain Status() with SendString()
-    return c.Status(200).SendString("Hello World")
+## 🤝 Contributing
 
-    // HTML response - chain Status() with HTML()
-    return c.Status(200).HTML([]byte("<h1>Hello World</h1>"))
+Contributions are welcome! Please read our contributing guidelines.
 
-    // File response
-    return c.File("/path/to/file.pdf")
+## 📄 License
 
-    // Redirect
-    return c.Redirect(302, "/new-location")
+MIT License - see LICENSE file for details
 
-    // Chain multiple setters before response
-    return c.Status(201).
-        Set("Location", "/users/123").
-        Set("X-Custom-Header", "value").
-        JSON(user)
+## 🙏 Acknowledgments
 
-    // Set multiple headers at once using SetHeaders
-    return c.SetHeaders(map[string]string{
-        "X-Custom-Header": "value",
-        "X-Request-ID":    "12345",
-    }).Status(200).JSON(data)
+- Inspired by [Laravel](https://laravel.com/)
+- Built with [Chi](https://github.com/go-chi/chi) for routing
+- Powered by [GORM](https://gorm.io/) for ORM
+- CLI built with [Cobra](https://github.com/spf13/cobra)
+- Migrations via [Goose](https://github.com/pressly/goose) (optional)
 
-    // Cookie management with chaining
-    return c.SetCookie(&http.Cookie{
-        Name:  "session",
-        Value: "token123",
-    }).Status(200).JSON(map[string]string{"message": "Cookie set"})
+## 🚀 Roadmap
 
-    // Clear cookie
-    c.ClearCookie("old-session")
-    return c.Status(200).JSON(map[string]string{"message": "Cookie cleared"})
-}
-```
+- [x] Foundation Layer (Application, Providers, Container)
+- [x] Database Layer (ORM, Relationships)
+- [x] CLI Tool (Code Generators)
+- [ ] Authentication & Authorization
+- [ ] Queue & Job Processing
+- [ ] Cache & Storage
+- [ ] Testing Utilities
+- [ ] API Resources & Collections
 
-### Middleware
+---
 
-All middleware in glib uses the `*Ctx` interface, providing a cleaner and more powerful API.
-
-**Middleware signature:** `func(router.Handler) router.Handler` where `Handler` is `func(*Ctx) error`
-
-When using `glib.New()`, middleware are **automatically loaded and configured from environment variables**. You can disable individual middleware by setting their corresponding `ENABLE_*` environment variable to `false`.
-
-#### Built-in Middleware
-
-```go
-import (
-    "github.com/azizndao/glib/middleware"
-    "github.com/azizndao/glib/ratelimit"
-    "github.com/azizndao/glib/router"
-)
-
-// With glib.New(), middleware are automatically loaded from environment variables
-// No manual router.Use() calls needed unless you want custom configuration
-
-// Request ID middleware - generates unique request IDs (auto-enabled with ENABLE_REQUEST_ID=true)
-// Access request ID in handlers
-func handler(c *router.Ctx) error {
-    requestID := middleware.GetRequestID(c)
-    return c.JSON(map[string]string{"request_id": requestID})
-}
-
-// === Manual Middleware Configuration Examples ===
-// These are only needed if you're NOT using glib.New() or need custom config
-
-// Logger middleware (auto-enabled with ENABLE_LOGGER=true)
-// Configuration loaded from environment variables:
-//   - IS_DEBUG: determines logging mode (false=JSON/structured, true=colorful console)
-//   - LOGGER_FORMAT: default, combined, short, tiny (only for IS_DEBUG=true)
-//   - LOGGER_TIME_FORMAT: Go time layout string (only for IS_DEBUG=true)
-r.Use(middleware.Logger())
-
-// Logger with custom programmatic format (overrides env vars)
-r.Use(middleware.Logger(middleware.LoggerConfig{
-    Format: middleware.LogFormatTiny, // Minimal format
-}))
-
-// Structured logging with slog (recommended for production)
-r.Use(middleware.Logger(middleware.LoggerConfig{
-    UseStructuredLogging: true,
-    Logger:               slog.Default(),
-    LogLevel:             slog.LevelInfo,
-}))
-
-// Recovery middleware - panic recovery (auto-enabled with ENABLE_RECOVERY=true)
-// Stack traces are always included in panic logs for debugging
-r.Use(middleware.Recovery())
-
-// Compression middleware - gzip/deflate compression (auto-enabled with ENABLE_COMPRESS=true)
-r.Use(middleware.Compress())
-
-// Compression with custom level
-r.Use(middleware.Compress(middleware.CompressConfig{
-    Level: gzip.BestCompression,
-}))
-
-// Body size limit middleware - prevent DoS attacks (configured via BODY_LIMIT env var)
-r.Use(middleware.BodyLimit())
-
-// Body limit with custom size
-r.Use(middleware.BodyLimit(middleware.BodyLimitConfig{
-    MaxSize: 10 * middleware.MB, // 10MB
-}))
-
-// Rate limiting middleware - prevent abuse (auto-enabled with ENABLE_RATE_LIMIT=true)
-r.Use(ratelimit.RateLimit())
-
-// Rate limiting with custom config
-r.Use(ratelimit.RateLimit(ratelimit.Config{
-    Max:    50,
-    Window: time.Minute,
-    KeyGenerator: func(c *router.Ctx) string {
-        // Rate limit by user ID if authenticated
-        if userID := c.GetValue("userID"); userID != nil {
-            return userID.(string)
-        }
-        return c.IP()
-    },
-}))
-
-// CORS middleware - cross-origin resource sharing (auto-enabled with ENABLE_CORS=true)
-// Configuration loaded from environment variables:
-//   - CORS_ALLOWED_ORIGINS: comma-separated list (default: "*")
-//   - CORS_ALLOWED_METHODS: comma-separated list (default: "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-//   - CORS_ALLOWED_HEADERS: comma-separated list
-//   - CORS_EXPOSED_HEADERS: comma-separated list (optional)
-//   - CORS_ALLOW_CREDENTIALS: boolean (default: false)
-//   - CORS_MAX_AGE: duration (default: "24h")
-r.Use(middleware.CORS())
-
-// CORS with custom programmatic config (overrides env vars)
-r.Use(middleware.CORS(middleware.CORSConfig{
-    AllowedOrigins:   []string{"https://example.com", "https://app.example.com"},
-    AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
-    AllowedHeaders:   []string{"Authorization", "Content-Type"},
-    ExposedHeaders:   []string{"X-Request-ID"},
-    AllowCredentials: true,
-    MaxAge:           24 * time.Hour,
-}))
-
-// Timeout middleware - request timeout handling
-r.Use(middleware.Timeout())
-
-// Timeout with custom duration
-r.Use(middleware.Timeout(middleware.TimeoutConfig{
-    Timeout: 10 * time.Second,
-}))
-
-// RealIP middleware - extract real client IP from proxy headers (auto-enabled with ENABLE_REAL_IP=true)
-r.Use(middleware.RealIP()) // Trusts common private networks by default
-
-// RealIP with custom trusted proxies
-r.Use(middleware.RealIP(middleware.RealIPConfig{
-    TrustedProxies: []string{"10.0.0.0/8"}, // Only trust this network
-    Headers:        []string{"CF-Connecting-IP", "X-Forwarded-For"},
-}))
-```
-
-#### Custom Middleware
-
-Middleware works directly with the `*router.Ctx` interface for cleaner composition:
-
-```go
-import "github.com/azizndao/glib/router"
-
-// Basic middleware template
-func customMiddleware(next router.Handler) router.Handler {
-    return func(c *router.Ctx) error {
-        // Before request - access to full Ctx API including logger
-        start := time.Now()
-        userID := c.Get("X-User-ID")
-
-        c.Logger().Debug("Request started", "user_id", userID, "path", c.Path())
-
-        // Execute next handler
-        err := next(c)
-
-        // After request - log with context
-        duration := time.Since(start)
-        c.Logger().Info("Request completed",
-            "user_id", userID,
-            "duration", duration,
-            "status", c.statusCode,
-        )
-
-        return err
-    }
-}
-
-// Apply custom middleware
-r := server.Router()
-r.Use(customMiddleware)
-
-// Authentication middleware example
-func authMiddleware(next router.Handler) router.Handler {
-    return func(c *router.Ctx) error {
-        token := c.Authorization()
-        if token == "" {
-            return c.Status(401).JSON(map[string]string{"error": "Unauthorized"})
-        }
-
-        // Validate token and set user in context
-        user, err := validateToken(token)
-        if err != nil {
-            return c.Status(401).JSON(map[string]string{"error": "Invalid token"})
-        }
-
-        c.Request = c.SetValue("user", user)
-        return next(c)
-    }
-}
-```
-
-### Error Handling
-
-glib provides structured error handling with built-in error types that return appropriate HTTP status codes and JSON responses:
-
-```go
-import "github.com/azizndao/glib/errors"
-
-func handler(c *router.Ctx) error {
-    user, err := findUser(id)
-    if err != nil {
-        return errors.NotFound("User not found", err)
-    }
-
-    if !user.IsActive {
-        return errors.Forbidden("User is inactive", nil)
-    }
-
-    return c.Status(200).JSON(user)
-}
-```
-
-#### Available Error Helpers
-
-```go
-import "github.com/azizndao/glib/errors"
-
-// Available error helpers:
-errors.BadRequest(data, internal)           // 400
-errors.Unauthorized(data, internal)         // 401
-errors.Forbidden(data, internal)            // 403
-errors.NotFound(data, internal)             // 404
-errors.Conflict(data, internal)             // 409
-errors.Gone(data, internal)                 // 410
-errors.UnprocessableEntity(data, internal)  // 422
-errors.InternalServerError(data, internal)  // 500
-
-// Standard errors are automatically converted to 500 responses
-return fmt.Errorf("something went wrong") // Returns 500 with {"code": 500, "data": "Server Error"}
-```
-
-### Validation
-
-glib provides powerful request validation with multi-language support using `go-playground/validator`.
-
-#### Setup Validation
-
-```go
-import (
-    "github.com/azizndao/glib"
-    "github.com/go-playground/locales/fr"
-    "github.com/go-playground/locales/es"
-    frt "github.com/go-playground/validator/v10/translations/fr"
-    est "github.com/go-playground/validator/v10/translations/es"
-)
-
-// Create server with validation locales
-server := glib.New(glib.Config{
-    Locales: []glib.LocaleConfig{
-        glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
-        glib.Locale(es.New(), est.RegisterDefaultTranslations),
-    },
-})
-```
-
-#### Using Validation
-
-```go
-import "github.com/azizndao/glib/router"
-
-type CreateUserRequest struct {
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required,min=8"`
-    Name     string `json:"name" validate:"required,min=2"`
-    Age      int    `json:"age" validate:"required,gte=18"`
-}
-
-func createUser(c *router.Ctx) error {
-    var req CreateUserRequest
-
-    // Parse and validate in one call
-    // Validation errors returned in user's language from Accept-Language header
-    if err := c.ValidateBody(&req); err != nil {
-        return err
-    }
-
-    // req is now validated
-    return c.Status(201).JSON(map[string]string{"message": "User created"})
-}
-```
-
-#### Validation Responses
-
-Validation errors are automatically returned in the user's preferred language:
-
-**English** (`Accept-Language: en`):
-```json
-{
-  "code": 422,
-  "data": {
-    "email": "email must be a valid email address",
-    "password": "password must be at least 8 characters in length",
-    "age": "age must be 18 or greater"
-  }
-}
-```
-
-**French** (`Accept-Language: fr`):
-```json
-{
-  "code": 422,
-  "data": {
-    "email": "email doit être une adresse email valide",
-    "password": "password doit faire au moins 8 caractères",
-    "age": "age doit être 18 ou plus"
-  }
-}
-```
-
-**Spanish** (`Accept-Language: es`):
-```json
-{
-  "code": 422,
-  "data": {
-    "email": "email debe ser una dirección de correo electrónico válida",
-    "password": "password debe tener al menos 8 caracteres",
-    "age": "age debe ser 18 o más"
-  }
-}
-```
-
-#### Validation Tags
-
-Supports all standard validator tags:
-- `required` - Field is required
-- `email` - Valid email address
-- `min=n` - Minimum length/value
-- `max=n` - Maximum length/value
-- `gte=n`, `lte=n`, `gt=n`, `lt=n` - Numeric comparisons
-- `oneof=red green blue` - Value must be one of the specified options
-- `url`, `uri`, `uuid` - Format validation
-- And many more from [go-playground/validator](https://github.com/go-playground/validator)
-
-### Logging
-
-glib includes comprehensive logging with support for both development (colored) and production (JSON) modes:
-
-#### Application Logging
-
-Access the logger from any route handler or middleware using `c.Logger()`:
-
-```go
-func handler(c *router.Ctx) error {
-    // Log informational messages
-    c.Logger().Info("Processing user request",
-        "user_id", c.PathValue("id"),
-        "action", "update",
-    )
-
-    // Log errors with structured data
-    if err := doSomething(); err != nil {
-        c.Logger().Error(err,
-            "operation", "database_query",
-            "user_id", c.PathValue("id"),
-        )
-        return err
-    }
-
-    // Log warnings
-    c.Logger().Warn("Deprecated API called", "endpoint", c.Path())
-
-    // Log debug information
-    c.Logger().Debug("Cache hit", "key", cacheKey)
-
-    return c.JSON(map[string]string{"status": "ok"})
-}
-```
-
-#### Request Logging
-
-The logger middleware automatically logs all requests and responses:
-
-```go
-// Available log formats (for IS_DEBUG=true mode):
-// - LogFormatDefault: Standard format with all details (default)
-// - LogFormatTiny: Minimal format (timestamp, method, status, duration)
-// - LogFormatShort: Short format (timestamp, method, path, status, duration)
-// - LogFormatCombined: Combined format with user agent
-
-// Custom format via environment variables:
-// LOGGER_FORMAT=tiny
-// LOGGER_TIME_FORMAT=15:04:05
-
-// Or programmatic configuration:
-r.Use(middleware.Logger(middleware.LoggerConfig{
-    Format: middleware.LogFormatTiny,
-}))
-```
-
-The logger respects the `IS_DEBUG` environment variable:
-- `IS_DEBUG=true`: Colorful console logging with DevMode handler
-- `IS_DEBUG=false`: Structured JSON logging for production
-
-## Advanced Usage
-
-### Route Information
-
-```go
-// Get all registered routes
-routes := router.Routes()
-for _, route := range routes {
-    fmt.Printf("%s %s -> %s\n", route.Method, route.Pattern, route.Group)
-}
-```
-
-### Context Values
-
-Store and retrieve values in the request context:
-
-```go
-import "github.com/azizndao/glib/router"
-
-func authMiddleware(next router.Handler) router.Handler {
-    return func(c *router.Ctx) error {
-        // Authenticate and set user in context
-        user := authenticateUser(c)
-        c.Request = c.SetValue("user", user)
-        return next(c)
-    }
-}
-
-func handler(c *router.Ctx) error {
-    // Retrieve user from context
-    user := c.GetValue("user")
-    return c.Status(200).JSON(user)
-}
-
-// Access underlying context
-ctx := c.Context()
-```
-
-### Rate Limiting with Redis
-
-```go
-import (
-    "github.com/azizndao/glib/ratelimit"
-    "github.com/redis/go-redis/v9"
-)
-
-// Create Redis client
-redisClient := redis.NewClient(&redis.Options{
-    Addr: "localhost:6379",
-})
-
-// Create Redis store
-redisStore := ratelimit.NewRedisStore(redisClient)
-
-// Register store for cleanup on shutdown
-server.RegisterStore(redisStore)
-
-// Use Redis store for rate limiting
-r.Use(ratelimit.RateLimit(ratelimit.Config{
-    Max:    100,
-    Window: time.Minute,
-    Store:  redisStore,
-}))
-```
-
-## Requirements
-
-- Go 1.25+ (as specified in go.mod)
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Acknowledgments
-
-Built with:
-- [go-playground/validator](https://github.com/go-playground/validator) - Struct and field validation
-- [samber/lo](https://github.com/samber/lo) - Functional utilities
-- [joho/godotenv](https://github.com/joho/godotenv) - Environment variable loading
-- Go standard library's enhanced `net/http` (Go 1.22+)
+**Built with ❤️ and Go**

@@ -40,7 +40,7 @@ type Tag struct {
 }
 
 func main() {
-	fmt.Println("=== glib ORM Example (Generics API) ===\n")
+	fmt.Println("=== glib ORM Example (Generics API) ===")
 	ctx := context.Background()
 
 	// 1. Setup database connection
@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
-	fmt.Println("✓ Database connected and migrated\n")
+	fmt.Println("✓ Database connected and migrated")
 
 	// Clean up previous data
 	db.Exec("DELETE FROM post_tags")

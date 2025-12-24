@@ -1,0 +1,18 @@
+package {{.Package}}
+
+import (
+	"github.com/azizndao/glib"
+{{- range .Imports}}
+	"{{.}}"
+{{- end}}
+)
+
+{{if .Comment}}// {{.Comment}}{{end}}
+func {{.Name}}(next glib.Handler) glib.Handler {
+	return func(c *glib.Ctx) error {
+		// TODO: Implement middleware logic
+
+		// Call next handler
+		return next(c)
+	}
+}

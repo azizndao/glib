@@ -1,0 +1,57 @@
+package {{.Package}}
+
+import (
+	"github.com/azizndao/glib"
+{{- range .Imports}}
+	"{{.}}"
+{{- end}}
+)
+
+{{if .Comment}}// {{.Comment}}{{end}}
+type {{.Name}} struct{}
+
+{{if .Resource}}
+// Index lists all {{toLower .Model}}s
+// GET /{{toSnake .Model | toPlural}}
+func (ctrl *{{.Name}}) Index(c *glib.Ctx) error {
+	// TODO: Implement
+	return c.JSON(map[string]string{"message": "Index"})
+}
+
+// Show displays a specific {{toLower .Model}}
+// GET /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Show(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	// TODO: Implement
+	return c.JSON(map[string]string{"id": id})
+}
+
+// Store creates a new {{toLower .Model}}
+// POST /{{toSnake .Model | toPlural}}
+func (ctrl *{{.Name}}) Store(c *glib.Ctx) error {
+	// TODO: Implement
+	return c.Status(201).JSON(map[string]string{"message": "Created"})
+}
+
+// Update modifies an existing {{toLower .Model}}
+// PUT /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Update(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	// TODO: Implement
+	return c.JSON(map[string]string{"id": id, "message": "Updated"})
+}
+
+// Destroy deletes a {{toLower .Model}}
+// DELETE /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Destroy(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	// TODO: Implement
+	return c.NoContent()
+}
+{{else}}
+// Handle processes the request
+func (ctrl *{{.Name}}) Handle(c *glib.Ctx) error {
+	// TODO: Implement
+	return c.JSON(map[string]string{"message": "Hello from {{.Name}}"})
+}
+{{end}}
