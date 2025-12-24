@@ -2,10 +2,12 @@
 package glib
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/azizndao/glib/common/errors"
 	"github.com/azizndao/glib/common/slog"
+	"github.com/azizndao/glib/foundation"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -15,6 +17,7 @@ type router struct {
 	config    RouterConfig
 	logger    *slog.Logger
 	validator Validator
+	app       *foundation.Application
 }
 
 // DefaultRouterOptions returns sensible default options
@@ -103,6 +106,7 @@ func (r *router) With(middlewares ...Middleware) Router {
 		config:    r.config,
 		logger:    r.logger,
 		validator: r.validator,
+		app:       r.app, // Propagate app
 	}
 }
 
@@ -114,6 +118,7 @@ func (r *router) Group(fn func(r Router)) Router {
 			config:    r.config,
 			logger:    r.logger,
 			validator: r.validator,
+			app:       r.app, // Propagate app
 		}
 		fn(router)
 	})
@@ -122,6 +127,7 @@ func (r *router) Group(fn func(r Router)) Router {
 		config:    r.config,
 		logger:    r.logger,
 		validator: r.validator,
+		app:       r.app, // Propagate app
 	}
 }
 
@@ -133,6 +139,7 @@ func (r *router) Route(pattern string, fn func(r Router)) Router {
 			config:    r.config,
 			logger:    r.logger,
 			validator: r.validator,
+			app:       r.app, // Propagate app
 		}
 		fn(subRouter)
 	})
@@ -141,6 +148,7 @@ func (r *router) Route(pattern string, fn func(r Router)) Router {
 		config:    r.config,
 		logger:    r.logger,
 		validator: r.validator,
+		app:       r.app, // Propagate app
 	}
 }
 
@@ -308,4 +316,145 @@ func (r *router) UseHTTP(chiMiddlewares ...func(http.Handler) http.Handler) {
 	for _, chiMw := range chiMiddlewares {
 		r.chi.Use(chiMw)
 	}
+}
+
+// SetApplication sets the application instance for the router.
+// This is required for controller dependency injection.
+//
+// Example:
+//
+//	app := foundation.New(".")
+//	router := server.Router()
+//	if r, ok := router.(interface{ SetApplication(*foundation.Application) }); ok {
+//	    r.SetApplication(app)
+//	}
+func (r *router) SetApplication(app *foundation.Application) {
+	r.app = app
+}
+
+// Resource registers a resource controller with all RESTful routes.
+func (r *router) Resource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router {
+	if r.app == nil {
+		panic("application not set - call SetApplication() before registering resources")
+	}
+
+	opts := DefaultResourceOptions()
+	if len(options) > 0 {
+		opts = options[0]
+	}
+
+	// Create controller instance once
+	ctrl := constructor(r.app)
+
+	// Type assert to ResourceController
+	resource, ok := ctrl.(ResourceController)
+	if !ok {
+		panic(fmt.Sprintf("controller does not implement ResourceController interface"))
+	}
+
+	// Build param pattern
+	paramName := opts.GetParamName()
+	idPattern := fmt.Sprintf("%s/{%s}", pattern, paramName)
+
+	// Register routes
+	if opts.ShouldRegister("Index") {
+		r.Get(pattern, resource.Index)
+	}
+
+	if opts.ShouldRegister("Create") {
+		r.Get(pattern+"/create", resource.Create)
+	}
+
+	if opts.ShouldRegister("Store") {
+		r.Post(pattern, resource.Store)
+	}
+
+	if opts.ShouldRegister("Show") {
+		r.Get(idPattern, resource.Show)
+	}
+
+	if opts.ShouldRegister("Edit") {
+		r.Get(idPattern+"/edit", resource.Edit)
+	}
+
+	if opts.ShouldRegister("Update") {
+		r.Put(idPattern, resource.Update)
+		r.Patch(idPattern, resource.Update) // Support both PUT and PATCH
+	}
+
+	if opts.ShouldRegister("Destroy") {
+		r.Delete(idPattern, resource.Destroy)
+	}
+
+	return r
+}
+
+// APIResource registers an API resource controller without form routes.
+func (r *router) APIResource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router {
+	if r.app == nil {
+		panic("application not set - call SetApplication() before registering resources")
+	}
+
+	opts := DefaultResourceOptions()
+	if len(options) > 0 {
+		opts = options[0]
+	}
+
+	// Create controller instance once
+	ctrl := constructor(r.app)
+
+	// Type assert to APIResourceController
+	resource, ok := ctrl.(APIResourceController)
+	if !ok {
+		panic(fmt.Sprintf("controller does not implement APIResourceController interface"))
+	}
+
+	// Build param pattern
+	paramName := opts.GetParamName()
+	idPattern := fmt.Sprintf("%s/{%s}", pattern, paramName)
+
+	// Register routes (no Create/Edit for API)
+	if opts.ShouldRegister("Index") {
+		r.Get(pattern, resource.Index)
+	}
+
+	if opts.ShouldRegister("Store") {
+		r.Post(pattern, resource.Store)
+	}
+
+	if opts.ShouldRegister("Show") {
+		r.Get(idPattern, resource.Show)
+	}
+
+	if opts.ShouldRegister("Update") {
+		r.Put(idPattern, resource.Update)
+		r.Patch(idPattern, resource.Update)
+	}
+
+	if opts.ShouldRegister("Destroy") {
+		r.Delete(idPattern, resource.Destroy)
+	}
+
+	return r
+}
+
+// InvokableController registers a single-action controller.
+func (r *router) InvokableController(method, pattern string, constructor ControllerConstructor) Router {
+	if r.app == nil {
+		panic("application not set - call SetApplication() before registering controllers")
+	}
+
+	// Create controller instance once
+	ctrl := constructor(r.app)
+
+	// Type assert to InvokableController
+	invokable, ok := ctrl.(InvokableController)
+	if !ok {
+		panic(fmt.Sprintf("controller does not implement InvokableController interface"))
+	}
+
+	// Register the route
+	r.MethodFunc(method, pattern, invokable.Invoke)
+
+	return r
 }

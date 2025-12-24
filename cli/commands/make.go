@@ -41,12 +41,16 @@ func NewMakeControllerCommand() *cobra.Command {
 Example:
   glib make:controller UserController
   glib make:controller UserController --resource
+  glib make:controller UserController --api
+  glib make:controller PublishPostController --invokable
   glib make:controller Api/UserController`,
 		Args: cobra.ExactArgs(1),
 		RunE: runMakeController,
 	}
 
-	cmd.Flags().BoolP("resource", "r", false, "Generate a resource controller with CRUD methods")
+	cmd.Flags().BoolP("resource", "r", false, "Generate a resource controller with all CRUD methods (Index, Create, Store, Show, Edit, Update, Destroy)")
+	cmd.Flags().BoolP("api", "a", false, "Generate an API resource controller (Index, Store, Show, Update, Destroy)")
+	cmd.Flags().BoolP("invokable", "i", false, "Generate an invokable controller with a single Invoke method")
 
 	return cmd
 }
@@ -141,6 +145,7 @@ func runMakeModel(cmd *cobra.Command, args []string) error {
 			Name:     name + "Controller",
 			Model:    name,
 			Resource: true,
+			Type:     "resource",
 			Imports:  []string{},
 			Comment:  fmt.Sprintf("%sController handles HTTP requests for %s resources", name, strings.ToLower(name)),
 		}
@@ -175,6 +180,23 @@ func toSnakeCase(s string) string {
 func runMakeController(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	resource, _ := cmd.Flags().GetBool("resource")
+	api, _ := cmd.Flags().GetBool("api")
+	invokable, _ := cmd.Flags().GetBool("invokable")
+
+	// Validate that only one flag is set
+	flagCount := 0
+	if resource {
+		flagCount++
+	}
+	if api {
+		flagCount++
+	}
+	if invokable {
+		flagCount++
+	}
+	if flagCount > 1 {
+		return fmt.Errorf("only one flag can be specified: --resource, --api, or --invokable")
+	}
 
 	cmd.Printf("Creating controller: %s\n", name)
 
@@ -191,12 +213,23 @@ func runMakeController(cmd *cobra.Command, args []string) error {
 		name = name + "Controller"
 	}
 
+	// Determine controller type
+	controllerType := ""
+	if resource {
+		controllerType = "resource"
+	} else if api {
+		controllerType = "api"
+	} else if invokable {
+		controllerType = "invokable"
+	}
+
 	// Prepare controller data
 	controllerData := generators.ControllerData{
 		Package:  "controllers",
 		Name:     name,
 		Model:    modelName,
-		Resource: resource,
+		Resource: resource, // Keep for backward compatibility
+		Type:     controllerType,
 		Imports:  []string{},
 		Comment:  fmt.Sprintf("%s handles HTTP requests", name),
 	}
@@ -209,8 +242,23 @@ func runMakeController(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("  Created: %s\n", controllerPath)
 
+	// Print methods based on type
 	if resource {
-		cmd.Println("  Methods: Index, Show, Store, Update, Destroy")
+		cmd.Println("  Type: ResourceController")
+		cmd.Println("  Methods: Index, Create, Store, Show, Edit, Update, Destroy")
+		cmd.Println("\n  Register with: router.Resource(\"" + toSnakeCase(modelName) + "s\", controllers.New" + name + ")")
+	} else if api {
+		cmd.Println("  Type: APIResourceController")
+		cmd.Println("  Methods: Index, Store, Show, Update, Destroy")
+		cmd.Println("\n  Register with: router.APIResource(\"" + toSnakeCase(modelName) + "s\", controllers.New" + name + ")")
+	} else if invokable {
+		cmd.Println("  Type: InvokableController")
+		cmd.Println("  Methods: Invoke")
+		cmd.Println("\n  Register with: router.InvokableController(glib.Post, \"/" + toSnakeCase(name) + "\", controllers.New" + name + ")")
+	} else {
+		cmd.Println("  Type: Basic Controller")
+		cmd.Println("  Methods: Handle")
+		cmd.Println("\n  Register with: router.Post(\"/path\", controller.Handle)")
 	}
 
 	cmd.Println("\n✓ Controller created successfully!")

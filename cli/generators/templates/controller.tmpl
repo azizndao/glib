@@ -2,42 +2,124 @@ package {{.Package}}
 
 import (
 	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/foundation"
+	"github.com/azizndao/glib/common/container"
+	"github.com/azizndao/glib/database"
 {{- range .Imports}}
 	"{{.}}"
 {{- end}}
 )
 
 {{if .Comment}}// {{.Comment}}{{end}}
-type {{.Name}} struct{}
+type {{.Name}} struct {
+	db *database.Manager
+}
 
-{{if .Resource}}
+// New{{.Name}} creates a new controller instance with dependency injection
+func New{{.Name}}(app *foundation.Application) *{{.Name}} {
+	// Resolve dependencies from the application container
+	dbManager := container.Resolve[*database.Manager](app.Container())
+	
+	return &{{.Name}}{
+		db: dbManager,
+	}
+}
+
+{{if eq .Type "resource"}}
 // Index lists all {{toLower .Model}}s
 // GET /{{toSnake .Model | toPlural}}
 func (ctrl *{{.Name}}) Index(c *glib.Ctx) error {
-	// TODO: Implement
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model | toPlural}} []models.{{.Model}}
+	// if err := db.Find(&{{toLower .Model | toPlural}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to fetch {{toLower .Model | toPlural}}"})
+	// }
+	// return c.JSON({{toLower .Model | toPlural}})
+	
 	return c.JSON(map[string]string{"message": "Index"})
+}
+
+// Create displays a form for creating a new {{toLower .Model}}
+// GET /{{toSnake .Model | toPlural}}/create
+func (ctrl *{{.Name}}) Create(c *glib.Ctx) error {
+	// Return form view or form data
+	return c.JSON(map[string]string{"message": "Create form"})
+}
+
+// Store creates a new {{toLower .Model}}
+// POST /{{toSnake .Model | toPlural}}
+func (ctrl *{{.Name}}) Store(c *glib.Ctx) error {
+	// var req struct {
+	//     // Add your request fields here
+	// }
+	// if err := c.ValidateBody(&req); err != nil {
+	//     return err
+	// }
+	
+	// db := ctrl.db.Connection()
+	// {{toLower .Model}} := models.{{.Model}}{
+	//     // Map request fields
+	// }
+	// if err := db.Create(&{{toLower .Model}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to create {{toLower .Model}}"})
+	// }
+	
+	return c.Status(201).JSON(map[string]string{"message": "Created"})
 }
 
 // Show displays a specific {{toLower .Model}}
 // GET /{{toSnake .Model | toPlural}}/{id}
 func (ctrl *{{.Name}}) Show(c *glib.Ctx) error {
 	id := c.PathValue("id")
-	// TODO: Implement
+	
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model}} models.{{.Model}}
+	// if err := db.First(&{{toLower .Model}}, id).Error; err != nil {
+	//     return c.Status(404).JSON(map[string]string{"error": "{{.Model}} not found"})
+	// }
+	// return c.JSON({{toLower .Model}})
+	
 	return c.JSON(map[string]string{"id": id})
 }
 
-// Store creates a new {{toLower .Model}}
-// POST /{{toSnake .Model | toPlural}}
-func (ctrl *{{.Name}}) Store(c *glib.Ctx) error {
-	// TODO: Implement
-	return c.Status(201).JSON(map[string]string{"message": "Created"})
+// Edit displays a form for editing a {{toLower .Model}}
+// GET /{{toSnake .Model | toPlural}}/{id}/edit
+func (ctrl *{{.Name}}) Edit(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model}} models.{{.Model}}
+	// if err := db.First(&{{toLower .Model}}, id).Error; err != nil {
+	//     return c.Status(404).JSON(map[string]string{"error": "{{.Model}} not found"})
+	// }
+	// Return edit form view or form data with {{toLower .Model}}
+	
+	return c.JSON(map[string]string{"id": id, "message": "Edit form"})
 }
 
 // Update modifies an existing {{toLower .Model}}
-// PUT /{{toSnake .Model | toPlural}}/{id}
+// PUT/PATCH /{{toSnake .Model | toPlural}}/{id}
 func (ctrl *{{.Name}}) Update(c *glib.Ctx) error {
 	id := c.PathValue("id")
-	// TODO: Implement
+	
+	// var req struct {
+	//     // Add your request fields here
+	// }
+	// if err := c.ValidateBody(&req); err != nil {
+	//     return err
+	// }
+	
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model}} models.{{.Model}}
+	// if err := db.First(&{{toLower .Model}}, id).Error; err != nil {
+	//     return c.Status(404).JSON(map[string]string{"error": "{{.Model}} not found"})
+	// }
+	// 
+	// // Update fields
+	// if err := db.Save(&{{toLower .Model}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to update {{toLower .Model}}"})
+	// }
+	
 	return c.JSON(map[string]string{"id": id, "message": "Updated"})
 }
 
@@ -45,8 +127,109 @@ func (ctrl *{{.Name}}) Update(c *glib.Ctx) error {
 // DELETE /{{toSnake .Model | toPlural}}/{id}
 func (ctrl *{{.Name}}) Destroy(c *glib.Ctx) error {
 	id := c.PathValue("id")
-	// TODO: Implement
+	
+	// db := ctrl.db.Connection()
+	// if err := db.Delete(&models.{{.Model}}{}, id).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to delete {{toLower .Model}}"})
+	// }
+	
 	return c.NoContent()
+}
+{{else if eq .Type "api"}}
+// Index lists all {{toLower .Model}}s
+// GET /{{toSnake .Model | toPlural}}
+func (ctrl *{{.Name}}) Index(c *glib.Ctx) error {
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model | toPlural}} []models.{{.Model}}
+	// if err := db.Find(&{{toLower .Model | toPlural}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to fetch {{toLower .Model | toPlural}}"})
+	// }
+	// return c.JSON({{toLower .Model | toPlural}})
+	
+	return c.JSON(map[string]string{"message": "Index"})
+}
+
+// Store creates a new {{toLower .Model}}
+// POST /{{toSnake .Model | toPlural}}
+func (ctrl *{{.Name}}) Store(c *glib.Ctx) error {
+	// var req struct {
+	//     // Add your request fields here
+	// }
+	// if err := c.ValidateBody(&req); err != nil {
+	//     return err
+	// }
+	
+	// db := ctrl.db.Connection()
+	// {{toLower .Model}} := models.{{.Model}}{
+	//     // Map request fields
+	// }
+	// if err := db.Create(&{{toLower .Model}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to create {{toLower .Model}}"})
+	// }
+	
+	return c.Status(201).JSON(map[string]string{"message": "Created"})
+}
+
+// Show displays a specific {{toLower .Model}}
+// GET /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Show(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model}} models.{{.Model}}
+	// if err := db.First(&{{toLower .Model}}, id).Error; err != nil {
+	//     return c.Status(404).JSON(map[string]string{"error": "{{.Model}} not found"})
+	// }
+	// return c.JSON({{toLower .Model}})
+	
+	return c.JSON(map[string]string{"id": id})
+}
+
+// Update modifies an existing {{toLower .Model}}
+// PUT/PATCH /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Update(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	
+	// var req struct {
+	//     // Add your request fields here
+	// }
+	// if err := c.ValidateBody(&req); err != nil {
+	//     return err
+	// }
+	
+	// db := ctrl.db.Connection()
+	// var {{toLower .Model}} models.{{.Model}}
+	// if err := db.First(&{{toLower .Model}}, id).Error; err != nil {
+	//     return c.Status(404).JSON(map[string]string{"error": "{{.Model}} not found"})
+	// }
+	// 
+	// // Update fields
+	// if err := db.Save(&{{toLower .Model}}).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to update {{toLower .Model}}"})
+	// }
+	
+	return c.JSON(map[string]string{"id": id, "message": "Updated"})
+}
+
+// Destroy deletes a {{toLower .Model}}
+// DELETE /{{toSnake .Model | toPlural}}/{id}
+func (ctrl *{{.Name}}) Destroy(c *glib.Ctx) error {
+	id := c.PathValue("id")
+	
+	// db := ctrl.db.Connection()
+	// if err := db.Delete(&models.{{.Model}}{}, id).Error; err != nil {
+	//     return c.Status(500).JSON(map[string]string{"error": "Failed to delete {{toLower .Model}}"})
+	// }
+	
+	return c.NoContent()
+}
+{{else if eq .Type "invokable"}}
+// Invoke handles the single action for this controller
+func (ctrl *{{.Name}}) Invoke(c *glib.Ctx) error {
+	// TODO: Implement your single action logic here
+	// Example: Send email, process payment, export data, etc.
+	
+	return c.JSON(map[string]string{"message": "Invoked {{.Name}}"})
 }
 {{else}}
 // Handle processes the request

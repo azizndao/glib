@@ -5,6 +5,8 @@ A complete blog application demonstrating Glib framework's features for building
 ## What You'll Learn
 
 - **Foundation Module**: Application lifecycle, ServiceProviders, dependency injection
+- **Controllers**: Laravel-style controllers with automatic resource routing
+- **Dependency Injection**: Constructor-based DI for optimal performance
 - **Database Integration**: Connection management, migrations, GORM ORM
 - **Model Relationships**: One-to-many (User → Posts, Post → Comments)
 - **Authentication**: JWT-based auth with middleware
@@ -59,13 +61,16 @@ Comment
 
 ```
 fullstack/
+├── controllers/
+│   ├── auth_controller.go  # Authentication controller
+│   └── post_controller.go  # Post resource controller (CRUD)
 ├── models/
 │   ├── user.go         # User model with posts relationship
 │   ├── post.go         # Post model with user & comments
 │   └── comment.go      # Comment model with user & post
 ├── middleware/
 │   └── auth.go         # JWT authentication middleware
-├── main.go             # Application setup & handlers
+├── main.go             # Application setup & routes
 ├── .env.example        # Environment configuration template
 ├── test.http           # HTTP requests for testing
 ├── .air.toml           # Hot reload configuration
@@ -305,7 +310,80 @@ Use the included `test.http` file with VSCode REST Client extension or similar t
 
 ## Key Concepts Explained
 
-### 1. Foundation Application
+### 1. Controllers with Dependency Injection
+
+This application uses **Laravel-style controllers** with constructor-based dependency injection for clean, testable code:
+
+```go
+// Controller structure
+type PostController struct {
+	db *database.Manager
+}
+
+// Constructor with dependency injection
+func NewPostController(app *foundation.Application) *PostController {
+	dbManager := container.Resolve[*database.Manager](app.Container())
+	return &PostController{db: dbManager}
+}
+
+// Controller methods
+func (ctrl *PostController) Index(c *glib.Ctx) error {
+	db := ctrl.db.Connection()
+	// Use db to query posts...
+}
+```
+
+**Why this pattern?**
+- Dependencies resolved **once at startup**, not per-request
+- Zero per-request dependency resolution overhead (~1-5µs saved per request)
+- Clean, testable controllers
+- Familiar pattern for Laravel/NestJS developers
+
+**Controller registration:**
+```go
+// Enable DI for controllers
+server.SetApplicationDirect(app)
+
+// APIResource automatically creates routes:
+// POST   /api/posts       → Store
+// PUT    /api/posts/{id}  → Update
+// PATCH  /api/posts/{id}  → Update
+// DELETE /api/posts/{id}  → Destroy
+api.APIResource("posts", func(app *foundation.Application) glib.Controller {
+	return controllers.NewPostController(app)
+}, glib.ResourceOptions{
+	Except: []string{"Index", "Show"}, // Public routes registered separately
+})
+```
+
+**Mixed patterns supported:**
+You can use both controllers and inline handlers in the same application:
+
+```go
+// Inline handler (simple routes)
+router.Get("/posts", func(c *glib.Ctx) error {
+	postCtrl := controllers.NewPostController(app)
+	return postCtrl.Index(c)
+})
+
+// Resource controller (CRUD operations)
+api.APIResource("posts", controllers.NewPostController)
+```
+
+**Controller types:**
+
+1. **ResourceController** - Full CRUD with forms (7 routes):
+   - Index, Create, Store, Show, Edit, Update, Destroy
+
+2. **APIResourceController** - API-only CRUD (5 routes):
+   - Index, Store, Show, Update, Destroy
+
+3. **InvokableController** - Single action:
+   - Invoke
+
+See [`http/CONTROLLERS.md`](../../http/CONTROLLERS.md) for complete documentation.
+
+### 2. Foundation Application
 
 The Foundation module provides application lifecycle management:
 
@@ -318,7 +396,7 @@ app.Bootstrap()                      // Initialize all
 
 **ServiceProviders** encapsulate service registration logic. The database provider registers the database manager in the container for dependency injection.
 
-### 2. Database Connection
+### 3. Database Connection
 
 Database manager handles multiple connections:
 
@@ -333,7 +411,7 @@ conn, _ := dbManager.DB()
 db := conn.DB()
 ```
 
-### 3. ORM Relationships
+### 4. ORM Relationships
 
 **User has many Posts:**
 ```go
@@ -357,7 +435,7 @@ type Post struct {
 db.Preload("User").Preload("Comments.User").First(&post)
 ```
 
-### 4. JWT Authentication
+### 5. JWT Authentication
 
 **Token creation** (simplified for demo):
 ```go
@@ -378,7 +456,7 @@ func Auth(c *glib.Ctx) error {
 
 ⚠️ **Security Note:** This example uses simplified JWT for educational purposes. Production applications should use established libraries like `github.com/golang-jwt/jwt/v5`.
 
-### 5. Request Validation
+### 6. Request Validation
 
 Validation uses struct tags:
 ```go
@@ -393,7 +471,7 @@ if err := c.ValidateBody(&req); err != nil {
 }
 ```
 
-### 6. Pagination
+### 7. Pagination
 
 Using the ORM pagination helper:
 ```go
@@ -406,7 +484,7 @@ paginator, err := orm.Paginate(ctx, chain, page, perPage)
 
 Returns data with metadata: total, current_page, last_page, from, to.
 
-### 7. Soft Deletes
+### 8. Soft Deletes
 
 Posts use GORM's soft delete:
 ```go
@@ -424,6 +502,32 @@ db.Find(&posts)
 db.Unscoped().Find(&posts)
 ```
 
+## Generating Controllers
+
+Use the CLI to generate controllers:
+
+```bash
+# Basic controller
+glib make:controller NotificationController
+
+# Resource controller (7 methods: Index, Create, Store, Show, Edit, Update, Destroy)
+glib make:controller PostController --resource
+
+# API Resource controller (5 methods: Index, Store, Show, Update, Destroy)
+glib make:controller PostController --api
+
+# Invokable controller (single Invoke method)
+glib make:controller PublishPostController --invokable
+```
+
+The generated controllers automatically include:
+- Constructor with dependency injection
+- Database manager resolved from container
+- Commented example code for common operations
+- Type-safe handler methods
+
+See [`http/CONTROLLERS.md`](../../http/CONTROLLERS.md) for detailed documentation.
+
 ## Development
 
 ### Hot Reload with Air
@@ -440,9 +544,14 @@ Configuration is in `.air.toml`.
 
 ### Adding Features
 
-**Example: Add post categories**
+**Example: Add post categories using controllers**
 
 1. **Create category model:**
+   ```bash
+   glib make:model Category --migration --controller
+   ```
+
+2. **Update generated model with fields:**
    ```go
    type Category struct {
        ID   uuid.UUID `gorm:"type:uuid;primary_key"`
@@ -450,7 +559,7 @@ Configuration is in `.air.toml`.
    }
    ```
 
-2. **Add relationship to Post:**
+3. **Add relationship to Post:**
    ```go
    type Post struct {
        // ... existing fields
@@ -459,16 +568,20 @@ Configuration is in `.air.toml`.
    }
    ```
 
-3. **Update migration:**
+4. **Register the controller:**
    ```go
-   db.AutoMigrate(&models.Category{})
+   // In main.go
+   router.APIResource("categories", func(app *foundation.Application) glib.Controller {
+       return controllers.NewCategoryController(app)
+   })
    ```
 
-4. **Add endpoints:**
-   ```go
-   router.Get("/categories", listCategories(app))
-   router.Post("/api/categories", createCategory(app))
-   ```
+5. **The controller automatically provides:**
+   - GET    /categories      → List all
+   - POST   /categories      → Create
+   - GET    /categories/{id} → Show one
+   - PUT    /categories/{id} → Update
+   - DELETE /categories/{id} → Delete
 
 ## Common Issues
 

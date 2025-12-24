@@ -184,7 +184,8 @@ type ControllerData struct {
 	Package  string
 	Name     string
 	Model    string
-	Resource bool
+	Resource bool   // Deprecated: use Type instead
+	Type     string // "resource", "api", "invokable", or "" for basic
 	Imports  []string
 	Comment  string
 }

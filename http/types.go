@@ -3,6 +3,7 @@ package glib
 import (
 	"net/http"
 
+	"github.com/azizndao/glib/foundation"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -60,6 +61,52 @@ type Router interface {
 	// MethodNotAllowed defines a handler to respond whenever a method is
 	// not allowed.
 	MethodNotAllowed(h HandleFunc)
+
+	// Resource registers a resource controller with standard RESTful routes.
+	// Generates routes for Index, Create, Store, Show, Edit, Update, and Destroy methods.
+	//
+	// Example:
+	//	router.Resource("posts", func(app *foundation.Application) glib.Controller {
+	//	    return controllers.NewPostController(app)
+	//	})
+	//
+	// Generated routes:
+	//	GET    /posts              -> Index
+	//	GET    /posts/create       -> Create
+	//	POST   /posts              -> Store
+	//	GET    /posts/{id}         -> Show
+	//	GET    /posts/{id}/edit    -> Edit
+	//	PUT    /posts/{id}         -> Update
+	//	PATCH  /posts/{id}         -> Update
+	//	DELETE /posts/{id}         -> Destroy
+	Resource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router
+
+	// APIResource registers an API resource controller without form routes.
+	// Generates routes for Index, Store, Show, Update, and Destroy methods only.
+	// Excludes Create and Edit which are typically used for rendering forms.
+	//
+	// Example:
+	//	router.APIResource("posts", func(app *foundation.Application) glib.Controller {
+	//	    return controllers.NewPostController(app)
+	//	})
+	//
+	// Generated routes:
+	//	GET    /posts              -> Index
+	//	POST   /posts              -> Store
+	//	GET    /posts/{id}         -> Show
+	//	PUT    /posts/{id}         -> Update
+	//	PATCH  /posts/{id}         -> Update
+	//	DELETE /posts/{id}         -> Destroy
+	APIResource(pattern string, constructor ControllerConstructor, options ...ResourceOptions) Router
+
+	// InvokableController registers a single-action controller.
+	// The controller must implement InvokableController interface with an Invoke method.
+	//
+	// Example:
+	//	router.InvokableController("POST", "/posts/{id}/publish", func(app *foundation.Application) glib.Controller {
+	//	    return controllers.NewPublishPostController(app)
+	//	})
+	InvokableController(method, pattern string, constructor ControllerConstructor) Router
 }
 
 type RouterBlock func(block func(Router))
@@ -74,3 +121,13 @@ type RouterConfig struct {
 
 	TrailingSlashRedirect bool
 }
+
+// ControllerConstructor is a function that creates a controller instance.
+// It receives the application instance and returns a controller.
+//
+// Example:
+//
+//	func(app *foundation.Application) glib.Controller {
+//	    return controllers.NewPostController(app)
+//	}
+type ControllerConstructor func(*foundation.Application) Controller

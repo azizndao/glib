@@ -12,9 +12,10 @@ import (
 	"time"
 
 	gerrors "github.com/azizndao/glib/common/errors"
-	"github.com/azizndao/glib/middleware"
 	logger "github.com/azizndao/glib/common/slog"
 	"github.com/azizndao/glib/common/util"
+	"github.com/azizndao/glib/foundation"
+	"github.com/azizndao/glib/middleware"
 )
 
 type Config struct {
@@ -97,6 +98,38 @@ func (s *Server) Logger() *logger.Logger {
 // Address returns the server address (host:port)
 func (s *Server) Address() string {
 	return s.httpServer.Addr
+}
+
+// SetApplication sets the application instance for controller dependency injection.
+// This must be called before registering any resource or API resource routes.
+//
+// Example:
+//
+//	app := foundation.New(".")
+//	server := glib.New(glib.Config{})
+//	server.SetApplication(app)
+//
+//	// Now you can register controllers
+//	server.Router().Resource("posts", func(app *foundation.Application) glib.Controller {
+//	    return controllers.NewPostController(app)
+//	})
+func (s *Server) SetApplication(app interface {
+	GetApp() *foundation.Application
+}) {
+	if r, ok := s.router.(*router); ok {
+		if appProvider, ok := app.(interface {
+			GetApp() *foundation.Application
+		}); ok {
+			r.app = appProvider.GetApp()
+		}
+	}
+}
+
+// SetApplicationDirect sets the application directly (internal use).
+func (s *Server) SetApplicationDirect(app *foundation.Application) {
+	if r, ok := s.router.(*router); ok {
+		r.app = app
+	}
 }
 
 // Listen starts the HTTP server
