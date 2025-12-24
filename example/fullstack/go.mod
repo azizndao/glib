@@ -19,6 +19,7 @@ require (
 	github.com/azizndao/glib/foundation v0.0.0
 	github.com/azizndao/glib/validation v0.0.0
 	github.com/google/uuid v1.6.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -50,5 +51,4 @@ require (
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 	gorm.io/driver/sqlite v1.6.0 // indirect
-	gorm.io/gorm v1.31.1 // indirect
 )
