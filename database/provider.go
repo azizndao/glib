@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/azizndao/glib/container"
+	"github.com/azizndao/glib/common/container"
 	"github.com/azizndao/glib/foundation"
 )
 

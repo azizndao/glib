@@ -1,6 +1,19 @@
-go 1.25.1
+go 1.25.5
 
 use (
-	.
-	./tools/cli
+	./cli
+	./common
+	./core
+	./database
+	./foundation
+	./example/basic
+	./example/cli-demo
+	./example/comprehensive
+	./example/database
+	./example/foundation
+	./example/orm
+	./example/relationships
+	./example/sub_routing
+	./ratelimit
+	./validation
 )

@@ -21,7 +21,8 @@ import (
 	"time"
 
 	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/common/errors"
+	"github.com/azizndao/glib/validation"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
@@ -70,15 +71,20 @@ func main() {
 	// Load environment variables from .env file
 	godotenv.Load()
 
-	// Create server with multi-language validation support
-	serverConfig := glib.Config{
-		Locales: []glib.LocaleConfig{
-			glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
-			glib.Locale(es.New(), est.RegisterDefaultTranslations),
+	// Create validator with multi-language support
+	validator := validation.New(validation.Config{
+		DefaultLocale:     "en",
+		UseJSONFieldNames: true,
+		Locales: []validation.LocaleConfig{
+			validation.Locale(fr.New(), frt.RegisterDefaultTranslations),
+			validation.Locale(es.New(), est.RegisterDefaultTranslations),
 		},
-	}
+	})
 
-	server := glib.New(serverConfig)
+	// Create server with validator
+	server := glib.New(glib.Config{
+		Validator: validator,
+	})
 	r := server.Router()
 
 	// ====================

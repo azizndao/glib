@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/azizndao/glib/orm"
+	"github.com/azizndao/glib/database/orm"
 	"github.com/google/uuid"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/errors"
+	"github.com/azizndao/glib/common/errors"
+	"github.com/azizndao/glib/validation"
 	"github.com/go-playground/locales/es"
 	"github.com/go-playground/locales/fr"
 	est "github.com/go-playground/validator/v10/translations/es"
@@ -31,17 +32,21 @@ type CreateProductRequest struct {
 
 func main() {
 	godotenv.Load()
-	// Create server - all configuration loaded from environment variables
-	// See .env.example for available configuration options
-	// Set environment variables to customize the server behavior
-	options := glib.Config{
-		Locales: []glib.LocaleConfig{
-			glib.Locale(fr.New(), frt.RegisterDefaultTranslations),
-			glib.Locale(es.New(), est.RegisterDefaultTranslations),
-		},
-	}
 
-	server := glib.New(options)
+	// Create validator with localization support
+	validator := validation.New(validation.Config{
+		DefaultLocale:     "en",
+		UseJSONFieldNames: true,
+		Locales: []validation.LocaleConfig{
+			validation.Locale(fr.New(), frt.RegisterDefaultTranslations),
+			validation.Locale(es.New(), est.RegisterDefaultTranslations),
+		},
+	})
+
+	// Create server with validator
+	server := glib.New(glib.Config{
+		Validator: validator,
+	})
 
 	// Get the router from the server to register routes
 	rf := server.Router()

@@ -2,10 +2,16 @@ module github.com/azizndao/glib/example/comprehensive
 
 go 1.25.1
 
-replace github.com/azizndao/glib => ../..
+replace github.com/azizndao/glib => ../../core
+
+replace github.com/azizndao/glib/common => ../../common
+
+replace github.com/azizndao/glib/validation => ../../validation
 
 require (
-	github.com/azizndao/glib v0.0.0-00010101000000-000000000000
+	github.com/azizndao/glib v0.3.2
+	github.com/azizndao/glib/common v0.0.0
+	github.com/azizndao/glib/validation v0.0.0-00010101000000-000000000000
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/validator/v10 v10.28.0
@@ -22,7 +28,7 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 )

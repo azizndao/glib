@@ -11,8 +11,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/azizndao/glib/config"
-	"github.com/azizndao/glib/container"
+	"github.com/azizndao/glib/common/config"
+	"github.com/azizndao/glib/common/container"
 	"github.com/azizndao/glib/foundation"
 )
 

@@ -2,10 +2,16 @@ module github.com/azizndao/glib/example/relationships
 
 go 1.25.1
 
-replace github.com/azizndao/glib => ../../
+replace github.com/azizndao/glib/common => ../../common
+
+replace github.com/azizndao/glib/foundation => ../../foundation
+
+replace github.com/azizndao/glib/database => ../../database
 
 require (
-	github.com/azizndao/glib v0.0.0-00010101000000-000000000000
+	github.com/azizndao/glib/common v0.0.0
+	github.com/azizndao/glib/database v0.0.0
+	github.com/azizndao/glib/foundation v0.0.0
 	github.com/google/uuid v1.6.0
 	gorm.io/gorm v1.31.1
 )

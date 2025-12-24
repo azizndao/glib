@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/azizndao/glib/errors"
-	"github.com/azizndao/glib/slog"
+	"github.com/azizndao/glib/common/errors"
+	"github.com/azizndao/glib/common/slog"
 	"github.com/go-playground/locales"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"

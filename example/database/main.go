@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/azizndao/glib/config"
+	"github.com/azizndao/glib/common/config"
 	"github.com/azizndao/glib/database"
 	"github.com/azizndao/glib/foundation"
 )

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/azizndao/glib/config"
+	"github.com/azizndao/glib/common/config"
 	"github.com/azizndao/glib/database"
+	"github.com/azizndao/glib/database/orm"
 	"github.com/azizndao/glib/foundation"
-	"github.com/azizndao/glib/orm"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )

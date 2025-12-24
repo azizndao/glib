@@ -5,7 +5,7 @@ package foundation
 import (
 	"fmt"
 
-	"github.com/azizndao/glib/container"
+	"github.com/azizndao/glib/common/container"
 )
 
 // ServiceProvider is the interface for service providers.

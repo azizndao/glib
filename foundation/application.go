@@ -10,8 +10,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/azizndao/glib/config"
-	"github.com/azizndao/glib/container"
+	"github.com/azizndao/glib/common/config"
+	"github.com/azizndao/glib/common/container"
 )
 
 // Application is the core application instance.

@@ -2,7 +2,17 @@ module github.com/azizndao/glib/example/database
 
 go 1.25.1
 
-require github.com/azizndao/glib v0.0.0
+replace github.com/azizndao/glib/common => ../../common
+
+replace github.com/azizndao/glib/foundation => ../../foundation
+
+replace github.com/azizndao/glib/database => ../../database
+
+require (
+	github.com/azizndao/glib/common v0.0.0
+	github.com/azizndao/glib/database v0.0.0
+	github.com/azizndao/glib/foundation v0.0.0
+)
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -22,5 +32,3 @@ require (
 	gorm.io/driver/sqlite v1.6.0 // indirect
 	gorm.io/gorm v1.31.1 // indirect
 )
-
-replace github.com/azizndao/glib => ../..
