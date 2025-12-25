@@ -10,10 +10,13 @@ use (
 	./database
 	./example/cache-api
 	./example/fullstack
+	./example/queue-api
 	./example/quickstart
 	./example/storage-api
 	./foundation
 	./http
+	./queue
+	./queue/drivers/redis
 	./ratelimit
 	./storage
 	./storage/local

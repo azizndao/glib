@@ -1,0 +1,23 @@
+# Binaries
+queue-api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work.sum
+
+# Environment files
+.env
+.env.local
