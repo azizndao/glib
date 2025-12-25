@@ -9,6 +9,7 @@ A modular, Laravel-inspired web framework for Go that brings the elegance and de
 ## 🎯 Philosophy
 
 **glib** is designed to be:
+
 - **Modular**: Use only what you need - HTTP server, database, validation, or all together
 - **Laravel-Inspired**: Familiar patterns for Laravel developers, idiomatic Go for Go developers
 - **Flexible**: Service Provider pattern enables powerful extensibility
@@ -20,15 +21,15 @@ glib is split into independent, composable modules:
 
 ### Core Modules
 
-| Module | Import Path | Description |
-|--------|-------------|-------------|
-| **http** | `github.com/azizndao/glib` | HTTP server, routing, middleware, context |
-| **common** | `github.com/azizndao/glib/common` | Utilities (errors, logging, config, container) |
-| **foundation** | `github.com/azizndao/glib/foundation` | DI framework, ServiceProvider pattern |
-| **database** | `github.com/azizndao/glib/database` | Database manager, ORM helpers, relationships |
-| **validation** | `github.com/azizndao/glib/validation` | Request validation with i18n support |
-| **ratelimit** | `github.com/azizndao/glib/ratelimit` | Rate limiting utilities |
-| **cli** | `github.com/azizndao/glib/cli` | Code generators, project scaffolding |
+| Module         | Import Path                           | Description                                    |
+| -------------- | ------------------------------------- | ---------------------------------------------- |
+| **http**       | `github.com/azizndao/glib`            | HTTP server, routing, middleware, context      |
+| **common**     | `github.com/azizndao/glib/common`     | Utilities (errors, logging, config, container) |
+| **foundation** | `github.com/azizndao/glib/foundation` | DI framework, ServiceProvider pattern          |
+| **database**   | `github.com/azizndao/glib/database`   | Database manager, ORM helpers, relationships   |
+| **validation** | `github.com/azizndao/glib/validation` | Request validation with i18n support           |
+| **ratelimit**  | `github.com/azizndao/glib/ratelimit`  | Rate limiting utilities                        |
+| **cli**        | `github.com/azizndao/glib/cli`        | Code generators, project scaffolding           |
 
 ### Module Dependencies
 
@@ -65,11 +66,11 @@ import (
 func main() {
     server := glib.New(glib.Config{})
     r := server.Router()
-    
+
     r.Get("/", func(c *glib.Ctx) error {
         return c.JSON(map[string]string{"message": "Hello World"})
     })
-    
+
     server.ListenWithGracefulShutdown()
 }
 ```
@@ -95,18 +96,18 @@ import (
 func main() {
     // Create application with DI container
     app := foundation.NewApplication()
-    
+
     // Register database provider
     app.Register(&database.Provider{
         Driver: sqlite.Open("app.db"),
     })
-    
+
     // Bootstrap application
     app.Boot()
-    
+
     // Create HTTP server
     server := glib.New(glib.Config{})
-    
+
     // Use database in routes
     r := server.Router()
     r.Get("/users", func(c *glib.Ctx) error {
@@ -115,7 +116,7 @@ func main() {
         db.Connection().Find(&users)
         return c.JSON(users)
     })
-    
+
     server.ListenWithGracefulShutdown()
 }
 ```
@@ -273,6 +274,7 @@ See [.spec/](./.spec/) directory for comprehensive framework specifications and 
 See [MIGRATION.md](./MIGRATION.md) for detailed migration guide from v1.x to v2.0.0.
 
 **Key Breaking Changes:**
+
 - Modular architecture - install only what you need
 - `core` renamed to `http` for clarity
 - `foundation` extracted to separate module
@@ -365,6 +367,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 See [.spec/IMPLEMENTATION-ROADMAP.md](./.spec/IMPLEMENTATION-ROADMAP.md) for detailed roadmap.
 
 ### v2.0.0 (Current - Alpha)
+
 - ✅ Modular architecture
 - ✅ HTTP server module
 - ✅ Foundation module (DI, ServiceProvider)
@@ -375,18 +378,21 @@ See [.spec/IMPLEMENTATION-ROADMAP.md](./.spec/IMPLEMENTATION-ROADMAP.md) for det
 - ⏳ Beta testing
 
 ### v2.1.0 (Planned)
+
 - Authentication system
 - Session management
 - OAuth2 providers
 - Authorization (policies, gates)
 
 ### v2.2.0 (Planned)
+
 - Queue system
 - Task scheduling
 - Job chaining
 - Multiple queue drivers
 
 ### v3.0.0 (Future)
+
 - Cache system
 - File storage abstraction
 - Cloud storage integration

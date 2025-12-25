@@ -1,13 +1,22 @@
 go 1.25.5
 
 use (
+	./cache
+	./cache/database
+	./cache/memory
+	./cache/redis
 	./cli
 	./common
 	./database
+	./example/cache-api
 	./example/fullstack
 	./example/quickstart
+	./example/storage-api
 	./foundation
 	./http
 	./ratelimit
+	./storage
+	./storage/local
+	./storage/s3
 	./validation
 )
