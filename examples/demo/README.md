@@ -1,81 +1,209 @@
-# glib/demo
 
-Glib 2.0 application.
+The server will start on port 8091 (configured in `.glibrc`).
 
-## Getting Started
+### Testing the API
 
-### Prerequisites
-
-- Go 1.23 or higher
-- Glib CLI: `go install github.com/goyave/glib/v2/cmd/glib@latest`
-
-### Development
-
-Install dependencies:
+Get all posts:
 ```bash
-go mod tidy
+curl http://localhost:8091/api/v1/posts
 ```
 
-Generate code:
+Create a post:
 ```bash
-glib generate
+curl -X POST http://localhost:8091/api/v1/posts \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My Post","content":"Hello World"}'
 ```
 
-Run development server with hot reload:
+Get a specific post:
 ```bash
-glib dev
+curl http://localhost:8091/api/v1/posts/{id}
 ```
 
-Run without hot reload:
+Create a comment:
 ```bash
-go run .
+curl -X POST http://localhost:8091/api/v1/posts/{postId}/comments \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Great post!"}'
 ```
 
-### Project Structure
+### Creating New Components
 
-- `main.go` - Application entry point
-- `config.go` - Configuration loading
-- `generated/` - Auto-generated code (do not edit)
-- `controllers/` - HTTP controllers
-- `providers/` - Dependency injection providers
-- `middleware/` - HTTP middleware
-
-### Creating Components
+From the demo directory:
 
 Create a controller:
 ```bash
-glib make controller posts
+../../bin/glib make controller users
 ```
 
 Create a provider:
 ```bash
-glib make provider database
+../../bin/glib make provider database
 ```
 
 Create middleware:
 ```bash
-glib make middleware auth
+../../bin/glib make middleware auth
+```
+
+After creating components, regenerate:
+```bash
+../../bin/glib generate
 ```
 
 ### Building for Production
 
 Build:
 ```bash
-glib generate
-go build -o bin/app .
+../../bin/glib generate
+go build -o demo .
 ```
 
 Run:
 ```bash
-./bin/app
+./demo
 ```
 
-## Documentation
+Or with custom port:
+```bash
+APP_PORT=3000 ./demo
+```
 
-- [Glib Documentation](https://github.com/goyave/glib/v2)
-- [Annotations Reference](https://github.com/goyave/glib/v2/blob/main/.spec/01-ANNOTATIONS.md)
-- [Handler Patterns](https://github.com/goyave/glib/v2/blob/main/.spec/02-HANDLERS.md)
+## Code Structure
 
-## License
+### Controllers
 
-MIT
+Controllers use annotations to define routes:
+
+```go
+// @Controller /api/v1/posts
+type PostsController struct {
+    // Dependencies auto-injected by type
+}
+
+// @Route GET /{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+    // Handler implementation
+}
+```
+
+### Request/Response Models
+
+Models are plain Go structs:
+
+```go
+type CreatePostRequest struct {
+    Title   string `json:"title"`
+    Content string `json:"content"`
+}
+
+type Post struct {
+    ID        uuid.UUID  `json:"id"`
+    Title     string     `json:"title"`
+    Content   string     `json:"content"`
+    CreatedAt time.Time  `json:"created_at"`
+}
+```
+
+### Configuration
+
+Configuration is loaded from environment variables in `config.go`:
+
+```go
+cfg := LoadConfig()
+// cfg.App.Port, cfg.Database.Host, etc.
+```
+
+Environment variables:
+- `APP_PORT` - Server port (default: 8080)
+- `APP_ENV` - Environment (default: development)
+- Database config (if needed)
+
+## Handler Examples
+
+This demo showcases different handler patterns:
+
+### Pattern 5: Context + Response
+```go
+// @Route GET /
+func (c *PostsController) Index(ctx context.Context) ([]*Post, error)
+```
+
+### Pattern 7: Context + Path Parameter
+```go
+// @Route GET /{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error)
+```
+
+### Pattern 8: Context + Path Parameter + Request
+```go
+// @Route POST /{postId}/comments
+func (c *CommentsController) Create(
+    ctx context.Context,
+    postId uuid.UUID,
+    req CreateCommentRequest,
+) (*Comment, error)
+```
+
+### Pattern 4: Context + Error (No Response)
+```go
+// @Route DELETE /{id}
+func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) error
+```
+
+## Validation
+
+Validate annotations without generating:
+```bash
+../../bin/glib validate
+```
+
+This checks for:
+- Duplicate routes
+- Invalid HTTP methods
+- Malformed path parameters
+- Handler signature issues
+
+## Hot Reload
+
+The `glib dev` command provides hot reload:
+
+1. Watches for `.go` file changes
+2. Runs `glib generate` automatically
+3. Rebuilds the application
+4. Restarts the server
+
+Configuration is in `.air.toml` (auto-generated).
+
+## Troubleshooting
+
+### Port already in use
+
+Change port in `.glibrc`:
+```json
+{
+  "dev": {
+    "port": 3000
+  }
+}
+```
+
+Or use environment variable:
+```bash
+APP_PORT=3000 go run .
+```
+
+### Generated code not updating
+
+Clean and regenerate:
+```bash
+rm -rf generated/
+../../bin/glib generate
+```
+
+### Build errors
+
+Make sure dependencies are installed:
+```bash
+go mod tidy
+```
