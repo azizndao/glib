@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/goyave/glib/v2/internal/scanner"
+	"github.com/goyave/glib/v2/internal/validator"
 	"github.com/spf13/cobra"
 )
 
@@ -74,6 +75,33 @@ func runGenerate(opts *generateOptions) error {
 	fmt.Printf("   Found %d controllers\n", len(project.Controllers))
 	fmt.Printf("   Found %d providers\n", len(project.Providers))
 	fmt.Printf("   Found %d middleware\n", len(project.Middleware))
+
+	// Count total handlers
+	totalHandlers := 0
+	for _, ctrl := range project.Controllers {
+		totalHandlers += len(ctrl.Handlers)
+	}
+	fmt.Printf("   Found %d handlers\n", totalHandlers)
+
+	// Validate
+	fmt.Println("\n🔍 Validating...")
+	validator := validator.New()
+	if err := validator.Validate(project); err != nil {
+		// Print errors
+		for _, verr := range validator.Errors() {
+			fmt.Printf("   ❌ %s\n", verr.Message)
+		}
+		return err
+	}
+
+	// Print warnings
+	if len(validator.Warnings()) > 0 {
+		for _, warn := range validator.Warnings() {
+			fmt.Printf("   ⚠️  %s\n", warn.Message)
+		}
+	}
+
+	fmt.Println("✅ Validation passed")
 
 	if opts.verbose {
 		fmt.Println("\n📋 Controllers:")
