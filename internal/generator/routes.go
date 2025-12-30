@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goyave/glib/v2/internal/scanner"
+	"github.com/azizndao/glib/internal/scanner"
 )
 
 // generateRoutes generates the route registration code (routes.gen.go)

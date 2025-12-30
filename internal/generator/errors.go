@@ -16,7 +16,7 @@ func (g *Generator) generateErrors() (string, error) {
 	b.WriteString("\t\"encoding/json\"\n")
 	b.WriteString("\t\"errors\"\n")
 	b.WriteString("\t\"net/http\"\n")
-	b.WriteString("\t\"github.com/goyave/glib/v2/pkg/errs\"\n")
+	b.WriteString("\t\"github.com/azizndao/glib/pkg/errs\"\n")
 	b.WriteString(")\n\n")
 
 	// writeJSON helper

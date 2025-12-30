@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/goyave/glib/v2/internal/scanner"
+	"github.com/azizndao/glib/internal/scanner"
 )
 
 // Generator generates code from scanned project

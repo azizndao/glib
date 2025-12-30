@@ -5,7 +5,7 @@ package generated
 import (
 	"encoding/json"
 	"errors"
-	"github.com/goyave/glib/v2/pkg/errs"
+	"github.com/azizndao/glib/pkg/errs"
 	"net/http"
 )
 

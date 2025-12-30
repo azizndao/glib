@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goyave/glib/v2/internal/cli"
+	"github.com/azizndao/glib/internal/cli"
 )
 
 var version = "2.0.0-dev"

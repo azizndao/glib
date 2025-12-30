@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goyave/glib/v2/internal/scanner"
+	"github.com/azizndao/glib/internal/scanner"
 )
 
 // generateDI generates the DI container (di.gen.go)

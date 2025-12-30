@@ -19,7 +19,7 @@ Glib 2.0 is a complete rewrite that uses annotation-based code generation to eli
 ### Installation
 
 ```bash
-go install github.com/goyave/glib/v2/cmd/glib@latest
+go install github.com/azizndao/glib/cmd/glib@latest
 ```
 
 Optionally install Air for hot reload:
@@ -307,7 +307,7 @@ func (c *Controller) Handle(ctx context.Context, userId uuid.UUID, postId uuid.U
 Glib uses structured errors with automatic HTTP status mapping:
 
 ```go
-import "github.com/goyave/glib/v2/pkg/errs"
+import "github.com/azizndao/glib/pkg/errs"
 
 func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
     var post Post

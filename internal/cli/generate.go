@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goyave/glib/v2/internal/generator"
-	"github.com/goyave/glib/v2/internal/scanner"
-	"github.com/goyave/glib/v2/internal/validator"
+	"github.com/azizndao/glib/internal/generator"
+	"github.com/azizndao/glib/internal/scanner"
+	"github.com/azizndao/glib/internal/validator"
 	"github.com/spf13/cobra"
 )
 

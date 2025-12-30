@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goyave/glib/v2/internal/scanner"
+	"github.com/azizndao/glib/internal/scanner"
 )
 
 // generateParsers generates request/response parsers for each handler (parsers.gen.go)

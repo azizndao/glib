@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/goyave/glib/v2/pkg/errs"
+	"github.com/azizndao/glib/pkg/errs"
 )
 
 func TestCode_HTTPStatus(t *testing.T) {

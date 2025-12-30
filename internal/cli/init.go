@@ -139,7 +139,7 @@ func createGoMod(dir, module string) error {
 go 1.23
 
 require (
-	github.com/goyave/glib/v2 v2.0.0-dev
+	github.com/azizndao/glib v2.0.0-dev
 )
 `, module)
 
@@ -413,7 +413,7 @@ Glib 2.0 application.
 ### Prerequisites
 
 - Go 1.23 or higher
-- Glib CLI: `+"`"+`go install github.com/goyave/glib/v2/cmd/glib@latest`+"`"+`
+- Glib CLI: `+"`"+`go install github.com/azizndao/glib/cmd/glib@latest`+"`"+`
 
 ### Development
 
@@ -478,9 +478,9 @@ Run:
 
 ## Documentation
 
-- [Glib Documentation](https://github.com/goyave/glib/v2)
-- [Annotations Reference](https://github.com/goyave/glib/v2/blob/main/.spec/01-ANNOTATIONS.md)
-- [Handler Patterns](https://github.com/goyave/glib/v2/blob/main/.spec/02-HANDLERS.md)
+- [Glib Documentation](https://github.com/azizndao/glib)
+- [Annotations Reference](https://github.com/azizndao/glib/blob/main/.spec/01-ANNOTATIONS.md)
+- [Handler Patterns](https://github.com/azizndao/glib/blob/main/.spec/02-HANDLERS.md)
 
 ## License
 
