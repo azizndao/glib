@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/goyave/glib/v2/internal/generator"
 	"github.com/goyave/glib/v2/internal/scanner"
 	"github.com/goyave/glib/v2/internal/validator"
 	"github.com/spf13/cobra"
@@ -57,6 +58,27 @@ func runGenerate(opts *generateOptions) error {
 		}
 	}
 
+	// Load config
+	cfg, err := loadGlibrc()
+	if err != nil {
+		return fmt.Errorf("failed to load .glibrc: %w", err)
+	}
+
+	// Determine output directory
+	outputDir := opts.output
+	if outputDir == "" {
+		outputDir = cfg.Generate.Output
+		if outputDir == "" {
+			outputDir = "generated"
+		}
+	}
+
+	// Determine package name
+	pkgName := cfg.Generate.Package
+	if pkgName == "" {
+		pkgName = "generated"
+	}
+
 	fmt.Println("🔍 Scanning project...")
 
 	// Create scanner
@@ -71,37 +93,53 @@ func runGenerate(opts *generateOptions) error {
 		return fmt.Errorf("failed to scan project: %w", err)
 	}
 
-	// Print results
-	fmt.Printf("   Found %d controllers\n", len(project.Controllers))
-	fmt.Printf("   Found %d providers\n", len(project.Providers))
-	fmt.Printf("   Found %d middleware\n", len(project.Middleware))
-
-	// Count total handlers
+	// Count handlers
 	totalHandlers := 0
 	for _, ctrl := range project.Controllers {
 		totalHandlers += len(ctrl.Handlers)
 	}
+
+	// Print results
+	fmt.Printf("   Found %d controllers\n", len(project.Controllers))
+	fmt.Printf("   Found %d providers\n", len(project.Providers))
+	fmt.Printf("   Found %d middleware\n", len(project.Middleware))
 	fmt.Printf("   Found %d handlers\n", totalHandlers)
 
 	// Validate
 	fmt.Println("\n🔍 Validating...")
-	validator := validator.New()
-	if err := validator.Validate(project); err != nil {
+	val := validator.New()
+	if err := val.Validate(project); err != nil {
 		// Print errors
-		for _, verr := range validator.Errors() {
+		for _, verr := range val.Errors() {
 			fmt.Printf("   ❌ %s\n", verr.Message)
 		}
 		return err
 	}
 
 	// Print warnings
-	if len(validator.Warnings()) > 0 {
-		for _, warn := range validator.Warnings() {
+	if len(val.Warnings()) > 0 {
+		for _, warn := range val.Warnings() {
 			fmt.Printf("   ⚠️  %s\n", warn.Message)
 		}
 	}
 
 	fmt.Println("✅ Validation passed")
+
+	// Generate code
+	fmt.Println("\n🔨 Generating code...")
+
+	gen := generator.New(project, outputDir, pkgName)
+	if err := gen.Generate(); err != nil {
+		return fmt.Errorf("failed to generate code: %w", err)
+	}
+
+	fmt.Printf("   ✓ %s/glib.gen.go\n", outputDir)
+	fmt.Printf("   ✓ %s/di.gen.go\n", outputDir)
+	fmt.Printf("   ✓ %s/routes.gen.go\n", outputDir)
+	fmt.Printf("   ✓ %s/parsers.gen.go\n", outputDir)
+	fmt.Printf("   ✓ %s/errors.gen.go\n", outputDir)
+
+	fmt.Println("\n✅ Generation complete!")
 
 	if opts.verbose {
 		fmt.Println("\n📋 Controllers:")
@@ -123,9 +161,8 @@ func runGenerate(opts *generateOptions) error {
 		}
 	}
 
-	fmt.Println("\n✅ Scanning complete")
-	fmt.Println("\n⚠️  Code generation not implemented yet")
-	fmt.Println("   (Phase 5 - coming soon)")
+	fmt.Println("\n📝 Next steps:")
+	fmt.Println("   go run .")
 
 	return nil
 }
