@@ -5,10 +5,225 @@ package generated
 import (
 	"encoding/json"
 	"github.com/google/uuid"
+	"glib/demo/controllers/admin"
+	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
+	"glib/demo/controllers/session"
 	"net/http"
 )
+
+// handleAdminControllerIndex wraps Controller.Index
+func handleAdminControllerIndex(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		resp, err := c.adminController.Index(ctx)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminControllerShow wraps Controller.Show
+func handleAdminControllerShow(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp, err := c.adminController.Show(ctx, id)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminControllerCreate wraps Controller.Create
+func handleAdminControllerCreate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse request body
+		var req admin.CreateAdminRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.adminController.Create(ctx, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminControllerUpdate wraps Controller.Update
+func handleAdminControllerUpdate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		// Parse request body
+		var req admin.UpdateAdminRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.adminController.Update(ctx, id, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminControllerDelete wraps Controller.Delete
+func handleAdminControllerDelete(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if err := c.adminController.Delete(ctx, id); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleAuthControllerIndex wraps Controller.Index
+func handleAuthControllerIndex(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		resp, err := c.authController.Index(ctx)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAuthControllerShow wraps Controller.Show
+func handleAuthControllerShow(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp, err := c.authController.Show(ctx, id)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAuthControllerCreate wraps Controller.Create
+func handleAuthControllerCreate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse request body
+		var req auth.CreateAuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.authController.Create(ctx, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAuthControllerUpdate wraps Controller.Update
+func handleAuthControllerUpdate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		// Parse request body
+		var req auth.UpdateAuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.authController.Update(ctx, id, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAuthControllerDelete wraps Controller.Delete
+func handleAuthControllerDelete(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if err := c.authController.Delete(ctx, id); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
 
 // handleCommentControllerIndex wraps Controller.Index
 func handleCommentControllerIndex(c *container) http.HandlerFunc {
@@ -215,6 +430,112 @@ func handlePostControllerDelete(c *container) http.HandlerFunc {
 			return
 		}
 		if err := c.postController.Delete(ctx, id); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleSessionControllerIndex wraps Controller.Index
+func handleSessionControllerIndex(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		resp, err := c.sessionController.Index(ctx)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleSessionControllerShow wraps Controller.Show
+func handleSessionControllerShow(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp, err := c.sessionController.Show(ctx, id)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleSessionControllerCreate wraps Controller.Create
+func handleSessionControllerCreate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse request body
+		var req session.CreateSessionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.sessionController.Create(ctx, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleSessionControllerUpdate wraps Controller.Update
+func handleSessionControllerUpdate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		// Parse request body
+		var req session.UpdateSessionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.sessionController.Update(ctx, id, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleSessionControllerDelete wraps Controller.Delete
+func handleSessionControllerDelete(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if err := c.sessionController.Delete(ctx, id); err != nil {
 			writeError(w, err)
 			return
 		}

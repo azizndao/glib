@@ -8,6 +8,16 @@ import (
 
 // registerRoutes registers all HTTP routes
 func registerRoutes(mux *http.ServeMux, c *container) error {
+	mux.HandleFunc("GET /api/v1/admin/", handleAdminControllerIndex(c))
+	mux.HandleFunc("GET /api/v1/admin/{id}", handleAdminControllerShow(c))
+	mux.HandleFunc("POST /api/v1/admin/", handleAdminControllerCreate(c))
+	mux.HandleFunc("PUT /api/v1/admin/{id}", handleAdminControllerUpdate(c))
+	mux.HandleFunc("DELETE /api/v1/admin/{id}", handleAdminControllerDelete(c))
+	mux.HandleFunc("GET /api/v1/auth/", handleAuthControllerIndex(c))
+	mux.HandleFunc("GET /api/v1/auth/{id}", handleAuthControllerShow(c))
+	mux.HandleFunc("POST /api/v1/auth/", handleAuthControllerCreate(c))
+	mux.HandleFunc("PUT /api/v1/auth/{id}", handleAuthControllerUpdate(c))
+	mux.HandleFunc("DELETE /api/v1/auth/{id}", handleAuthControllerDelete(c))
 	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(c))
 	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(c))
 	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(c))
@@ -18,6 +28,11 @@ func registerRoutes(mux *http.ServeMux, c *container) error {
 	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(c))
 	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(c))
 	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(c))
+	mux.HandleFunc("GET /api/v1/session/", handleSessionControllerIndex(c))
+	mux.HandleFunc("GET /api/v1/session/{id}", handleSessionControllerShow(c))
+	mux.HandleFunc("POST /api/v1/session/", handleSessionControllerCreate(c))
+	mux.HandleFunc("PUT /api/v1/session/{id}", handleSessionControllerUpdate(c))
+	mux.HandleFunc("DELETE /api/v1/session/{id}", handleSessionControllerDelete(c))
 	return nil
 }
 
