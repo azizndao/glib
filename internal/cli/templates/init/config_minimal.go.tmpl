@@ -1,0 +1,13 @@
+package main
+
+type Config struct {
+	App struct {
+		Port int
+	}
+}
+
+func LoadConfig() *Config {
+	cfg := &Config{}
+	cfg.App.Port = 8080
+	return cfg
+}

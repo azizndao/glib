@@ -6,14 +6,16 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"glib/demo/controllers/comment"
+	"glib/demo/controllers/post"
 	"net/http"
 )
 
-// handleControllerIndex wraps Controller.Index
-func handleControllerIndex(c *container) http.HandlerFunc {
+// handleCommentControllerIndex wraps Controller.Index
+func handleCommentControllerIndex(c *container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		ctx := r.Context()
-		resp, err := c.controller.Index(ctx)
+		resp, err := c.commentController.Index(ctx)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -22,11 +24,11 @@ func handleControllerIndex(c *container) http.HandlerFunc {
 	}
 }
 
-// handleControllerShow wraps Controller.Show
-func handleControllerShow(c *container) http.HandlerFunc {
+// handleCommentControllerShow wraps Controller.Show
+func handleCommentControllerShow(c *container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
 
+		ctx := r.Context()
 		// Parse path parameter: id
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
@@ -34,8 +36,7 @@ func handleControllerShow(c *container) http.HandlerFunc {
 			writeError(w, err)
 			return
 		}
-
-		resp, err := c.controller.Show(ctx, id)
+		resp, err := c.commentController.Show(ctx, id)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -44,9 +45,10 @@ func handleControllerShow(c *container) http.HandlerFunc {
 	}
 }
 
-// handleControllerCreate wraps Controller.Create
-func handleControllerCreate(c *container) http.HandlerFunc {
+// handleCommentControllerCreate wraps Controller.Create
+func handleCommentControllerCreate(c *container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		ctx := r.Context()
 
 		// Parse request body
@@ -56,7 +58,7 @@ func handleControllerCreate(c *container) http.HandlerFunc {
 			return
 		}
 
-		resp, err := c.controller.Create(ctx, req)
+		resp, err := c.commentController.Create(ctx, req)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -65,11 +67,11 @@ func handleControllerCreate(c *container) http.HandlerFunc {
 	}
 }
 
-// handleControllerUpdate wraps Controller.Update
-func handleControllerUpdate(c *container) http.HandlerFunc {
+// handleCommentControllerUpdate wraps Controller.Update
+func handleCommentControllerUpdate(c *container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
 
+		ctx := r.Context()
 		// Parse path parameter: id
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
@@ -85,7 +87,7 @@ func handleControllerUpdate(c *container) http.HandlerFunc {
 			return
 		}
 
-		resp, err := c.controller.Update(ctx, id, req)
+		resp, err := c.commentController.Update(ctx, id, req)
 		if err != nil {
 			writeError(w, err)
 			return
@@ -94,11 +96,88 @@ func handleControllerUpdate(c *container) http.HandlerFunc {
 	}
 }
 
-// handleControllerDelete wraps Controller.Delete
-func handleControllerDelete(c *container) http.HandlerFunc {
+// handleCommentControllerDelete wraps Controller.Delete
+func handleCommentControllerDelete(c *container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if err := c.commentController.Delete(ctx, id); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handlePostControllerIndex wraps Controller.Index
+func handlePostControllerIndex(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		resp, err := c.postController.Index(ctx)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handlePostControllerShow wraps Controller.Show
+func handlePostControllerShow(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		resp, err := c.postController.Show(ctx, id)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handlePostControllerCreate wraps Controller.Create
+func handlePostControllerCreate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
 		ctx := r.Context()
 
+		// Parse request body
+		var req post.CreatePostRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.postController.Create(ctx, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handlePostControllerUpdate wraps Controller.Update
+func handlePostControllerUpdate(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
 		// Parse path parameter: id
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
@@ -107,7 +186,35 @@ func handleControllerDelete(c *container) http.HandlerFunc {
 			return
 		}
 
-		if err := c.controller.Delete(ctx, id); err != nil {
+		// Parse request body
+		var req post.UpdatePostRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+
+		resp, err := c.postController.Update(ctx, id, req)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handlePostControllerDelete wraps Controller.Delete
+func handlePostControllerDelete(c *container) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameter: id
+		idStr := r.PathValue("id")
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if err := c.postController.Delete(ctx, id); err != nil {
 			writeError(w, err)
 			return
 		}

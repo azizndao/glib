@@ -136,11 +136,7 @@ func inferModuleName(absPath string) string {
 func createGoMod(dir, module string) error {
 	content := fmt.Sprintf(`module %s
 
-go 1.23
-
-require (
-	github.com/azizndao/glib v2.0.0-dev
-)
+go 1.25
 `, module)
 
 	return os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0644)
@@ -175,175 +171,33 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 }
 
 func renderMainGo(module string, minimal bool) string {
+	tmplName := "main.go.tmpl"
 	if minimal {
-		return fmt.Sprintf(`package main
+		tmplName = "main_minimal.go.tmpl"
+	}
 
-import (
-	"context"
-	"log"
-	"net/http"
-	
-	"%s/generated"
-)
-
-func main() {
-	ctx := context.Background()
-	
-	handler, err := generated.Bootstrap(ctx)
+	result, err := executeTemplate(tmplName, map[string]any{"Module": module})
 	if err != nil {
-		log.Fatalf("bootstrap failed: %%v", err)
+		panic(err) // Should never happen with valid templates
 	}
-	
-	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", handler); err != nil {
-		log.Fatalf("server failed: %%v", err)
-	}
-}
-`, module)
-	}
-
-	return fmt.Sprintf(`package main
-
-import (
-	"context"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-	
-	"%s/generated"
-)
-
-func main() {
-	ctx := context.Background()
-	
-	// Load configuration
-	cfg := LoadConfig()
-	
-	// Bootstrap application
-	handler, err := generated.Bootstrap(ctx)
-	if err != nil {
-		log.Fatalf("bootstrap failed: %%v", err)
-	}
-	
-	// Create server
-	addr := fmt.Sprintf(":%%d", cfg.App.Port)
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-	
-	// Start server in goroutine
-	go func() {
-		log.Printf("🚀 Server starting on %%s", addr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server failed: %%v", err)
-		}
-	}()
-	
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	
-	log.Println("🛑 Shutting down server...")
-	
-	// Graceful shutdown with timeout
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("server forced to shutdown: %%v", err)
-	}
-	
-	log.Println("✅ Server stopped")
-}
-`, module)
+	return result
 }
 
 func renderConfigGo(minimal bool) string {
+	tmplName := "config.go.tmpl"
 	if minimal {
-		return `package main
-
-type Config struct {
-	App struct {
-		Port int
-	}
-}
-
-func LoadConfig() *Config {
-	cfg := &Config{}
-	cfg.App.Port = 8080
-	return cfg
-}
-`
+		tmplName = "config_minimal.go.tmpl"
 	}
 
-	return `package main
-
-import (
-	"os"
-	"strconv"
-)
-
-// Config holds application configuration.
-type Config struct {
-	App struct {
-		Port int
-		Env  string
+	result, err := executeTemplate(tmplName, nil)
+	if err != nil {
+		panic(err) // Should never happen with valid templates
 	}
-	Database struct {
-		Host     string
-		Port     int
-		Name     string
-		User     string
-		Password string
-	}
-}
-
-// LoadConfig loads configuration from environment variables.
-func LoadConfig() *Config {
-	cfg := &Config{}
-	
-	// App configuration
-	cfg.App.Port = getEnvInt("APP_PORT", 8080)
-	cfg.App.Env = getEnv("APP_ENV", "development")
-	
-	// Database configuration (if needed)
-	cfg.Database.Host = getEnv("DB_HOST", "localhost")
-	cfg.Database.Port = getEnvInt("DB_PORT", 5432)
-	cfg.Database.Name = getEnv("DB_NAME", "app")
-	cfg.Database.User = getEnv("DB_USER", "postgres")
-	cfg.Database.Password = getEnv("DB_PASSWORD", "")
-	
-	return cfg
-}
-
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
-	if value := os.Getenv(key); value != "" {
-		if i, err := strconv.Atoi(value); err == nil {
-			return i
-		}
-	}
-	return fallback
-}
-`
+	return result
 }
 
 func renderGlibRC() string {
+	// .glibrc is JSON, keeping it inline since it's simple and doesn't need templating
 	return `{
   "version": "2",
   "generate": {
@@ -363,151 +217,25 @@ func renderGlibRC() string {
 }
 
 func renderGitignore() string {
-	return `# Binaries
-bin/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary
-*.test
-
-# Output of the go coverage tool
-*.out
-
-# Go workspace file
-go.work.sum
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Environment
-.env
-.env.local
-
-# Generated code
-generated/
-
-# Temporary files
-tmp/
-`
+	result, err := executeTemplate("gitignore.tmpl", nil)
+	if err != nil {
+		panic(err) // Should never happen with valid templates
+	}
+	return result
 }
 
 func renderReadme(module string) string {
-	return fmt.Sprintf(`# %s
-
-Glib 2.0 application.
-
-## Getting Started
-
-### Prerequisites
-
-- Go 1.23 or higher
-- Glib CLI: `+"`"+`go install github.com/azizndao/glib/cmd/glib@latest`+"`"+`
-
-### Development
-
-Install dependencies:
-`+"```"+`bash
-go mod tidy
-`+"```"+`
-
-Generate code:
-`+"```"+`bash
-glib generate
-`+"```"+`
-
-Run development server with hot reload:
-`+"```"+`bash
-glib dev
-`+"```"+`
-
-Run without hot reload:
-`+"```"+`bash
-go run .
-`+"```"+`
-
-### Project Structure
-
-- `+"`main.go`"+` - Application entry point
-- `+"`config.go`"+` - Configuration loading
-- `+"`generated/`"+` - Auto-generated code (do not edit)
-- `+"`controllers/`"+` - HTTP controllers
-- `+"`providers/`"+` - Dependency injection providers
-- `+"`middleware/`"+` - HTTP middleware
-
-### Creating Components
-
-Create a controller:
-`+"```"+`bash
-glib make controller posts
-`+"```"+`
-
-Create a provider:
-`+"```"+`bash
-glib make provider database
-`+"```"+`
-
-Create middleware:
-`+"```"+`bash
-glib make middleware auth
-`+"```"+`
-
-### Building for Production
-
-Build:
-`+"```"+`bash
-glib generate
-go build -o bin/app .
-`+"```"+`
-
-Run:
-`+"```"+`bash
-./bin/app
-`+"```"+`
-
-## Documentation
-
-- [Glib Documentation](https://github.com/azizndao/glib)
-- [Annotations Reference](https://github.com/azizndao/glib/blob/main/.spec/01-ANNOTATIONS.md)
-- [Handler Patterns](https://github.com/azizndao/glib/blob/main/.spec/02-HANDLERS.md)
-
-## License
-
-MIT
-`, module)
+	result, err := executeTemplate("readme.md.tmpl", map[string]any{"Module": module})
+	if err != nil {
+		panic(err) // Should never happen with valid templates
+	}
+	return result
 }
 
 func renderHealthController(module string) string {
-	return `package health
-
-import (
-	"context"
-)
-
-// HealthResponse represents the health check response.
-type HealthResponse struct {
-	Status string ` + "`json:\"status\"`" + `
-}
-
-// @Controller /health
-type HealthController struct{}
-
-// @Route GET /
-func (c *HealthController) Check(ctx context.Context) (*HealthResponse, error) {
-	return &HealthResponse{
-		Status: "ok",
-	}, nil
-}
-`
+	result, err := executeTemplate("health_controller.go.tmpl", nil)
+	if err != nil {
+		panic(err) // Should never happen with valid templates
+	}
+	return result
 }

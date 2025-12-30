@@ -1,0 +1,23 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	
+	"{{.Module}}/generated"
+)
+
+func main() {
+	ctx := context.Background()
+	
+	handler, err := generated.Bootstrap(ctx)
+	if err != nil {
+		log.Fatalf("bootstrap failed: %v", err)
+	}
+	
+	log.Println("Server starting on :8080")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		log.Fatalf("server failed: %v", err)
+	}
+}

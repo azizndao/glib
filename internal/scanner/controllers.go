@@ -94,6 +94,10 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller) error 
 		}
 
 		// Parse handler signature
+		// Restore package context for type resolution
+		s.currentPackageName = controller.PackageName
+		s.currentPackagePath = controller.PackagePath
+
 		signature, err := s.parseHandlerSignature(funcDecl)
 		if err != nil {
 			return fmt.Errorf("invalid handler signature for %s.%s: %w", controller.Name, funcDecl.Name.Name, err)
@@ -214,8 +218,8 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 
 	case *ast.InterfaceType:
 		// Interface type
-		typeInfo.Name = "interface{}"
-		typeInfo.FullName = "interface{}"
+		typeInfo.Name = "any"
+		typeInfo.FullName = "any"
 	}
 
 	return typeInfo

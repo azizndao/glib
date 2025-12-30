@@ -1,0 +1,16 @@
+package {{.PkgName}}
+
+import (
+	"context"
+)
+
+// @Controller {{.RoutePrefix}}
+type Controller struct {
+	// Add dependencies here (auto-injected)
+}
+
+// @Route GET /
+func (c *Controller) Index(ctx context.Context) error {
+	// TODO: implement
+	return nil
+}

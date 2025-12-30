@@ -8,11 +8,16 @@ import (
 
 // registerRoutes registers all HTTP routes
 func registerRoutes(mux *http.ServeMux, c *container) error {
-	mux.HandleFunc("GET /api/v1/comment/", handleControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/comment/{id}", handleControllerShow(c))
-	mux.HandleFunc("POST /api/v1/comment/", handleControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/comment/{id}", handleControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/comment/{id}", handleControllerDelete(c))
+	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(c))
+	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(c))
+	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(c))
+	mux.HandleFunc("PUT /api/v1/comment/{id}", handleCommentControllerUpdate(c))
+	mux.HandleFunc("DELETE /api/v1/comment/{id}", handleCommentControllerDelete(c))
+	mux.HandleFunc("GET /api/v1/post/", handlePostControllerIndex(c))
+	mux.HandleFunc("GET /api/v1/post/{id}", handlePostControllerShow(c))
+	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(c))
+	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(c))
+	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(c))
 	return nil
 }
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type makeOptions struct {
@@ -89,7 +91,7 @@ func makeController(name string, opts *makeOptions, cfg *glibConfig) error {
 	}
 
 	// Create directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -102,14 +104,14 @@ func makeController(name string, opts *makeOptions, cfg *glibConfig) error {
 	// Generate controller.go
 	controllerPath := filepath.Join(outputDir, "controller.go")
 	controllerCode := renderController(pkgName, routePrefix, !opts.noExample)
-	if err := os.WriteFile(controllerPath, []byte(controllerCode), 0644); err != nil {
+	if err := os.WriteFile(controllerPath, []byte(controllerCode), 0o644); err != nil {
 		return fmt.Errorf("failed to write controller: %w", err)
 	}
 
 	// Generate models.go
 	modelsPath := filepath.Join(outputDir, "models.go")
 	modelsCode := renderModels(pkgName, !opts.noExample)
-	if err := os.WriteFile(modelsPath, []byte(modelsCode), 0644); err != nil {
+	if err := os.WriteFile(modelsPath, []byte(modelsCode), 0o644); err != nil {
 		return fmt.Errorf("failed to write models: %w", err)
 	}
 
@@ -136,14 +138,14 @@ func makeProvider(name string, opts *makeOptions, cfg *glibConfig) error {
 	}
 
 	// Create directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Generate provider file
 	providerPath := filepath.Join(outputDir, name+".go")
 	providerCode := renderProvider(name, !opts.noExample)
-	if err := os.WriteFile(providerPath, []byte(providerCode), 0644); err != nil {
+	if err := os.WriteFile(providerPath, []byte(providerCode), 0o644); err != nil {
 		return fmt.Errorf("failed to write provider: %w", err)
 	}
 
@@ -169,14 +171,14 @@ func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
 	}
 
 	// Create directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Generate middleware file
 	middlewarePath := filepath.Join(outputDir, name+".go")
 	middlewareCode := renderMiddleware(name, !opts.noExample)
-	if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0644); err != nil {
+	if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0o644); err != nil {
 		return fmt.Errorf("failed to write middleware: %w", err)
 	}
 
@@ -190,75 +192,24 @@ func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
 }
 
 func renderController(pkgName, routePrefix string, withExample bool) string {
+	tmplName := "controller.go.tmpl"
 	if !withExample {
-		return fmt.Sprintf(`package %s
-
-import (
-	"context"
-)
-
-// @Controller %s
-type Controller struct {
-	// Add dependencies here (auto-injected)
-}
-
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) error {
-	// TODO: implement
-	return nil
-}
-`, pkgName, routePrefix)
+		tmplName = "controller_minimal.go.tmpl"
 	}
 
 	// Capitalize first letter for type names
-	typeName := strings.Title(pkgName)
-	if len(typeName) > 0 {
-		typeName = strings.ToUpper(string(typeName[0])) + typeName[1:]
+	caser := cases.Title(language.English)
+	typeName := caser.String(pkgName)
+
+	result, err := executeTemplate(tmplName, map[string]any{
+		"PkgName":     pkgName,
+		"RoutePrefix": routePrefix,
+		"TypeName":    typeName,
+	})
+	if err != nil {
+		panic(err) // Should never happen with valid templates
 	}
-
-	return fmt.Sprintf(`package %s
-
-import (
-	"context"
-	
-	"github.com/google/uuid"
-)
-
-// @Controller %s
-type Controller struct {
-	// Add dependencies here (auto-injected)
-}
-
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) ([]%s, error) {
-	// TODO: implement
-	return nil, nil
-}
-
-// @Route GET /{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*%s, error) {
-	// TODO: implement
-	return nil, nil
-}
-
-// @Route POST /
-func (c *Controller) Create(ctx context.Context, req Create%sRequest) (*%s, error) {
-	// TODO: implement
-	return nil, nil
-}
-
-// @Route PUT /{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req Update%sRequest) (*%s, error) {
-	// TODO: implement
-	return nil, nil
-}
-
-// @Route DELETE /{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
-	// TODO: implement
-	return nil
-}
-`, pkgName, routePrefix, typeName, typeName, typeName, typeName, typeName, typeName)
+	return result
 }
 
 func renderModels(pkgName string, withExample bool) string {
@@ -270,47 +221,29 @@ func renderModels(pkgName string, withExample bool) string {
 	}
 
 	// Capitalize first letter for type names
-	typeName := strings.Title(pkgName)
-	if len(typeName) > 0 {
-		typeName = strings.ToUpper(string(typeName[0])) + typeName[1:]
+	caser := cases.Title(language.English)
+	typeName := caser.String(pkgName)
+
+	result, err := executeTemplate("models.go.tmpl", map[string]any{
+		"PkgName":  pkgName,
+		"TypeName": typeName,
+	})
+	if err != nil {
+		panic(err) // Should never happen with valid templates
 	}
-
-	return fmt.Sprintf(`package %s
-
-import (
-	"time"
-	
-	"github.com/google/uuid"
-)
-
-type %s struct {
-	ID        uuid.UUID `+"`json:\"id\"`"+`
-	CreatedAt time.Time `+"`json:\"created_at\"`"+`
-	UpdatedAt time.Time `+"`json:\"updated_at\"`"+`
-}
-
-type Create%sRequest struct {
-	// TODO: add fields
-}
-
-type Update%sRequest struct {
-	// TODO: add fields
-}
-`, pkgName, typeName, typeName, typeName)
+	return result
 }
 
 func renderProvider(name string, withExample bool) string {
 	// Capitalize function name
-	funcName := "New" + strings.Title(name)
-	if len(funcName) > 3 {
-		funcName = "New" + strings.ToUpper(string(funcName[3])) + funcName[4:]
-	}
+	caser := cases.Title(language.English)
+	funcName := "New" + caser.String(name)
 
 	if !withExample {
 		return fmt.Sprintf(`package providers
 
 // @Provider singleton
-func %s() (interface{}, error) {
+func %s() (any, error) {
 	// TODO: implement
 	return nil, nil
 }
@@ -350,10 +283,8 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
 
 func renderMiddleware(name string, withExample bool) string {
 	// Capitalize function name
-	funcName := strings.Title(name)
-	if len(funcName) > 0 {
-		funcName = strings.ToUpper(string(funcName[0])) + funcName[1:]
-	}
+	caser := cases.Title(language.English)
+	funcName := caser.String(name)
 
 	return fmt.Sprintf(`package middleware
 

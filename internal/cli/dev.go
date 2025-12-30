@@ -60,7 +60,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 	if err := runGenerate(&generateOptions{dir: ".", verbose: false}); err != nil {
 		return fmt.Errorf("initial generation failed: %w", err)
 	}
-	fmt.Println("✅ Initial generation complete\n")
+	fmt.Println("✅ Initial generation complete")
 
 	// Generate .air.toml if it doesn't exist
 	if _, err := os.Stat(airConfig); os.IsNotExist(err) && !noAir {
@@ -76,7 +76,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 		if _, err := exec.LookPath("air"); err != nil {
 			fmt.Println("⚠️  Air not found in PATH")
 			fmt.Println("   Install with: go install github.com/cosmtrek/air@latest")
-			fmt.Println("   Falling back to basic mode (no hot reload)\n")
+			fmt.Println("   Falling back to basic mode (no hot reload)")
 			noAir = true
 		}
 	}
@@ -89,7 +89,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 	// Start Air
 	fmt.Println("🔥 Starting Air hot reload...")
 	fmt.Println("   Watching for file changes...")
-	fmt.Println("   Press Ctrl+C to stop\n")
+	fmt.Println("   Press Ctrl+C to stop")
 
 	airCmd := exec.Command("air", "-c", airConfig)
 	airCmd.Stdout = os.Stdout
@@ -112,9 +112,10 @@ func runBasicMode(port int) error {
 		return fmt.Errorf("build failed: %w", err)
 	}
 
-	fmt.Printf("✅ Build complete\n\n")
+	fmt.Printf("✅ Build complete\n")
+
 	fmt.Printf("🚀 Starting server on port %d...\n", port)
-	fmt.Println("   (No hot reload in basic mode - restart manually after changes)\n")
+	fmt.Println("   (No hot reload in basic mode - restart manually after changes)")
 
 	// Run the app
 	runCmd := exec.Command("./tmp/main")

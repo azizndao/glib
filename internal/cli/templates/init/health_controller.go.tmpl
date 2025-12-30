@@ -1,0 +1,20 @@
+package health
+
+import (
+	"context"
+)
+
+// HealthResponse represents the health check response.
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
+// @Controller /health
+type HealthController struct{}
+
+// @Route GET /
+func (c *HealthController) Check(ctx context.Context) (*HealthResponse, error) {
+	return &HealthResponse{
+		Status: "ok",
+	}, nil
+}

@@ -1,0 +1,21 @@
+package {{.PkgName}}
+
+import (
+	"time"
+	
+	"github.com/google/uuid"
+)
+
+type {{.TypeName}} struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Create{{.TypeName}}Request struct {
+	// TODO: add fields
+}
+
+type Update{{.TypeName}}Request struct {
+	// TODO: add fields
+}

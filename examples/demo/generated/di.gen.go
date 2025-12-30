@@ -5,12 +5,14 @@ package generated
 import (
 	"context"
 	"glib/demo/controllers/comment"
+	"glib/demo/controllers/post"
 )
 
 // container holds all dependencies
 type container struct {
-	ctx        context.Context
-	controller *comment.Controller
+	ctx               context.Context
+	commentController *comment.Controller
+	postController    *post.Controller
 }
 
 // initContainer initializes the DI container
@@ -20,7 +22,8 @@ func initContainer(ctx context.Context) (*container, error) {
 	// Initialize providers
 
 	// Initialize controllers
-	c.controller = &comment.Controller{}
+	c.commentController = &comment.Controller{}
+	c.postController = &post.Controller{}
 
 	// Initialize middleware
 

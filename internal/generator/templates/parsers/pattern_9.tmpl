@@ -1,0 +1,42 @@
+{{/* Pattern 9: Context + Multiple path params + Optional request body */}}
+		ctx := r.Context()
+
+{{- range .Handler.Signature.PathParams}}
+		// Parse path parameter: {{.Name}}
+		{{.Name}}Str := r.PathValue("{{.Name}}")
+{{- if and (eq .Type.PackageName "uuid") (eq .Type.Name "UUID")}}
+		{{.Name}}, err := uuid.Parse({{.Name}}Str)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+{{- else if .Type.IsPrimitive}}
+		{{.Name}} := {{.Name}}Str
+{{- else}}
+		{{.Name}} := {{.Name}}Str
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.RequestType}}
+		// Parse request body
+		var req {{.Handler.Signature.RequestType.FullName}}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, err)
+			return
+		}
+{{- end}}
+
+{{- if .Handler.Signature.ResponseType}}
+		resp, err := c.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+{{- else}}
+		if err := c.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}}); err != nil {
+			writeError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+{{- end}}
