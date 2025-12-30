@@ -1,6 +1,6 @@
 module github.com/goyave/glib/v2
 
-go 1.25
+go 1.23
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

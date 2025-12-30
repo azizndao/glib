@@ -1,0 +1,81 @@
+# glib/demo
+
+Glib 2.0 application.
+
+## Getting Started
+
+### Prerequisites
+
+- Go 1.23 or higher
+- Glib CLI: `go install github.com/goyave/glib/v2/cmd/glib@latest`
+
+### Development
+
+Install dependencies:
+```bash
+go mod tidy
+```
+
+Generate code:
+```bash
+glib generate
+```
+
+Run development server with hot reload:
+```bash
+glib dev
+```
+
+Run without hot reload:
+```bash
+go run .
+```
+
+### Project Structure
+
+- `main.go` - Application entry point
+- `config.go` - Configuration loading
+- `generated/` - Auto-generated code (do not edit)
+- `controllers/` - HTTP controllers
+- `providers/` - Dependency injection providers
+- `middleware/` - HTTP middleware
+
+### Creating Components
+
+Create a controller:
+```bash
+glib make controller posts
+```
+
+Create a provider:
+```bash
+glib make provider database
+```
+
+Create middleware:
+```bash
+glib make middleware auth
+```
+
+### Building for Production
+
+Build:
+```bash
+glib generate
+go build -o bin/app .
+```
+
+Run:
+```bash
+./bin/app
+```
+
+## Documentation
+
+- [Glib Documentation](https://github.com/goyave/glib/v2)
+- [Annotations Reference](https://github.com/goyave/glib/v2/blob/main/.spec/01-ANNOTATIONS.md)
+- [Handler Patterns](https://github.com/goyave/glib/v2/blob/main/.spec/02-HANDLERS.md)
+
+## License
+
+MIT

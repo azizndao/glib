@@ -42,6 +42,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+bin/
 *.tmp
 
 # Go workspace file (only if not using)
