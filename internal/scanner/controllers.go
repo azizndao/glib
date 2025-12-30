@@ -7,6 +7,10 @@ import (
 
 // scanController scans a type declaration for @Controller annotation
 func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, packageName, packagePath, filePath string) (*Controller, error) {
+	// Store current package context for type resolution
+	s.currentPackageName = packageName
+	s.currentPackagePath = packagePath
+
 	annotations := extractAnnotations(doc)
 	ctrlAnn := findAnnotation(annotations, "Controller")
 	if ctrlAnn == nil {
@@ -166,9 +170,17 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 	case *ast.Ident:
 		// Simple type: int, string, User, etc.
 		typeInfo.Name = t.Name
-		typeInfo.FullName = t.Name
 		typeInfo.IsPrimitive = isPrimitive(t.Name)
 		typeInfo.IsError = t.Name == "error"
+
+		// If it's not a primitive/error and not a builtin, it's from the current package
+		if !typeInfo.IsPrimitive && !typeInfo.IsError && s.currentPackageName != "" {
+			typeInfo.PackageName = s.currentPackageName
+			typeInfo.PackagePath = s.currentPackagePath
+			typeInfo.FullName = s.currentPackageName + "." + t.Name
+		} else {
+			typeInfo.FullName = t.Name
+		}
 
 	case *ast.StarExpr:
 		// Pointer type: *User, *gorm.DB

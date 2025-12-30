@@ -12,9 +12,11 @@ import (
 
 // Scanner scans a Go project for Glib annotations
 type Scanner struct {
-	fset       *token.FileSet
-	modulePath string // e.g., "github.com/user/myapp"
-	projectDir string // e.g., "/path/to/myapp"
+	fset               *token.FileSet
+	modulePath         string // e.g., "github.com/user/myapp"
+	projectDir         string // e.g., "/path/to/myapp"
+	currentPackageName string // Current package being scanned
+	currentPackagePath string // Current package import path
 }
 
 // New creates a new scanner
