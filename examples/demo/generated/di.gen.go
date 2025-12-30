@@ -4,21 +4,28 @@ package generated
 
 import (
 	"context"
+	"github.com/azizndao/glib"
+	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 	"glib/demo/controllers/admin"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
 	"glib/demo/controllers/session"
+	"glib/demo/middleware"
+	"net/http"
 )
 
 // container holds all dependencies
 type container struct {
-	ctx               context.Context
-	adminController   *admin.Controller
-	authController    *auth.Controller
-	commentController *comment.Controller
-	postController    *post.Controller
-	sessionController *session.Controller
+	ctx                 context.Context
+	adminController     *admin.Controller
+	authController      *auth.Controller
+	commentController   *comment.Controller
+	postController      *post.Controller
+	sessionController   *session.Controller
+	loggerMiddleware    func(http.Handler) http.Handler
+	authMiddleware      func(http.Handler) http.Handler
+	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style
 }
 
 // initContainer initializes the DI container
@@ -35,6 +42,35 @@ func initContainer(ctx context.Context) (*container, error) {
 	c.sessionController = &session.Controller{}
 
 	// Initialize middleware
+	c.loggerMiddleware = middleware.Logger()
+	c.authMiddleware = middleware.Auth()
+	// Wrap new-style middleware to http.Handler adapter
+	c.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 
 	return c, nil
+}
+
+// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware
+func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Wrap http.Request in glib.Request
+			req := glibmiddleware.NewRequest(r)
+
+			// Define next function
+			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+				// Call next handler/middleware
+				// Note: We can't capture the actual result from next handler easily
+				// So we just pass through and return empty success
+				next.ServeHTTP(w, req.HTTPRequest())
+				return glib.OK[any](nil)
+			}
+
+			// Call middleware
+			result := mw(req, nextFn)
+
+			// Write result using writeResult helper
+			writeResult(w, result)
+		})
+	}
 }

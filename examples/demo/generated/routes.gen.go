@@ -28,6 +28,8 @@ func registerRoutes(mux *http.ServeMux, c *container) error {
 	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(c))
 	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(c))
 	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(c))
+	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(c))
+	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(c))
 	mux.HandleFunc("GET /api/v1/session/", handleSessionControllerIndex(c))
 	mux.HandleFunc("GET /api/v1/session/{id}", handleSessionControllerShow(c))
 	mux.HandleFunc("POST /api/v1/session/", handleSessionControllerCreate(c))

@@ -50,6 +50,7 @@ glib dev
 ```
 
 This will:
+
 1. Run initial code generation
 2. Start Air file watcher
 3. Auto-regenerate code on file changes
@@ -115,12 +116,12 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
         cfg.Database.User,
         cfg.Database.Password,
     )
-    
+
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
     if err != nil {
         return nil, err
     }
-    
+
     return db, nil
 }
 
@@ -168,19 +169,19 @@ import (
     "context"
     "log"
     "net/http"
-    
+
     "myapp/generated"
 )
 
 func main() {
     ctx := context.Background()
-    
+
     // Bootstrap generates the entire app with DI, routes, and middleware
     handler, err := generated.Bootstrap(ctx)
     if err != nil {
         log.Fatalf("bootstrap failed: %v", err)
     }
-    
+
     // Start server
     log.Println("Server starting on :8080")
     if err := http.ListenAndServe(":8080", handler); err != nil {
@@ -234,6 +235,7 @@ func NewRequestID() (string, error) {
 ```
 
 Lifecycles:
+
 - `singleton` - Created once, shared across all requests
 - `transient` - Created for each request/injection
 
@@ -258,46 +260,55 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 Glib supports 9 different handler signatures:
 
 ### 1. Raw HTTP
+
 ```go
 func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
 ```
 
 ### 2. Raw HTTP + Error
+
 ```go
 func (c *Controller) Handle(w http.ResponseWriter, r *http.Request) error
 ```
 
 ### 3. Context Only
+
 ```go
 func (c *Controller) Handle(ctx context.Context)
 ```
 
 ### 4. Context + Error
+
 ```go
 func (c *Controller) Handle(ctx context.Context) error
 ```
 
 ### 5. Context + Response
+
 ```go
 func (c *Controller) Handle(ctx context.Context) (*Response, error)
 ```
 
 ### 6. Context + Request
+
 ```go
 func (c *Controller) Handle(ctx context.Context, req Request) (*Response, error)
 ```
 
 ### 7. Context + Path Parameter
+
 ```go
 func (c *Controller) Handle(ctx context.Context, id uuid.UUID) (*Response, error)
 ```
 
 ### 8. Context + Path Parameter + Request
+
 ```go
 func (c *Controller) Handle(ctx context.Context, id uuid.UUID, req Request) (*Response, error)
 ```
 
 ### 9. Context + Multiple Parameters
+
 ```go
 func (c *Controller) Handle(ctx context.Context, userId uuid.UUID, postId uuid.UUID, req Request) (*Response, error)
 ```
@@ -326,6 +337,7 @@ func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
 ```
 
 Error codes and HTTP status mapping:
+
 - `InvalidArgument` → 400
 - `NotFound` → 404
 - `PermissionDenied` → 403
@@ -344,6 +356,7 @@ glib init my-app
 ```
 
 Creates:
+
 - Project structure
 - `.glibrc` configuration
 - Sample `main.go`
@@ -384,6 +397,7 @@ glib generate [--verbose] [--dir <path>]
 ```
 
 Generates:
+
 - `generated/glib.gen.go` - Bootstrap function
 - `generated/di.gen.go` - Dependency injection container
 - `generated/routes.gen.go` - Route registration
@@ -407,6 +421,7 @@ glib dev [--port 8080] [--air-config .air.toml] [--no-air]
 ```
 
 Features:
+
 - Auto-regenerates code on file changes
 - Rebuilds and restarts server
 - Uses Air for advanced file watching
@@ -418,19 +433,19 @@ Features:
 
 ```json
 {
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "make": {
-    "controllers": "controllers",
-    "providers": "providers",
-    "middleware": "middleware"
-  },
-  "dev": {
-    "port": 8080
-  }
+    "version": "2",
+    "generate": {
+        "output": "generated",
+        "package": "generated"
+    },
+    "make": {
+        "controllers": "controllers",
+        "providers": "providers",
+        "middleware": "middleware"
+    },
+    "dev": {
+        "port": 8080
+    }
 }
 ```
 
@@ -460,6 +475,7 @@ my-app/
 ## Examples
 
 See the `examples/demo` directory for a complete working example with:
+
 - Post controller with CRUD operations
 - Comment controller with nested routes
 - Request/response models
@@ -484,6 +500,7 @@ Glib 2.0 follows a code-generation-first architecture:
 ### Generated Code
 
 The generated code is optimized and type-safe:
+
 - No reflection at runtime
 - Direct function calls
 - Type-safe request parsing
@@ -491,15 +508,15 @@ The generated code is optimized and type-safe:
 
 ## Comparison with Goyave v4
 
-| Feature | Goyave v4 | Glib 2.0 |
-|---------|-----------|----------|
-| Routing | Runtime registration | Generated |
-| DI | Reflection-based | Generated |
-| Validation | Runtime | Compile-time |
-| Handlers | Interface-based | Annotation-based |
-| Boilerplate | Manual | Auto-generated |
-| Type Safety | Runtime checks | Compile-time |
-| Performance | Good | Excellent |
+| Feature     | Goyave v4            | Glib 2.0         |
+| ----------- | -------------------- | ---------------- |
+| Routing     | Runtime registration | Generated        |
+| DI          | Reflection-based     | Generated        |
+| Validation  | Runtime              | Compile-time     |
+| Handlers    | Interface-based      | Annotation-based |
+| Boilerplate | Manual               | Auto-generated   |
+| Type Safety | Runtime checks       | Compile-time     |
+| Performance | Good                 | Excellent        |
 
 ## Requirements
 

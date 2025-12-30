@@ -1,0 +1,57 @@
+{{/* Pattern 10: Unified glib.Result[T] - ALL handlers use this */}}
+		ctx := r.Context()
+		
+{{- if .Handler.Signature.PathParams}}
+		// Parse path parameters
+{{- range .Handler.Signature.PathParams}}
+		{{.Name}}Str := r.PathValue("{{.Name}}")
+{{- if eq .Type.PackageName "uuid"}}
+		{{.Name}}, err := uuid.Parse({{.Name}}Str)
+		if err != nil {
+			writeResult(w, glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+				fmt.Sprintf("invalid path parameter '{{.Name}}': %v", err)))
+			return
+		}
+{{- else if .Type.IsPrimitive}}
+{{- if eq .Type.Name "int"}}
+		{{.Name}}, err := strconv.Atoi({{.Name}}Str)
+{{- else if eq .Type.Name "int64"}}
+		{{.Name}}, err := strconv.ParseInt({{.Name}}Str, 10, 64)
+{{- else if eq .Type.Name "uint64"}}
+		{{.Name}}, err := strconv.ParseUint({{.Name}}Str, 10, 64)
+{{- else if eq .Type.Name "float64"}}
+		{{.Name}}, err := strconv.ParseFloat({{.Name}}Str, 64)
+{{- else if eq .Type.Name "bool"}}
+		{{.Name}}, err := strconv.ParseBool({{.Name}}Str)
+{{- else}}
+		{{.Name}} := {{.Name}}Str // string type
+		var err error
+{{- end}}
+{{- if ne .Type.Name "string"}}
+		if err != nil {
+			writeResult(w, glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+				fmt.Sprintf("invalid path parameter '{{.Name}}': %v", err)))
+			return
+		}
+{{- end}}
+{{- else}}
+		{{.Name}} := {{.Name}}Str // string type
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.RequestType}}
+		// Parse request body
+		var req {{typeRef .Handler.Signature.RequestType}}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeResult(w, glib.BadRequest[{{typeRef .Handler.Signature.ResponseType}}](
+				fmt.Sprintf("invalid request body: %v", err)))
+			return
+		}
+{{- end}}
+
+		// Call handler
+		result := c.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
+		
+		// Write result
+		writeResult(w, result)

@@ -1,180 +1,231 @@
-// Package errs provides structured error handling with HTTP status code mapping.
-// Inspired by Encore.dev's error handling approach.
+// Package errs provides structured error handling for Encore applications.
+//
+// See https://encore.dev/docs/develop/errors for more information about how errors work within Encore applications.
 package errs
 
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"unsafe"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
-// Code represents an error code that maps to HTTP status codes.
-type Code int
-
-// Error codes mapping to HTTP status codes.
-const (
-	InvalidArgument  Code = 400 // Bad Request
-	Unauthenticated  Code = 401 // Unauthorized
-	PermissionDenied Code = 403 // Forbidden
-	NotFound         Code = 404 // Not Found
-	AlreadyExists    Code = 409 // Conflict
-	Internal         Code = 500 // Internal Server Error
-	Unavailable      Code = 503 // Service Unavailable
-)
-
-// HTTPStatus returns the HTTP status code for this error code.
-func (c Code) HTTPStatus() int {
-	return int(c)
-}
-
-// String returns the string representation of the error code.
-func (c Code) String() string {
-	switch c {
-	case InvalidArgument:
-		return "invalid_argument"
-	case Unauthenticated:
-		return "unauthenticated"
-	case PermissionDenied:
-		return "permission_denied"
-	case NotFound:
-		return "not_found"
-	case AlreadyExists:
-		return "already_exists"
-	case Internal:
-		return "internal"
-	case Unavailable:
-		return "unavailable"
-	default:
-		return "unknown"
-	}
-}
-
-// Error represents a structured error with code, message, and metadata.
+// An Error is an error that provides structured information
+// about the error. It includes an error code, a message,
+// optionally additional structured details about the error
+// and arbitrary key-value metadata.
+//
+// The Details field is returned to external clients.
+// The Meta field is only exposed to internal calls within Encore.
+//
+// Internally it captures an underlying error for printing
+// and for use with errors.Is/As and call stack information.
+//
+// To provide accurate stack information, users are expected
+// to convert non-Error errors into *Error as close to the
+// root cause as possible. This is made simple with Wrap.
 type Error struct {
-	code    Code
-	message string
-	meta    map[string]any
-	details map[string][]string
-	cause   error
+	// Code is the error code to return.
+	Code ErrCode `json:"code"`
+	// Message is a descriptive message of the error.
+	Message string `json:"message"`
+	// Details are user-defined additional details.
+	Details ErrDetails `json:"details"`
+	// Meta are arbitrary key-value pairs for use within
+	// the Encore application. They are not exposed to external clients.
+	Meta Metadata `json:"-"`
+
+	// underlying is the underlying error,
+	// for use with errors.Is and errors.As.
+	// It is not propagated across RPC boundaries.
+	underlying error
 }
 
-// Code returns the error code.
-func (e *Error) Code() Code {
-	return e.code
+// Metadata represents structured key-value pairs, for attaching arbitrary
+// metadata to errors. The metadata is propagated between internal services
+// but is not exposed to external clients.
+type Metadata map[string]any
+
+// Wrap wraps the err, adding additional error information.
+// If err is nil it returns nil.
+//
+// If err is already an *Error its code, message, and details
+// are copied over to the new error.
+func Wrap(err error, msg string, metaPairs ...interface{}) error {
+	if err == nil {
+		return nil
+	}
+
+	e := &Error{Code: Unknown, Message: msg, underlying: err}
+	var ee *Error
+	if errors.As(err, &ee) {
+		e.Details = ee.Details
+		e.Code = ee.Code
+		e.Meta = mergeMeta(ee.Meta, metaPairs)
+	} else {
+		e.Meta = mergeMeta(nil, metaPairs)
+	}
+	return e
 }
 
-// Message returns the error message.
-func (e *Error) Message() string {
-	return e.message
+// WrapCode is like Wrap but also sets the error code.
+// If code is OK it reports nil.
+func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) error {
+	if err == nil || code == OK {
+		return nil
+	}
+
+	e := &Error{Code: code, Message: msg, underlying: err}
+	var ee *Error
+	if errors.As(err, &ee) {
+		e.Details = ee.Details
+		e.Meta = mergeMeta(ee.Meta, metaPairs)
+	} else {
+		e.Meta = mergeMeta(nil, metaPairs)
+	}
+	return e
 }
 
-// Meta returns the error metadata.
-func (e *Error) Meta() map[string]any {
-	return e.meta
+// Convert converts an error to an *Error.
+// If the error is already an *Error it returns it unmodified.
+// If err is nil it returns nil.
+func Convert(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if e, ok := err.(*Error); ok {
+		// If the parent is already an *Error we can return it directly.
+		return e
+	}
+
+	var e *Error
+	if errors.As(err, &e) {
+		// The error itself isn't an *Error, but it wraps one somewhere in the chain. Create a new *Error that preserves
+		// the outer error but takes properties from inner *Error
+		return &Error{
+			Code:       e.Code,
+			Message:    err.Error(),
+			Details:    e.Details,
+			Meta:       e.Meta,
+			underlying: err,
+		}
+	}
+
+	return &Error{
+		Code:       Unknown,
+		underlying: err,
+	}
 }
 
-// Details returns the error details (e.g., validation errors).
-func (e *Error) Details() map[string][]string {
-	return e.details
+// Code reports the error code from an error.
+// If err is nil it reports OK.
+// Otherwise if err is not an *Error it reports Unknown.
+func Code(err error) ErrCode {
+	if err == nil {
+		return OK
+	}
+
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Code
+	}
+	return Unknown
 }
 
-// Unwrap returns the underlying cause error.
-func (e *Error) Unwrap() error {
-	return e.cause
+// Meta reports the metadata included in the error.
+// If err is nil or the error lacks metadata it reports nil.
+func Meta(err error) Metadata {
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Meta
+	}
+	return nil
 }
 
-// Error implements the error interface.
+// Details reports the error details included in the error.
+// If err is nil or the error lacks details it reports nil.
+func Details(err error) ErrDetails {
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Details
+	}
+	return nil
+}
+
+// Error reports the error code and message.
 func (e *Error) Error() string {
-	if e.cause != nil {
-		return fmt.Sprintf("%s: %v", e.message, e.cause)
+	if e.Code == Unknown {
+		return "unknown code: " + e.ErrorMessage()
 	}
-	return e.message
+	return e.Code.String() + ": " + e.ErrorMessage()
 }
 
-// Builder provides a fluent API for building structured errors.
-type Builder struct {
-	err *Error
-}
-
-// B creates a new error builder.
-func B() *Builder {
-	return &Builder{
-		err: &Error{
-			code: Internal, // Default to internal error
-		},
+// ErrorMessage reports the error message, joining this
+// error's message with the messages from any underlying errors.
+func (e *Error) ErrorMessage() string {
+	if e.underlying == nil {
+		return e.Message
 	}
-}
 
-// Code sets the error code.
-func (b *Builder) Code(code Code) *Builder {
-	b.err.code = code
-	return b
-}
+	var b strings.Builder
+	b.WriteString(e.Message)
 
-// Msg sets the error message.
-func (b *Builder) Msg(msg string) *Builder {
-	b.err.message = msg
-	return b
-}
-
-// Msgf sets the error message with formatting.
-func (b *Builder) Msgf(format string, args ...any) *Builder {
-	b.err.message = fmt.Sprintf(format, args...)
-	return b
-}
-
-// Meta adds a metadata key-value pair.
-func (b *Builder) Meta(key string, value any) *Builder {
-	if b.err.meta == nil {
-		b.err.meta = make(map[string]any)
+	next := e.underlying
+	for next != nil {
+		var msg string
+		if e, ok := next.(*Error); ok {
+			msg = e.Message
+			next = e.underlying
+		} else {
+			msg = next.Error()
+			next = nil
+		}
+		if b.Len() > 0 && msg != "" {
+			b.WriteString(": ")
+		}
+		b.WriteString(msg)
 	}
-	b.err.meta[key] = value
-	return b
+	return b.String()
 }
 
-// Details sets validation error details.
-func (b *Builder) Details(details map[string][]string) *Builder {
-	b.err.details = details
-	return b
+// Unwrap returns the underlying error, if any.
+func (e *Error) Unwrap() error {
+	return e.underlying
 }
 
-// Cause sets the underlying cause error.
-func (b *Builder) Cause(err error) *Builder {
-	b.err.cause = err
-	return b
-}
-
-// Err returns the built error.
-func (b *Builder) Err() error {
-	return b.err
-}
-
-// Is checks if the target error matches this error.
-func (e *Error) Is(target error) bool {
-	var t *Error
-	if !errors.As(target, &t) {
-		return false
+func mergeMeta(md Metadata, pairs []interface{}) Metadata {
+	n := len(pairs)
+	if n%2 != 0 {
+		panic(fmt.Sprintf("got uneven number (%d) of metadata key-values", n))
 	}
-	return e.code == t.code
+	if md == nil && n > 0 {
+		md = make(Metadata, n/2)
+	}
+	for i := 0; i < n; i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			panic(fmt.Sprintf("metadata key-value pair #%d key is not a string (is %T)", i/2, pairs[i]))
+		}
+		md[key] = pairs[i+1]
+	}
+	return md
 }
 
-// Common error constructors for convenience.
-
-// New creates a simple error with a message (defaults to Internal).
-func New(msg string) error {
-	return B().Msg(msg).Err()
-}
-
-// Newf creates a simple error with formatted message (defaults to Internal).
-func Newf(format string, args ...any) error {
-	return B().Msgf(format, args...).Err()
-}
-
-// Wrap wraps an error with a message (defaults to Internal).
-func Wrap(err error, msg string) error {
-	return B().Msg(msg).Cause(err).Err()
-}
-
-// Wrapf wraps an error with a formatted message (defaults to Internal).
-func Wrapf(err error, format string, args ...any) error {
-	return B().Msgf(format, args...).Cause(err).Err()
+func init() {
+	jsoniter.RegisterTypeEncoderFunc("errs.Error", func(ptr unsafe.Pointer, stream *jsoniter.Stream) {
+		e := (*Error)(ptr)
+		stream.WriteObjectStart()
+		stream.WriteObjectField("code")
+		stream.WriteString(e.Code.String())
+		stream.WriteMore()
+		stream.WriteObjectField("message")
+		stream.WriteString(e.ErrorMessage())
+		stream.WriteMore()
+		stream.WriteObjectField("details")
+		stream.WriteVal(e.Details)
+		stream.WriteObjectEnd()
+	}, nil)
 }

@@ -4,6 +4,10 @@ package generated
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/pkg/errs"
 	"github.com/google/uuid"
 	"glib/demo/controllers/admin"
 	"glib/demo/controllers/auth"
@@ -11,534 +15,762 @@ import (
 	"glib/demo/controllers/post"
 	"glib/demo/controllers/session"
 	"net/http"
+	"strconv"
 )
 
 // handleAdminControllerIndex wraps Controller.Index
 func handleAdminControllerIndex(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		resp, err := c.adminController.Index(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.adminController.Index(ctx)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAdminControllerShow wraps Controller.Show
 func handleAdminControllerShow(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*admin.Admin](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		resp, err := c.adminController.Show(ctx, id)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.adminController.Show(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAdminControllerCreate wraps Controller.Create
 func handleAdminControllerCreate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-
 		// Parse request body
 		var req admin.CreateAdminRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*admin.Admin](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.adminController.Create(ctx, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.adminController.Create(ctx, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAdminControllerUpdate wraps Controller.Update
 func handleAdminControllerUpdate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*admin.Admin](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-
 		// Parse request body
 		var req admin.UpdateAdminRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*admin.Admin](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.adminController.Update(ctx, id, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.adminController.Update(ctx, id, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAdminControllerDelete wraps Controller.Delete
 func handleAdminControllerDelete(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		if err := c.adminController.Delete(ctx, id); err != nil {
-			writeError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+
+		// Call handler
+		result := c.adminController.Delete(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAuthControllerIndex wraps Controller.Index
 func handleAuthControllerIndex(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		resp, err := c.authController.Index(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.authController.Index(ctx)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAuthControllerShow wraps Controller.Show
 func handleAuthControllerShow(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		resp, err := c.authController.Show(ctx, id)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.authController.Show(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAuthControllerCreate wraps Controller.Create
 func handleAuthControllerCreate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-
 		// Parse request body
 		var req auth.CreateAuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.authController.Create(ctx, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.authController.Create(ctx, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAuthControllerUpdate wraps Controller.Update
 func handleAuthControllerUpdate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-
 		// Parse request body
 		var req auth.UpdateAuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.authController.Update(ctx, id, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.authController.Update(ctx, id, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleAuthControllerDelete wraps Controller.Delete
 func handleAuthControllerDelete(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		if err := c.authController.Delete(ctx, id); err != nil {
-			writeError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+
+		// Call handler
+		result := c.authController.Delete(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleCommentControllerIndex wraps Controller.Index
 func handleCommentControllerIndex(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		resp, err := c.commentController.Index(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.commentController.Index(ctx)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleCommentControllerShow wraps Controller.Show
 func handleCommentControllerShow(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		resp, err := c.commentController.Show(ctx, id)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.commentController.Show(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleCommentControllerCreate wraps Controller.Create
 func handleCommentControllerCreate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-
 		// Parse request body
 		var req comment.CreateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.commentController.Create(ctx, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.commentController.Create(ctx, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleCommentControllerUpdate wraps Controller.Update
 func handleCommentControllerUpdate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-
 		// Parse request body
 		var req comment.UpdateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.commentController.Update(ctx, id, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.commentController.Update(ctx, id, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleCommentControllerDelete wraps Controller.Delete
 func handleCommentControllerDelete(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		if err := c.commentController.Delete(ctx, id); err != nil {
-			writeError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+
+		// Call handler
+		result := c.commentController.Delete(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handlePostControllerIndex wraps Controller.Index
 func handlePostControllerIndex(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		resp, err := c.postController.Index(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.postController.Index(ctx)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handlePostControllerShow wraps Controller.Show
 func handlePostControllerShow(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*post.Post](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		resp, err := c.postController.Show(ctx, id)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.postController.Show(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handlePostControllerCreate wraps Controller.Create
 func handlePostControllerCreate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-
 		// Parse request body
 		var req post.CreatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*post.Post](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.postController.Create(ctx, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.postController.Create(ctx, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handlePostControllerUpdate wraps Controller.Update
 func handlePostControllerUpdate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*post.Post](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-
 		// Parse request body
 		var req post.UpdatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*post.Post](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.postController.Update(ctx, id, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.postController.Update(ctx, id, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handlePostControllerDelete wraps Controller.Delete
 func handlePostControllerDelete(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		if err := c.postController.Delete(ctx, id); err != nil {
-			writeError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+
+		// Call handler
+		result := c.postController.Delete(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.authMiddleware(handler)
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+// handlePostControllerExport wraps Controller.Export
+func handlePostControllerExport(c *container) http.HandlerFunc {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Raw handler - direct passthrough
+		c.postController.Export(w, r)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+// handlePostControllerStream wraps Controller.Stream
+func handlePostControllerStream(c *container) http.HandlerFunc {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Raw handler - direct passthrough
+		c.postController.Stream(w, r)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleSessionControllerIndex wraps Controller.Index
 func handleSessionControllerIndex(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		resp, err := c.sessionController.Index(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.sessionController.Index(ctx)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleSessionControllerShow wraps Controller.Show
 func handleSessionControllerShow(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
-		id, err := uuid.Parse(idStr)
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*session.Session](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		resp, err := c.sessionController.Show(ctx, id)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+
+		// Call handler
+		result := c.sessionController.Show(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleSessionControllerCreate wraps Controller.Create
 func handleSessionControllerCreate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-
 		// Parse request body
 		var req session.CreateSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*session.Session](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.sessionController.Create(ctx, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.sessionController.Create(ctx, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleSessionControllerUpdate wraps Controller.Update
 func handleSessionControllerUpdate(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*session.Session](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-
 		// Parse request body
 		var req session.UpdateSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[*session.Session](
+				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
 
-		resp, err := c.sessionController.Update(ctx, id, req)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)
-	}
+		// Call handler
+		result := c.sessionController.Update(ctx, id, req)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
 }
 
 // handleSessionControllerDelete wraps Controller.Delete
 func handleSessionControllerDelete(c *container) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameter: id
+		// Parse path parameters
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeError(w, err)
+			writeResult(w, glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
-		if err := c.sessionController.Delete(ctx, id); err != nil {
-			writeError(w, err)
-			return
+
+		// Call handler
+		result := c.sessionController.Delete(ctx, id)
+
+		// Write result
+		writeResult(w, result)
+	})
+
+	handler = c.ratelimitMiddleware(handler)
+	handler = c.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+// writeResult writes a glib.Result[T] to the http.ResponseWriter
+func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
+	// Set custom headers
+	if result.Headers != nil {
+		for key, values := range result.Headers {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
 		}
-		w.WriteHeader(http.StatusNoContent)
+	}
+
+	// Handle error response
+	if err := result.Error(); err != nil {
+		statusCode := result.StatusCode
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+
+		// Check if it's an errs.Error for structured error response
+		var errsErr *errs.Error
+		if errors.As(err, &errsErr) {
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": map[string]any{
+					"code":    errsErr.Code.String(),
+					"message": errsErr.Message,
+				},
+			})
+		} else {
+			// Fallback for standard errors
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": map[string]any{
+					"code":    http.StatusText(statusCode),
+					"message": err.Error(),
+				},
+			})
+		}
+		return
+	}
+
+	// Handle success response
+	statusCode := result.StatusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+
+	// No content responses
+	if statusCode == http.StatusNoContent {
+		w.WriteHeader(statusCode)
+		return
+	}
+
+	// Encode success data as JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(result.Data); err != nil {
+		// Already wrote status, can't change it
+		// TODO: Add logging support
 	}
 }

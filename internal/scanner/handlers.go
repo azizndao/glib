@@ -60,121 +60,120 @@ func (s *Scanner) parseHandlerSignature(funcDecl *ast.FuncDecl) (*HandlerSignatu
 }
 
 // analyzeSignature determines the handler pattern from parameters and returns
+// Glib 3.0: Supports two patterns:
+//   - Pattern 10: func(ctx context.Context, ...params) glib.Result[T]  (type-safe)
+//   - Pattern 11: func(w http.ResponseWriter, r *http.Request)        (raw)
 func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*TypeInfo, funcDecl *ast.FuncDecl) (*HandlerSignature, error) {
-	// Check return types
-	sig.ReturnsError = len(returns) > 0 && returns[len(returns)-1].IsError
-	if len(returns) > 0 && !returns[0].IsError {
-		sig.ResponseType = returns[0]
-	}
-
-	if len(params) == 0 {
-		return nil, fmt.Errorf("handler must have at least one parameter")
-	}
-
-	// Check for raw HTTP pattern (Pattern 1-2)
-	if len(params) >= 2 && s.isHTTPType(params[0]) && s.isHTTPType(params[1]) {
-		sig.HasRawHTTP = true
-		sig.Pattern = 1
+	// Check for Pattern 11: Raw HTTP handler
+	// Must have exactly 2 params: (http.ResponseWriter, *http.Request)
+	if len(params) == 2 && s.isRawHTTPHandler(params) {
+		// No return value required for raw handlers
 		if len(returns) > 0 {
-			sig.Pattern = 2
+			return nil, fmt.Errorf("raw HTTP handler must not return any value, got %d return values", len(returns))
 		}
+
+		sig.Pattern = 11
+		sig.HasRawHTTP = true
+		sig.HasContext = false // Context accessed via r.Context()
+		sig.ReturnsError = false
+
 		return sig, nil
 	}
 
-	// Check for context.Context
-	if params[0].IsContext {
-		sig.HasContext = true
+	// Pattern 10: Type-safe handler with Result[T]
+	// Must have at least one parameter (context.Context)
+	if len(params) == 0 {
+		return nil, fmt.Errorf("handler must have at least one parameter (context.Context) or be a raw handler (w, r)")
 	}
 
-	// Determine pattern based on signature
-	if len(params) == 1 {
-		// Pattern 3: func(ctx context.Context)
-		// Pattern 4: func(ctx context.Context) error
-		// Pattern 5: func(ctx context.Context) (*Response, error)
-		if sig.HasContext {
-			if len(returns) == 0 {
-				sig.Pattern = 3
-			} else if len(returns) == 1 && sig.ReturnsError {
-				sig.Pattern = 4
-			} else if len(returns) == 2 && sig.ReturnsError {
-				sig.Pattern = 5
-			}
+	// First parameter must be context.Context
+	if !params[0].IsContext {
+		return nil, fmt.Errorf("first parameter must be context.Context, got %s (or use raw handler with http.ResponseWriter and *http.Request)", params[0].FullName)
+	}
+	sig.HasContext = true
+
+	// Must return exactly one value: glib.Result[T]
+	if len(returns) != 1 {
+		return nil, fmt.Errorf("handler must return exactly one value of type glib.Result[T], got %d return values", len(returns))
+	}
+
+	returnType := returns[0]
+
+	// Check if return type is glib.Result[T]
+	if !s.isGlibResult(returnType) {
+		return nil, fmt.Errorf("handler must return glib.Result[T], got %s", returnType.FullName)
+	}
+
+	// Extract generic type parameter T from Result[T]
+	if len(returnType.TypeParams) > 0 {
+		sig.ResponseType = returnType.TypeParams[0]
+	}
+
+	// Parse remaining parameters (path params and request body)
+	paramNames := s.extractParamNames(funcDecl)
+	sig.PathParams = []*PathParam{}
+
+	for i := 1; i < len(params); i++ {
+		if i >= len(paramNames) {
+			continue
 		}
-	} else if len(params) == 2 {
-		// Pattern 6: func(ctx context.Context, req Request) (*Response, error)
-		// Pattern 7: func(ctx context.Context, id uuid.UUID) (*Response, error)
-		if sig.HasContext {
-			// Check if second param is a path parameter or request body
-			secondParam := params[1]
 
-			// Try to determine if it's a path param by checking against function param names
-			paramNames := s.extractParamNames(funcDecl)
-			if len(paramNames) >= 2 {
-				paramName := paramNames[1]
+		paramName := paramNames[i]
+		paramType := params[i]
 
-				// Common path parameter names
-				if isPathParamName(paramName) {
-					sig.PathParams = []*PathParam{
-						{
-							Name:     paramName,
-							Type:     secondParam,
-							Position: 1,
-						},
-					}
-					sig.Pattern = 7
-				} else {
-					// It's a request body
-					sig.RequestType = secondParam
-					sig.Pattern = 6
-				}
-			} else {
-				// Default to request body if we can't determine
-				sig.RequestType = secondParam
-				sig.Pattern = 6
-			}
-		}
-	} else if len(params) == 3 {
-		// Pattern 8: func(ctx context.Context, id uuid.UUID, req Request) (*Response, error)
-		if sig.HasContext {
-			paramNames := s.extractParamNames(funcDecl)
-			if len(paramNames) >= 3 {
-				sig.PathParams = []*PathParam{
-					{
-						Name:     paramNames[1],
-						Type:     params[1],
-						Position: 1,
-					},
-				}
-				sig.RequestType = params[2]
-				sig.Pattern = 8
-			}
-		}
-	} else if len(params) >= 4 {
-		// Pattern 9: func(ctx context.Context, id1, id2 uuid.UUID, req Request) (*Response, error)
-		if sig.HasContext {
-			paramNames := s.extractParamNames(funcDecl)
-
-			// All params except first (ctx) and last (req) are path params
-			for i := 1; i < len(params)-1; i++ {
-				if i < len(paramNames) {
-					sig.PathParams = append(sig.PathParams, &PathParam{
-						Name:     paramNames[i],
-						Type:     params[i],
-						Position: i,
-					})
-				}
-			}
-
-			sig.RequestType = params[len(params)-1]
-			sig.Pattern = 9
+		// Determine if this is a path param or request body
+		// Path params are identified by common names or position
+		if isPathParamName(paramName) {
+			sig.PathParams = append(sig.PathParams, &PathParam{
+				Name:     paramName,
+				Type:     paramType,
+				Position: i,
+			})
+		} else {
+			// Last non-path-param parameter is the request body
+			sig.RequestType = paramType
 		}
 	}
 
-	if sig.Pattern == 0 {
-		return nil, fmt.Errorf("unsupported handler signature pattern")
-	}
+	// Pattern 10: Unified Result[T] pattern
+	sig.Pattern = 10
+	sig.ReturnsError = false // Result[T] handles errors internally
 
 	return sig, nil
+}
+
+// isRawHTTPHandler checks if params match (http.ResponseWriter, *http.Request)
+func (s *Scanner) isRawHTTPHandler(params []*TypeInfo) bool {
+	if len(params) != 2 {
+		return false
+	}
+
+	// First param must be http.ResponseWriter
+	if params[0].Name != "ResponseWriter" || params[0].PackageName != "http" {
+		return false
+	}
+
+	// Second param must be *http.Request
+	if params[1].Name != "Request" || params[1].PackageName != "http" || !params[1].IsPointer {
+		return false
+	}
+
+	return true
+}
+
+// isGlibResult checks if a type is glib.Result[T]
+func (s *Scanner) isGlibResult(typeInfo *TypeInfo) bool {
+	if !typeInfo.IsGeneric {
+		return false
+	}
+
+	if typeInfo.Name != "Result" {
+		return false
+	}
+
+	// Check if it's from glib package
+	return typeInfo.PackageName == "glib" ||
+		typeInfo.PackagePath == "github.com/azizndao/glib"
 }
 
 // extractParamNames extracts parameter names from function declaration

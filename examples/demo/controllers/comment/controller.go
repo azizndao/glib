@@ -2,41 +2,43 @@ package comment
 
 import (
 	"context"
-	
+
+	"github.com/azizndao/glib"
 	"github.com/google/uuid"
 )
 
-// @Controller /api/v1/comment
+// @Controller path=/api/v1/comment tags=api
 type Controller struct {
 	// Add dependencies here (auto-injected)
 }
 
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) ([]Comment, error) {
+// @Route method=GET path=/
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Comment] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK([]Comment{})
 }
 
-// @Route GET /{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Comment, error) {
+// @Route method=GET path=/{id}
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Comment] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Comment{ID: id})
 }
 
-// @Route POST /
-func (c *Controller) Create(ctx context.Context, req CreateCommentRequest) (*Comment, error) {
+// @Route method=POST path=/ tags=protected
+func (c *Controller) Create(ctx context.Context, req CreateCommentRequest) glib.Result[*Comment] {
 	// TODO: implement
-	return nil, nil
+	comment := &Comment{ID: uuid.New()}
+	return glib.Created(comment)
 }
 
-// @Route PUT /{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateCommentRequest) (*Comment, error) {
+// @Route method=PUT path=/{id} tags=protected
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateCommentRequest) glib.Result[*Comment] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Comment{ID: id})
 }
 
-// @Route DELETE /{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
+// @Route method=DELETE path=/{id} tags=protected
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
 	// TODO: implement
-	return nil
+	return glib.NoContent[any]()
 }

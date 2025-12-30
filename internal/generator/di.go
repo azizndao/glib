@@ -36,6 +36,7 @@ type MiddlewareData struct {
 	PackageName  string
 	FunctionName string
 	ArgsString   string
+	Signature    string // "old" or "new"
 }
 
 // generateDI generates the DI container (di.gen.go)
@@ -43,6 +44,15 @@ func (g *Generator) generateDI() (string, error) {
 	// Determine what's needed
 	needsFmt := len(g.project.Providers) > 0
 	needsHTTP := len(g.project.Middleware) > 0
+	needsGlibMiddleware := false
+
+	// Check if any middleware uses new-style signature
+	for _, mw := range g.project.Middleware {
+		if mw.Signature == "new" {
+			needsGlibMiddleware = true
+			break
+		}
+	}
 
 	// Build provider data
 	var providers []ProviderData
@@ -104,17 +114,19 @@ func (g *Generator) generateDI() (string, error) {
 			PackageName:  mw.PackageName,
 			FunctionName: mw.FunctionName,
 			ArgsString:   strings.Join(args, ", "),
+			Signature:    mw.Signature,
 		})
 	}
 
 	data := map[string]any{
-		"PackageName": g.pkgName,
-		"NeedsFmt":    needsFmt,
-		"NeedsHTTP":   needsHTTP,
-		"Imports":     g.collectImports(),
-		"Providers":   providers,
-		"Controllers": controllers,
-		"Middleware":  middleware,
+		"PackageName":         g.pkgName,
+		"NeedsFmt":            needsFmt,
+		"NeedsHTTP":           needsHTTP,
+		"NeedsGlibMiddleware": needsGlibMiddleware,
+		"Imports":             g.collectImports(),
+		"Providers":           providers,
+		"Controllers":         controllers,
+		"Middleware":          middleware,
 	}
 
 	return g.executeTemplate("di.tmpl", data)
@@ -168,26 +180,32 @@ func (g *Generator) collectImports() []string {
 
 	// Add imports from controllers
 	for _, ctrl := range g.project.Controllers {
-		if !seen[ctrl.PackagePath] && ctrl.PackagePath != g.pkgName {
-			seen[ctrl.PackagePath] = true
-			imports = append(imports, ctrl.PackagePath)
+		// Skip if it's the generated package or main package (to avoid circular imports)
+		if ctrl.PackagePath == g.pkgName || ctrl.PackageName == "main" || seen[ctrl.PackagePath] {
+			continue
 		}
+		seen[ctrl.PackagePath] = true
+		imports = append(imports, ctrl.PackagePath)
 	}
 
 	// Add imports from providers
 	for _, prov := range g.project.Providers {
-		if !seen[prov.PackagePath] && prov.PackagePath != g.pkgName {
-			seen[prov.PackagePath] = true
-			imports = append(imports, prov.PackagePath)
+		// Skip if it's the generated package or main package
+		if prov.PackagePath == g.pkgName || prov.PackageName == "main" || seen[prov.PackagePath] {
+			continue
 		}
+		seen[prov.PackagePath] = true
+		imports = append(imports, prov.PackagePath)
 	}
 
 	// Add imports from middleware
 	for _, mw := range g.project.Middleware {
-		if !seen[mw.PackagePath] && mw.PackagePath != g.pkgName {
-			seen[mw.PackagePath] = true
-			imports = append(imports, mw.PackagePath)
+		// Skip if it's the generated package or main package
+		if mw.PackagePath == g.pkgName || mw.PackageName == "main" || seen[mw.PackagePath] {
+			continue
 		}
+		seen[mw.PackagePath] = true
+		imports = append(imports, mw.PackagePath)
 	}
 
 	return imports

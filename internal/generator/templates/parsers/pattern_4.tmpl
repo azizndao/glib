@@ -1,7 +1,0 @@
-{{/* Pattern 4: Context only, returns error */}}
-		ctx := r.Context()
-		if err := c.{{.CtrlField}}.{{.Handler.Name}}(ctx); err != nil {
-			writeError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)

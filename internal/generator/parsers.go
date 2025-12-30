@@ -23,6 +23,7 @@ func (g *Generator) generateParsers() (string, error) {
 	// Track which imports are actually needed
 	needsJSON := false
 	needsUUID := false
+	needsStrconv := false
 	usedPackages := make(map[string]bool)
 
 	// Analyze what imports we need
@@ -33,8 +34,8 @@ func (g *Generator) generateParsers() (string, error) {
 			// Check if JSON is used (only for request body parsing)
 			if sig.RequestType != nil {
 				needsJSON = true
-				// Request body needs the package for type assertion
-				if sig.RequestType.PackageName != "" && sig.RequestType.PackagePath != "" {
+				// Request body needs the package for type assertion (skip main package)
+				if sig.RequestType.PackageName != "" && sig.RequestType.PackagePath != "" && sig.RequestType.PackageName != "main" {
 					usedPackages[sig.RequestType.PackagePath] = true
 				}
 			}
@@ -44,16 +45,27 @@ func (g *Generator) generateParsers() (string, error) {
 				if param.Type.PackageName == "uuid" {
 					needsUUID = true
 				}
+				// Check if strconv is needed (for primitive path params other than string)
+				if param.Type.IsPrimitive && param.Type.Name != "string" {
+					needsStrconv = true
+				}
 			}
 		}
 	}
 
 	// Build imports list
 	var imports []string
+	imports = append(imports, "errors") // Needed for error handling
 	if needsJSON {
 		imports = append(imports, "encoding/json")
 	}
+	imports = append(imports, "fmt")                               // Always needed for error formatting
+	imports = append(imports, "github.com/azizndao/glib")          // Always needed for Result[T]
+	imports = append(imports, "github.com/azizndao/glib/pkg/errs") // Needed for structured errors
 	imports = append(imports, "net/http")
+	if needsStrconv {
+		imports = append(imports, "strconv")
+	}
 	if needsUUID {
 		imports = append(imports, "github.com/google/uuid")
 	}
@@ -74,6 +86,7 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString(")\n\n")
 
 	// Generate handler wrappers for each handler
+	hasPattern10 := false
 	for _, ctrl := range g.project.Controllers {
 		for _, handler := range ctrl.Handlers {
 			wrapper, err := g.generateHandlerWrapper(ctrl, handler)
@@ -81,7 +94,17 @@ func (g *Generator) generateParsers() (string, error) {
 				return "", err
 			}
 			b.WriteString(wrapper)
+
+			// Track if we have any Pattern 10 handlers (need writeResult helper)
+			if handler.Signature.Pattern == 10 {
+				hasPattern10 = true
+			}
 		}
+	}
+
+	// Add writeResult helper function only if needed (Pattern 10 handlers)
+	if hasPattern10 {
+		b.WriteString(g.generateWriteResultHelper())
 	}
 
 	return b.String(), nil
@@ -101,7 +124,16 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 	var b strings.Builder
 	fmt.Fprintf(&b, "// %s wraps %s.%s\n", wrapperName, ctrl.Name, handler.Name)
 	fmt.Fprintf(&b, "func %s(c *container) http.HandlerFunc {\n", wrapperName)
-	b.WriteString("\treturn func(w http.ResponseWriter, r *http.Request) {\n")
+
+	// Build middleware chain (controller middleware + handler middleware)
+	middlewareChain := g.buildMiddlewareChain(ctrl, handler)
+
+	// If there are middleware, wrap the handler
+	if len(middlewareChain) > 0 {
+		b.WriteString("\tvar handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n")
+	} else {
+		b.WriteString("\treturn func(w http.ResponseWriter, r *http.Request) {\n")
+	}
 
 	// Generate handler body based on pattern
 	body, err := g.generateHandlerBody(ctrl, handler, ctrlField)
@@ -110,7 +142,20 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 	}
 	b.WriteString(body)
 
-	b.WriteString("\t}\n")
+	if len(middlewareChain) > 0 {
+		b.WriteString("\t})\n\n")
+
+		// Apply middleware chain in reverse order (innermost first)
+		for i := len(middlewareChain) - 1; i >= 0; i-- {
+			mwFieldName := g.middlewareFieldName(middlewareChain[i])
+			b.WriteString(fmt.Sprintf("\thandler = c.%s(handler)\n", mwFieldName))
+		}
+
+		b.WriteString("\n\treturn handler.ServeHTTP\n")
+	} else {
+		b.WriteString("\t}\n")
+	}
+
 	b.WriteString("}\n\n")
 
 	return b.String(), nil
@@ -120,27 +165,9 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scanner.Handler, ctrlField string) (string, error) {
 	sig := handler.Signature
 
-	// Select template based on pattern
-	var tmplName string
-	switch sig.Pattern {
-	case 1, 2:
-		tmplName = "pattern_1_2.tmpl"
-	case 3:
-		tmplName = "pattern_3.tmpl"
-	case 4:
-		tmplName = "pattern_4.tmpl"
-	case 5:
-		tmplName = "pattern_5.tmpl"
-	case 6:
-		tmplName = "pattern_6.tmpl"
-	case 7:
-		tmplName = "pattern_7.tmpl"
-	case 8:
-		tmplName = "pattern_8.tmpl"
-	case 9:
-		tmplName = "pattern_9.tmpl"
-	default:
-		return "", fmt.Errorf("unsupported handler pattern: %d", sig.Pattern)
+	// Glib 3.0: Support Pattern 10 (Result[T]) and Pattern 11 (raw HTTP)
+	if sig.Pattern != 10 && sig.Pattern != 11 {
+		return "", fmt.Errorf("unsupported handler pattern: %d (only pattern 10 Result[T] and pattern 11 raw HTTP are supported in Glib 3.0)", sig.Pattern)
 	}
 
 	data := map[string]any{
@@ -149,5 +176,193 @@ func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scann
 		"CtrlField":  ctrlField,
 	}
 
-	return g.executeTemplate(tmplName, data)
+	// Use appropriate template based on pattern
+	templateName := fmt.Sprintf("pattern_%d.tmpl", sig.Pattern)
+	return g.executeTemplate(templateName, data)
+}
+
+// buildMiddlewareChain builds the ordered middleware chain for a handler
+// New algorithm:
+// 1. If @With explicit override → use only those
+// 2. If @With none → no middleware
+// 3. Otherwise → collect middleware where target=all OR target matches handler's/controller's tags
+// 4. Sort by order, then file path, then line number
+func (g *Generator) buildMiddlewareChain(ctrl *scanner.Controller, handler *scanner.Handler) []*scanner.Middleware {
+	// Check for explicit @With override
+	if len(handler.With) > 0 {
+		// Check for "none" keyword
+		if len(handler.With) == 1 && handler.With[0] == "none" {
+			return nil
+		}
+
+		// Use explicit middleware list
+		var chain []*scanner.Middleware
+		middlewareMap := make(map[string]*scanner.Middleware)
+		for _, mw := range g.project.Middleware {
+			middlewareMap[mw.Name] = mw
+		}
+
+		for _, name := range handler.With {
+			if mw, ok := middlewareMap[name]; ok {
+				chain = append(chain, mw)
+			}
+		}
+
+		// Sort by order (explicit With maintains order from annotation)
+		return sortMiddleware(chain)
+	}
+
+	// Auto-target by tags: collect controller and handler tags
+	allTags := make(map[string]bool)
+	for _, tag := range ctrl.Tags {
+		allTags[tag] = true
+	}
+	for _, tag := range handler.Tags {
+		allTags[tag] = true
+	}
+
+	// Collect matching middleware
+	var chain []*scanner.Middleware
+	for _, mw := range g.project.Middleware {
+		if g.middlewareMatches(mw, allTags) {
+			chain = append(chain, mw)
+		}
+	}
+
+	// Sort by order, file path, line number
+	return sortMiddleware(chain)
+}
+
+// middlewareMatches checks if middleware targets match the given tags
+func (g *Generator) middlewareMatches(mw *scanner.Middleware, tags map[string]bool) bool {
+	// target=all always matches
+	if mw.Target == "all" {
+		return true
+	}
+
+	// Split comma-separated targets
+	targets := strings.Split(mw.Target, ",")
+	for _, target := range targets {
+		target = strings.TrimSpace(target)
+		if target == "all" || tags[target] {
+			return true
+		}
+	}
+
+	return false
+}
+
+// sortMiddleware sorts middleware by order (ascending), then file path, then line number
+func sortMiddleware(middleware []*scanner.Middleware) []*scanner.Middleware {
+	// Simple bubble sort (fine for small lists)
+	sorted := make([]*scanner.Middleware, len(middleware))
+	copy(sorted, middleware)
+
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if compareMiddleware(sorted[i], sorted[j]) > 0 {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	return sorted
+}
+
+// compareMiddleware compares two middleware for sorting
+// Returns: -1 if a < b, 0 if a == b, 1 if a > b
+func compareMiddleware(a, b *scanner.Middleware) int {
+	// First: compare order
+	if a.Order < b.Order {
+		return -1
+	}
+	if a.Order > b.Order {
+		return 1
+	}
+
+	// Second: compare file path
+	if a.FilePath < b.FilePath {
+		return -1
+	}
+	if a.FilePath > b.FilePath {
+		return 1
+	}
+
+	// Third: compare line number
+	if a.Position.Line < b.Position.Line {
+		return -1
+	}
+	if a.Position.Line > b.Position.Line {
+		return 1
+	}
+
+	return 0
+}
+
+// generateWriteResultHelper generates the writeResult helper function
+func (g *Generator) generateWriteResultHelper() string {
+	return `
+// writeResult writes a glib.Result[T] to the http.ResponseWriter
+func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
+	// Set custom headers
+	if result.Headers != nil {
+		for key, values := range result.Headers {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+	}
+	
+	// Handle error response
+	if err := result.Error(); err != nil {
+		statusCode := result.StatusCode
+		if statusCode == 0 {
+			statusCode = http.StatusInternalServerError
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+		
+		// Check if it's an errs.Error for structured error response
+		var errsErr *errs.Error
+		if errors.As(err, &errsErr) {
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": map[string]any{
+					"code":    errsErr.Code.String(),
+					"message": errsErr.Message,
+				},
+			})
+		} else {
+			// Fallback for standard errors
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": map[string]any{
+					"code":    http.StatusText(statusCode),
+					"message": err.Error(),
+				},
+			})
+		}
+		return
+	}
+	
+	// Handle success response
+	statusCode := result.StatusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	
+	// No content responses
+	if statusCode == http.StatusNoContent {
+		w.WriteHeader(statusCode)
+		return
+	}
+	
+	// Encode success data as JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(result.Data); err != nil {
+		// Already wrote status, can't change it
+		// TODO: Add logging support
+	}
+}
+`
 }

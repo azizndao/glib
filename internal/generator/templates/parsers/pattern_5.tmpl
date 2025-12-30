@@ -1,8 +1,0 @@
-{{/* Pattern 5: Context only, returns response + error */}}
-		ctx := r.Context()
-		resp, err := c.{{.CtrlField}}.{{.Handler.Name}}(ctx)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, resp)

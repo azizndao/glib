@@ -1,4 +1,0 @@
-{{/* Pattern 3: Context only, no return value */}}
-		ctx := r.Context()
-		c.{{.CtrlField}}.{{.Handler.Name}}(ctx)
-		w.WriteHeader(http.StatusNoContent)

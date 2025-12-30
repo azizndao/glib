@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 )
 
 // scanController scans a type declaration for @Controller annotation
@@ -17,12 +18,18 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 		return nil, fmt.Errorf("controller annotation not found")
 	}
 
-	routePrefix := parseControllerAnnotation(ctrlAnn.Value)
+	// Parse controller annotation: path=/api/v1/post tags=api,public
+	ctrlParams := parseControllerAnnotation(ctrlAnn.Value)
 
-	// Parse middleware annotations
-	var middlewares []string
-	if mwAnn := findAnnotation(annotations, "Middleware"); mwAnn != nil {
-		middlewares = parseMiddlewareAnnotation(mwAnn.Value)
+	routePrefix := ctrlParams["path"]
+	if routePrefix == "" {
+		return nil, fmt.Errorf("controller path is required")
+	}
+
+	// Parse tags from controller annotation
+	var tags []string
+	if tagsStr := ctrlParams["tags"]; tagsStr != "" {
+		tags = parseCommaSeparated(tagsStr)
 	}
 
 	// Parse struct fields for DI
@@ -37,7 +44,7 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 		PackagePath: packagePath,
 		FilePath:    filePath,
 		RoutePrefix: routePrefix,
-		Middlewares: middlewares,
+		Tags:        tags,
 		Fields:      fields,
 		TypeSpec:    typeSpec,
 		Position:    s.fset.Position(typeSpec.Pos()),
@@ -81,16 +88,26 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller) error 
 			continue
 		}
 
-		// Parse route annotation
-		method, path := parseRouteAnnotation(routeAnn.Value)
+		// Parse route annotation: method=POST path=/ tags=protected with=auth,admin
+		routeParams := parseRouteAnnotation(routeAnn.Value)
+
+		method := routeParams["method"]
+		path := routeParams["path"]
 		if method == "" || path == "" {
 			continue
 		}
+		method = strings.ToUpper(method)
 
-		// Parse middleware annotations
-		var middlewares []string
-		if mwAnn := findAnnotation(annotations, "Middleware"); mwAnn != nil {
-			middlewares = parseMiddlewareAnnotation(mwAnn.Value)
+		// Parse tags from route annotation
+		var tags []string
+		if tagsStr := routeParams["tags"]; tagsStr != "" {
+			tags = parseCommaSeparated(tagsStr)
+		}
+
+		// Parse @With annotation (explicit middleware override)
+		var with []string
+		if withStr := routeParams["with"]; withStr != "" {
+			with = parseCommaSeparated(withStr)
 		}
 
 		// Parse handler signature
@@ -107,14 +124,15 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller) error 
 		fullPath := controller.RoutePrefix + path
 
 		handler := &Handler{
-			Name:        funcDecl.Name.Name,
-			Method:      method,
-			Path:        path,
-			FullPath:    fullPath,
-			Middlewares: middlewares,
-			Signature:   signature,
-			FuncDecl:    funcDecl,
-			Position:    s.fset.Position(funcDecl.Pos()),
+			Name:      funcDecl.Name.Name,
+			Method:    method,
+			Path:      path,
+			FullPath:  fullPath,
+			Tags:      tags,
+			With:      with,
+			Signature: signature,
+			FuncDecl:  funcDecl,
+			Position:  s.fset.Position(funcDecl.Pos()),
 		}
 
 		controller.Handlers = append(controller.Handlers, handler)
@@ -186,6 +204,36 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 			typeInfo.FullName = t.Name
 		}
 
+	case *ast.IndexExpr:
+		// Generic type: Result[T], Option[User], etc.
+		baseType := s.parseType(t.X)
+		paramType := s.parseType(t.Index)
+
+		typeInfo.Name = baseType.Name
+		typeInfo.PackageName = baseType.PackageName
+		typeInfo.PackagePath = baseType.PackagePath
+		typeInfo.IsGeneric = true
+		typeInfo.TypeParams = []*TypeInfo{paramType}
+		typeInfo.FullName = baseType.FullName + "[" + paramType.FullName + "]"
+
+	case *ast.IndexListExpr:
+		// Generic type with multiple params: Map[K, V], etc.
+		baseType := s.parseType(t.X)
+
+		typeInfo.Name = baseType.Name
+		typeInfo.PackageName = baseType.PackageName
+		typeInfo.PackagePath = baseType.PackagePath
+		typeInfo.IsGeneric = true
+
+		var paramNames []string
+		for _, index := range t.Indices {
+			paramType := s.parseType(index)
+			typeInfo.TypeParams = append(typeInfo.TypeParams, paramType)
+			paramNames = append(paramNames, paramType.FullName)
+		}
+
+		typeInfo.FullName = baseType.FullName + "[" + joinStrings(paramNames, ", ") + "]"
+
 	case *ast.StarExpr:
 		// Pointer type: *User, *gorm.DB
 		typeInfo.IsPointer = true
@@ -223,6 +271,18 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 	}
 
 	return typeInfo
+}
+
+// joinStrings joins strings with separator (helper for generic types)
+func joinStrings(strs []string, sep string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	result := strs[0]
+	for i := 1; i < len(strs); i++ {
+		result += sep + strs[i]
+	}
+	return result
 }
 
 // isPrimitive checks if a type name is a Go primitive

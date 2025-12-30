@@ -7,6 +7,10 @@ import (
 {{- if .NeedsFmt}}
 	"fmt"
 {{- end}}
+{{- if .NeedsGlibMiddleware}}
+	"github.com/azizndao/glib"
+	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
+{{- end}}
 {{- range .Imports}}
 	"{{.}}"
 {{- end}}
@@ -25,7 +29,11 @@ type container struct {
 	{{.FieldName}} *{{.PackageName}}.{{.Name}}
 {{- end}}
 {{- range .Middleware}}
+{{- if eq .Signature "new"}}
+	{{.FieldName}} func(http.Handler) http.Handler // Wrapped new-style
+{{- else}}
 	{{.FieldName}} func(http.Handler) http.Handler
+{{- end}}
 {{- end}}
 }
 
@@ -53,8 +61,41 @@ func initContainer(ctx context.Context) (*container, error) {
 
 	// Initialize middleware
 {{- range .Middleware}}
+{{- if eq .Signature "new"}}
+	// Wrap new-style middleware to http.Handler adapter
+	c.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
+{{- else}}
 	c.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+{{- end}}
 {{- end}}
 
 	return c, nil
 }
+
+{{- if .NeedsGlibMiddleware}}
+
+// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware
+func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Wrap http.Request in glib.Request
+			req := glibmiddleware.NewRequest(r)
+			
+			// Define next function
+			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+				// Call next handler/middleware
+				// Note: We can't capture the actual result from next handler easily
+				// So we just pass through and return empty success
+				next.ServeHTTP(w, req.HTTPRequest())
+				return glib.OK[any](nil)
+			}
+			
+			// Call middleware
+			result := mw(req, nextFn)
+			
+			// Write result using writeResult helper
+			writeResult(w, result)
+		})
+	}
+}
+{{- end}}

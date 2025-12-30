@@ -2,41 +2,43 @@ package admin
 
 import (
 	"context"
-	
+
+	"github.com/azizndao/glib"
 	"github.com/google/uuid"
 )
 
-// @Controller /api/v1/admin
+// @Controller path=/api/v1/admin tags=admin,protected
 type Controller struct {
 	// Add dependencies here (auto-injected)
 }
 
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) ([]Admin, error) {
+// @Route method=GET path=/
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Admin] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK([]Admin{})
 }
 
-// @Route GET /{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Admin, error) {
+// @Route method=GET path=/{id}
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Admin] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Admin{ID: id})
 }
 
-// @Route POST /
-func (c *Controller) Create(ctx context.Context, req CreateAdminRequest) (*Admin, error) {
+// @Route method=POST path=/
+func (c *Controller) Create(ctx context.Context, req CreateAdminRequest) glib.Result[*Admin] {
 	// TODO: implement
-	return nil, nil
+	admin := &Admin{ID: uuid.New()}
+	return glib.Created(admin)
 }
 
-// @Route PUT /{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateAdminRequest) (*Admin, error) {
+// @Route method=PUT path=/{id}
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateAdminRequest) glib.Result[*Admin] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Admin{ID: id})
 }
 
-// @Route DELETE /{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
+// @Route method=DELETE path=/{id}
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
 	// TODO: implement
-	return nil
+	return glib.NoContent[any]()
 }

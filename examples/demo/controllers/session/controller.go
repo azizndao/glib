@@ -2,41 +2,43 @@ package session
 
 import (
 	"context"
-	
+
+	"github.com/azizndao/glib"
 	"github.com/google/uuid"
 )
 
-// @Controller /api/v1/session
+// @Controller path=/api/v1/session tags=api
 type Controller struct {
 	// Add dependencies here (auto-injected)
 }
 
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) ([]Session, error) {
+// @Route method=GET path=/
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Session] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK([]Session{})
 }
 
-// @Route GET /{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Session, error) {
+// @Route method=GET path=/{id}
+func (c *Controller) Show(ctx context.Context, id int) glib.Result[*Session] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Session{ID: uuid.New()})
 }
 
-// @Route POST /
-func (c *Controller) Create(ctx context.Context, req CreateSessionRequest) (*Session, error) {
+// @Route method=POST path=/
+func (c *Controller) Create(ctx context.Context, req CreateSessionRequest) glib.Result[*Session] {
 	// TODO: implement
-	return nil, nil
+	session := &Session{ID: uuid.New()}
+	return glib.Created(session)
 }
 
-// @Route PUT /{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateSessionRequest) (*Session, error) {
+// @Route method=PUT path=/{id}
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateSessionRequest) glib.Result[*Session] {
 	// TODO: implement
-	return nil, nil
+	return glib.OK(&Session{})
 }
 
-// @Route DELETE /{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
+// @Route method=DELETE path=/{id}
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
 	// TODO: implement
-	return nil
+	return glib.NoContent[any]()
 }

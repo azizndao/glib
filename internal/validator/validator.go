@@ -52,6 +52,9 @@ func (v *Validator) Validate(project *scanner.Project) error {
 	// Check for dependency cycles (simple check)
 	v.validateDependencies(project)
 
+	// Check middleware references
+	v.validateMiddlewareReferences(project)
+
 	if len(v.errors) > 0 {
 		return fmt.Errorf("validation failed with %d errors", len(v.errors))
 	}
@@ -86,13 +89,6 @@ func (v *Validator) validateController(ctrl *scanner.Controller) {
 	for _, handler := range ctrl.Handlers {
 		v.validateHandler(handler, ctrl)
 	}
-
-	// Check middleware references
-	for _, mwName := range ctrl.Middlewares {
-		if mwName == "" {
-			v.addError(location, "empty middleware name in controller")
-		}
-	}
 }
 
 // validateHandler validates a handler
@@ -119,16 +115,11 @@ func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Cont
 		return
 	}
 
-	if handler.Signature.Pattern < 1 || handler.Signature.Pattern > 9 {
-		v.addError(location, fmt.Sprintf("invalid handler signature pattern: %d", handler.Signature.Pattern))
+	// Glib 3.0: Only Pattern 10 (Result[T]) or Pattern 11 (raw) are valid
+	if handler.Signature.Pattern != 10 && handler.Signature.Pattern != 11 {
+		v.addError(location, fmt.Sprintf("invalid handler signature: must return glib.Result[T] (Pattern 10) or use raw http.ResponseWriter/Request (Pattern 11), got pattern %d", handler.Signature.Pattern))
 	}
 
-	// Check middleware references
-	for _, mwName := range handler.Middlewares {
-		if mwName == "" {
-			v.addError(location, "empty middleware name in handler")
-		}
-	}
 }
 
 // validateProvider validates a provider
@@ -154,6 +145,21 @@ func (v *Validator) validateMiddleware(mw *scanner.Middleware) {
 	if mw.Name == "" {
 		v.addError(location, "middleware name cannot be empty")
 	}
+
+	// Validate target
+	if mw.Target == "" {
+		v.addError(location, "middleware target cannot be empty")
+	}
+
+	// Validate order
+	if mw.Order < 0 {
+		v.addError(location, fmt.Sprintf("middleware order must be non-negative: %d", mw.Order))
+	}
+
+	// Validate signature
+	if mw.Signature != "old" && mw.Signature != "new" {
+		v.addError(location, fmt.Sprintf("invalid middleware signature type: %s (must be 'old' or 'new')", mw.Signature))
+	}
 }
 
 // validateUniqueRoutes checks for duplicate routes
@@ -174,13 +180,15 @@ func (v *Validator) validateUniqueRoutes(controllers []*scanner.Controller) {
 	}
 }
 
-// validateDependencies performs basic dependency validation
+// validateDependencies performs dependency validation including circular dependency detection
 func (v *Validator) validateDependencies(project *scanner.Project) {
 	// Build a map of available types from providers
 	providedTypes := make(map[string]bool)
+	providersByType := make(map[string]*scanner.Provider)
 	for _, prov := range project.Providers {
 		if prov.ReturnType != nil {
 			providedTypes[prov.ReturnType.FullName] = true
+			providersByType[prov.ReturnType.FullName] = prov
 		}
 	}
 
@@ -196,6 +204,74 @@ func (v *Validator) validateDependencies(project *scanner.Project) {
 			}
 		}
 	}
+
+	// Check for circular dependencies in providers using DFS
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+
+	for _, prov := range project.Providers {
+		if prov.ReturnType == nil {
+			continue
+		}
+		if !visited[prov.ReturnType.FullName] {
+			if v.detectCircularDeps(prov, providersByType, visited, recStack, []string{}) {
+				// Error already added in detectCircularDeps
+				continue
+			}
+		}
+	}
+}
+
+// detectCircularDeps performs DFS to detect circular dependencies
+func (v *Validator) detectCircularDeps(prov *scanner.Provider, providersByType map[string]*scanner.Provider, visited, recStack map[string]bool, path []string) bool {
+	if prov.ReturnType == nil {
+		return false
+	}
+
+	typeName := prov.ReturnType.FullName
+	visited[typeName] = true
+	recStack[typeName] = true
+	path = append(path, typeName)
+
+	// Check all dependencies
+	for _, dep := range prov.Dependencies {
+		if dep.Type == nil || dep.Type.IsPrimitive {
+			continue
+		}
+
+		depTypeName := dep.Type.FullName
+
+		// If dependency is in recursion stack, we found a cycle
+		if recStack[depTypeName] {
+			// Find where the cycle starts
+			cycleStart := -1
+			for i, t := range path {
+				if t == depTypeName {
+					cycleStart = i
+					break
+				}
+			}
+
+			cyclePath := append(path[cycleStart:], depTypeName)
+			location := fmt.Sprintf("%s:%d", prov.FilePath, prov.Position.Line)
+			v.addError(location, fmt.Sprintf("circular dependency detected: %s", strings.Join(cyclePath, " -> ")))
+			recStack[typeName] = false
+			return true
+		}
+
+		// Recursively check dependency
+		if depProvider, exists := providersByType[depTypeName]; exists {
+			if !visited[depTypeName] {
+				if v.detectCircularDeps(depProvider, providersByType, visited, recStack, path) {
+					recStack[typeName] = false
+					return true
+				}
+			}
+		}
+	}
+
+	recStack[typeName] = false
+	return false
 }
 
 // addError adds a validation error
@@ -214,4 +290,76 @@ func (v *Validator) addWarning(location, message string) {
 		Location: location,
 		Message:  message,
 	})
+}
+
+// validateMiddlewareReferences checks that all middleware references exist
+func (v *Validator) validateMiddlewareReferences(project *scanner.Project) {
+	// Build map of available middleware
+	availableMiddleware := make(map[string]bool)
+	for _, mw := range project.Middleware {
+		availableMiddleware[mw.Name] = true
+	}
+
+	// Build map of all tags used in the project
+	allTags := make(map[string]bool)
+	for _, ctrl := range project.Controllers {
+		for _, tag := range ctrl.Tags {
+			allTags[tag] = true
+		}
+		for _, handler := range ctrl.Handlers {
+			for _, tag := range handler.Tags {
+				allTags[tag] = true
+			}
+		}
+	}
+
+	// Validate middleware target references
+	for _, mw := range project.Middleware {
+		location := fmt.Sprintf("%s:%d", mw.FilePath, mw.Position.Line)
+
+		// Skip "all" target
+		if mw.Target == "all" {
+			continue
+		}
+
+		// Split comma-separated targets
+		targets := strings.Split(mw.Target, ",")
+		for _, target := range targets {
+			target = strings.TrimSpace(target)
+			if target == "" {
+				continue
+			}
+			if target != "all" && !allTags[target] {
+				v.addWarning(location, fmt.Sprintf("middleware '%s' targets tag '%s' which is not used by any controller or handler", mw.Name, target))
+			}
+		}
+	}
+
+	// Check handler @With references
+	for _, ctrl := range project.Controllers {
+		for _, handler := range ctrl.Handlers {
+			handlerLocation := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.Position.Line)
+
+			// Skip if no explicit With annotation
+			if len(handler.With) == 0 {
+				continue
+			}
+
+			// Check for "none" keyword
+			if len(handler.With) == 1 && handler.With[0] == "none" {
+				continue
+			}
+
+			// Validate each middleware reference
+			for _, mwName := range handler.With {
+				if mwName == "" {
+					v.addError(handlerLocation, "empty middleware name in @With")
+					continue
+				}
+				if !availableMiddleware[mwName] {
+					v.addError(handlerLocation, fmt.Sprintf("handler references undefined middleware '%s' in @With", mwName))
+				}
+			}
+		}
+	}
 }

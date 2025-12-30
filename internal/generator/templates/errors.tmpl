@@ -22,22 +22,41 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 func writeError(w http.ResponseWriter, err error) {
 	var glibErr *errs.Error
 	if errors.As(err, &glibErr) {
-		// Structured glib error
-		writeJSON(w, glibErr.Code().HTTPStatus(), map[string]any{
+		// Structured glib error - return user-facing details
+		response := map[string]any{
 			"error": map[string]any{
-				"code":    glibErr.Code(),
-				"message": glibErr.Message(),
-				"meta":    glibErr.Meta(),
+				"code":    glibErr.Code.String(),
+				"message": glibErr.Message,
 			},
-		})
+		}
+		
+		// Include details (validation errors) if present
+		if glibErr.Details != nil {
+			response["error"].(map[string]any)["details"] = glibErr.Details
+		}
+		
+		writeJSON(w, glibErr.Code.HTTPStatus(), response)
 		return
 	}
 
-	// Generic error
+	// Generic error - don't expose internal details
 	writeJSON(w, http.StatusInternalServerError, map[string]any{
 		"error": map[string]any{
-			"code":    "internal_error",
-			"message": err.Error(),
+			"code":    "internal",
+			"message": "An internal error occurred",
+		},
+	})
+}
+
+// writeParamError writes a parameter validation error
+func writeParamError(w http.ResponseWriter, paramName, paramValue, reason string) {
+	writeJSON(w, http.StatusBadRequest, map[string]any{
+		"error": map[string]any{
+			"code":    "invalid_argument",
+			"message": "Invalid request parameters",
+			"details": map[string][]string{
+				paramName: {reason},
+			},
 		},
 	})
 }

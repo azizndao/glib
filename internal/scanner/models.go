@@ -20,7 +20,7 @@ type Controller struct {
 	PackagePath string         // e.g., "myapp/controllers/posts"
 	FilePath    string         // e.g., "/path/to/controllers/posts/controller.go"
 	RoutePrefix string         // e.g., "/api/v1/posts"
-	Middlewares []string       // e.g., ["auth", "ratelimit"]
+	Tags        []string       // e.g., ["protected", "api"] - for auto-targeting middleware
 	Handlers    []*Handler     // Handler methods
 	Fields      []*Field       // Injected dependencies
 	TypeSpec    *ast.TypeSpec  // Original AST node
@@ -29,14 +29,15 @@ type Controller struct {
 
 // Handler represents a controller method annotated with @Route
 type Handler struct {
-	Name        string            // e.g., "Show"
-	Method      string            // e.g., "GET"
-	Path        string            // e.g., "/{id}"
-	FullPath    string            // e.g., "/api/v1/posts/{id}"
-	Middlewares []string          // e.g., ["cache"]
-	Signature   *HandlerSignature // Parsed signature
-	FuncDecl    *ast.FuncDecl     // Original AST node
-	Position    token.Position    // Source position
+	Name      string            // e.g., "Show"
+	Method    string            // e.g., "GET"
+	Path      string            // e.g., "/{id}"
+	FullPath  string            // e.g., "/api/v1/posts/{id}"
+	Tags      []string          // e.g., ["protected"] - for auto-targeting middleware
+	With      []string          // e.g., ["auth", "cache"] or ["none"] - explicit middleware override
+	Signature *HandlerSignature // Parsed signature
+	FuncDecl  *ast.FuncDecl     // Original AST node
+	Position  token.Position    // Source position
 }
 
 // HandlerSignature represents a parsed handler signature
@@ -74,11 +75,14 @@ type Provider struct {
 
 // Middleware represents a function annotated with @Middleware
 type Middleware struct {
-	Name         string         // e.g., "auth"
-	FunctionName string         // e.g., "Auth"
+	Name         string         // e.g., "auth" - middleware identifier
+	FunctionName string         // e.g., "Auth" - Go function name
 	PackageName  string         // e.g., "middleware"
 	PackagePath  string         // e.g., "myapp/middleware"
 	FilePath     string         // e.g., "/path/to/middleware/auth.go"
+	Target       string         // e.g., "all", "protected", "public,admin" - targeting expression
+	Order        int            // Execution order (default: 100)
+	Signature    string         // "old" (http.Handler) or "new" (glib.Middleware)
 	Dependencies []*Field       // What it depends on
 	FuncDecl     *ast.FuncDecl  // Original AST node
 	Position     token.Position // Source position
@@ -92,15 +96,17 @@ type Field struct {
 
 // TypeInfo represents a Go type with package information
 type TypeInfo struct {
-	Name        string // e.g., "DB", "UUID", "string", "int"
-	PackagePath string // e.g., "gorm.io/gorm", "github.com/google/uuid"
-	PackageName string // e.g., "gorm", "uuid"
-	IsPointer   bool   // e.g., true for *gorm.DB
-	IsSlice     bool   // e.g., true for []Post
-	IsError     bool   // Special case for error type
-	IsContext   bool   // Special case for context.Context
-	IsPrimitive bool   // true for string, int, etc.
-	FullName    string // e.g., "*gorm.DB", "[]Post", "uuid.UUID"
+	Name        string      // e.g., "DB", "UUID", "string", "int", "Result"
+	PackagePath string      // e.g., "gorm.io/gorm", "github.com/google/uuid"
+	PackageName string      // e.g., "gorm", "uuid", "glib"
+	IsPointer   bool        // e.g., true for *gorm.DB
+	IsSlice     bool        // e.g., true for []Post
+	IsError     bool        // Special case for error type
+	IsContext   bool        // Special case for context.Context
+	IsPrimitive bool        // true for string, int, etc.
+	IsGeneric   bool        // true for generic types like Result[T]
+	TypeParams  []*TypeInfo // Generic type parameters (e.g., [T] in Result[T])
+	FullName    string      // e.g., "*gorm.DB", "[]Post", "uuid.UUID", "glib.Result[*Post]"
 }
 
 // Annotation represents a parsed annotation from comments

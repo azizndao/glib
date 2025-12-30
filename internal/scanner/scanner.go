@@ -142,6 +142,11 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 			}
 
 		case *ast.FuncDecl:
+			// Skip methods (functions with receivers) - they're not providers/middleware
+			if d.Recv != nil {
+				continue
+			}
+
 			annotations := extractAnnotations(d.Doc)
 
 			// Check for @Provider

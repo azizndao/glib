@@ -8,11 +8,10 @@ import (
 
 var (
 	// Annotation patterns
-	controllerPattern     = regexp.MustCompile(`^//\s*@Controller\s+(.+)$`)
-	routePattern          = regexp.MustCompile(`^//\s*@Route\s+(\w+)\s+(.+)$`)
-	providerPattern       = regexp.MustCompile(`^//\s*@Provider\s+(\w+)$`)
-	middlewarePattern     = regexp.MustCompile(`^//\s*@Middleware\s+(.+)$`)
-	middlewareListPattern = regexp.MustCompile(`^//\s*@Middleware\s+(.+)$`)
+	controllerPattern = regexp.MustCompile(`^//\s*@Controller\s+(.+)$`)
+	routePattern      = regexp.MustCompile(`^//\s*@Route\s+(.+)$`)
+	providerPattern   = regexp.MustCompile(`^//\s*@Provider\s+(\w+)$`)
+	middlewarePattern = regexp.MustCompile(`^//\s*@Middleware\s+(.+)$`)
 )
 
 // extractAnnotations extracts all annotations from a comment group
@@ -26,7 +25,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 	for _, comment := range commentGroup.List {
 		text := comment.Text
 
-		// Controller annotation: @Controller /api/v1/posts
+		// Controller annotation: @Controller path=/api/v1/posts tags=api,public
 		if match := controllerPattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
 				Type:  "Controller",
@@ -36,11 +35,11 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 			continue
 		}
 
-		// Route annotation: @Route GET /{id}
+		// Route annotation: @Route method=GET path=/{id} tags=protected with=auth,admin
 		if match := routePattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
 				Type:  "Route",
-				Value: strings.TrimSpace(match[1]) + " " + strings.TrimSpace(match[2]),
+				Value: strings.TrimSpace(match[1]),
 				Line:  int(comment.Pos()),
 			})
 			continue
@@ -56,7 +55,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 			continue
 		}
 
-		// Middleware annotation: @Middleware auth,ratelimit
+		// Middleware annotation: @Middleware name=auth target=protected order=10
 		if match := middlewarePattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
 				Type:  "Middleware",
@@ -71,23 +70,49 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 }
 
 // parseControllerAnnotation parses @Controller annotation
-// Example: "@Controller /api/v1/posts" returns "/api/v1/posts"
-func parseControllerAnnotation(value string) string {
-	return strings.TrimSpace(value)
+// New style: "path=/api/v1/posts tags=api,public" returns map with parsed values
+// Example: "@Controller path=/api/v1/posts tags=api,public"
+func parseControllerAnnotation(value string) map[string]string {
+	return parseKeyValuePairs(value, map[string]string{
+		"tags": "", // default: no tags
+	})
 }
 
 // parseRouteAnnotation parses @Route annotation
-// Example: "@Route GET /{id}" returns ("GET", "/{id}")
-func parseRouteAnnotation(value string) (method, path string) {
-	parts := strings.Fields(value)
-	if len(parts) < 2 {
-		return "", ""
-	}
-	return strings.ToUpper(parts[0]), strings.Join(parts[1:], " ")
+// New style: "method=GET path=/{id} tags=protected with=auth,admin"
+// Returns map with parsed values
+func parseRouteAnnotation(value string) map[string]string {
+	return parseKeyValuePairs(value, map[string]string{
+		"tags": "", // default: no tags
+		"with": "", // default: no explicit override
+	})
 }
 
-// parseMiddlewareAnnotation parses @Middleware annotation
-// Example: "@Middleware auth,ratelimit" returns ["auth", "ratelimit"]
+// parseKeyValuePairs parses key=value pairs from annotation value
+// Applies defaults for missing keys
+func parseKeyValuePairs(value string, defaults map[string]string) map[string]string {
+	result := make(map[string]string)
+
+	// Copy defaults
+	for k, v := range defaults {
+		result[k] = v
+	}
+
+	// Parse key=value pairs
+	pairs := strings.Fields(value)
+	for _, pair := range pairs {
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			result[key] = val
+		}
+	}
+
+	return result
+}
+
+// parseMiddlewareAnnotation parses comma-separated middleware list (legacy)
 func parseMiddlewareAnnotation(value string) []string {
 	if value == "" {
 		return nil
@@ -102,6 +127,34 @@ func parseMiddlewareAnnotation(value string) []string {
 		}
 	}
 	return result
+}
+
+// parseCommaSeparated parses comma-separated values
+// Example: "protected,admin" returns ["protected", "admin"]
+// Example: "none" returns ["none"]
+func parseCommaSeparated(value string) []string {
+	if value == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// parseMiddlewareDefinition parses middleware definition annotations
+// Example: "name=auth target=protected order=10" returns map with parsed values
+func parseMiddlewareDefinition(value string) map[string]string {
+	return parseKeyValuePairs(value, map[string]string{
+		"target": "all",
+		"order":  "100",
+	})
 }
 
 // parseProviderAnnotation parses @Provider annotation
