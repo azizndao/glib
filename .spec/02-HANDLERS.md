@@ -1,88 +1,372 @@
-# Glib 2.0 - Handler Signatures
+# 02. Handler Signatures
 
-Complete guide to the 9 flexible handler signature patterns supported by Glib 2.0.
+**Status:** Specification (Under Development)  
+**Last Updated:** 2025-12-31
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Pattern 10: Result[T] - Type-Safe Handlers](#pattern-10-resultt---type-safe-handlers)
+3. [Pattern 11: Raw HTTP Handlers](#pattern-11-raw-http-handlers)
+4. [Result[T] API Reference](#resultt-api-reference)
+5. [Code Generation Behavior](#code-generation-behavior)
+6. [Best Practices](#best-practices)
 
 ---
 
 ## Overview
 
-Glib 2.0 supports **9 different handler patterns**, giving you flexibility to choose the right level of abstraction for each endpoint. This design is inspired by [Encore.dev](https://encore.dev/docs/go/primitives/defining-apis).
+Glib supports **2 handler patterns**, providing flexibility while keeping the API simple and type-safe.
 
-### Philosophy
+### Design Philosophy
 
-- **Raw `net/http` when you need control** (websockets, streaming, custom headers)
-- **Typed requests/responses for common cases** (CRUD, APIs)
-- **Mix patterns freely** (use what makes sense for each endpoint)
+- **Result[T] for most cases** - Type-safe, explicit status control, fluent API
+- **Raw HTTP when you need control** - Streaming, SSE, file uploads, websockets
+- **No runtime reflection** - Everything is generated at compile-time
 
----
+### Pattern Matrix
 
-## Pattern Matrix
-
-| Pattern | Context | Request | Response | HTTP Objects | Use Case |
-|---------|---------|---------|----------|--------------|----------|
-| 1 | ❌ | ❌ | ❌ | ✅ | Full control (websockets, streaming) |
-| 2 | ✅ | ❌ | ❌ | ✅ | Context + full HTTP control |
-| 3 | ✅ | ❌ | ❌ | ❌ | Simple action, no I/O |
-| 4 | ✅ | ❌ | ✅ | ❌ | Static responses, no input |
-| 5 | ✅ | ✅ | ❌ | ❌ | Commands (no response data) |
-| 6 | ✅ | ✅ | ✅ | ❌ | **Most common** (CRUD APIs) |
-| 7 | ✅ | ✅ | ✅ | ❌ | With path parameters |
-| 8 | ✅ | ✅ | ✅ | ❌ | Multiple path parameters |
-| 9 | ✅ | ✅ | ✅ | ✅ | Mix everything |
+| Pattern | Signature | Use Case | Status Control | Type Safety |
+|---------|-----------|----------|----------------|-------------|
+| 10 | `func(ctx, params...) glib.Result[T]` | Most API endpoints | Explicit via Result[T] | ✅ Full |
+| 11 | `func(w, r)` | Streaming, SSE, files | Manual via w.WriteHeader() | ⚠️ Manual |
 
 ---
 
-## Pattern 1: Raw net/http (Full Control)
+## Pattern 10: Result[T] - Type-Safe Handlers
 
-**When to use:** Websockets, streaming, custom protocols, file uploads
+### Signature
 
 ```go
-// @Route GET /ws
-func (c *Controller) WebSocket(w http.ResponseWriter, r *http.Request) {
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-        return
-    }
-    defer conn.Close()
-    
-    // Handle websocket...
+func (c *Controller) HandlerName(
+    ctx context.Context,
+    [pathParam1 Type1,]
+    [pathParam2 Type2,]
+    [req RequestStruct]
+) glib.Result[ResponseType]
+```
+
+### When to Use
+
+**✅ Use Pattern 10 for:**
+- RESTful CRUD operations
+- Query endpoints
+- Command endpoints
+- Any JSON API
+- ~95% of your endpoints
+
+**❌ Don't use Pattern 10 for:**
+- File downloads
+- Streaming responses
+- Server-Sent Events (SSE)
+- WebSockets
+- Custom binary protocols
+
+### Features
+
+1. **Explicit Status Control** - Choose exact HTTP status via helper functions
+2. **Type-Safe** - Generic `Result[T]` ensures response type safety
+3. **Fluent API** - Chain methods for headers and customization
+4. **Auto Error Mapping** - `glib.Fail()` extracts status from `errs.Error`
+5. **Generated Wrappers** - All parsing/marshalling code generated
+
+### Basic Examples
+
+#### Simple GET - Return List
+
+```go
+// @Route GET /posts
+func (c *PostsController) Index(ctx context.Context) glib.Result[[]Post] {
+    posts := c.Service.GetAll()
+    return glib.OK(posts)
 }
 ```
 
+**Generated Response:**
+- Status: 200 OK
+- Content-Type: application/json
+- Body: `[{...}, {...}]`
+
+#### GET with Path Parameter
+
+```go
+// @Route GET /posts/{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
+    post, err := c.Service.GetByID(id)
+    if err != nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    return glib.OK(post)
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "My Post",
+  "content": "..."
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "post not found"
+  }
+}
+```
+
+#### POST with Request Body
+
+```go
+type CreatePostRequest struct {
+    Title   string   `json:"title" validate:"required,min=3,max=200"`
+    Content string   `json:"content" validate:"required,min=10"`
+    Tags    []string `json:"tags"`
+}
+
+// @Route POST /posts
+func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
+    post, err := c.Service.Create(req.Title, req.Content, req.Tags)
+    if err != nil {
+        return glib.Fail[*Post](err)  // Auto-maps errs.Error to HTTP status
+    }
+    return glib.Created(post)
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "New Post",
+  "content": "...",
+  "created_at": "2025-12-31T10:30:00Z"
+}
+```
+
+#### PUT with Path Param + Request Body
+
+```go
+type UpdatePostRequest struct {
+    Title   string `json:"title" validate:"required,min=3"`
+    Content string `json:"content" validate:"required,min=10"`
+}
+
+// @Route PUT /posts/{id}
+func (c *PostsController) Update(
+    ctx context.Context,
+    id uuid.UUID,
+    req UpdatePostRequest,
+) glib.Result[*Post] {
+    post, err := c.Service.Update(id, req)
+    if err != nil {
+        return glib.Fail[*Post](err)
+    }
+    return glib.OK(post)
+}
+```
+
+#### DELETE - No Content Response
+
+```go
+// @Route DELETE /posts/{id}
+func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+    if err := c.Service.Delete(id); err != nil {
+        return glib.Fail[any](err)
+    }
+    return glib.NoContent[any]()
+}
+```
+
+**Success Response (204):**
+- No body
+- Status: 204 No Content
+
+### Advanced Examples
+
+#### Custom Headers
+
+```go
+// @Route GET /posts/{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
+    post, err := c.Service.GetByID(id)
+    if err != nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    
+    return glib.OK(post).
+        WithHeader("X-Post-Version", post.Version).
+        WithHeader("Cache-Control", "max-age=3600")
+}
+```
+
+#### Conditional Responses
+
+```go
+// @Route GET /posts/{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
+    post, err := c.Service.GetByID(id)
+    if err != nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    
+    // Check If-None-Match header
+    etag := fmt.Sprintf(`"%s"`, post.Version)
+    if r.Header.Get("If-None-Match") == etag {
+        return glib.NotModified[*Post]().WithHeader("ETag", etag)
+    }
+    
+    return glib.OK(post).WithHeader("ETag", etag)
+}
+```
+
+#### Multiple Path Parameters
+
+```go
+// @Route GET /posts/{postId}/comments/{commentId}
+func (c *CommentsController) Show(
+    ctx context.Context,
+    postId uuid.UUID,
+    commentId uuid.UUID,
+) glib.Result[*Comment] {
+    comment, err := c.Service.GetComment(postId, commentId)
+    if err != nil {
+        return glib.NotFound[*Comment]("comment not found")
+    }
+    return glib.OK(comment)
+}
+```
+
+#### Validation Errors
+
+```go
+// @Route POST /posts
+func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
+    // Manual validation example
+    var validationErrs []errs.ValidationError
+    
+    if len(req.Title) < 3 {
+        validationErrs = append(validationErrs, errs.ValidationError{
+            Field:    "title",
+            Messages: []string{"must be at least 3 characters"},
+        })
+    }
+    
+    if len(req.Content) < 10 {
+        validationErrs = append(validationErrs, errs.ValidationError{
+            Field:    "content",
+            Messages: []string{"must be at least 10 characters"},
+        })
+    }
+    
+    if len(validationErrs) > 0 {
+        err := errs.B().
+            Code(errs.InvalidArgument).
+            Msg("Validation failed").
+            Details(errs.NewValidationErrors(validationErrs)).
+            Err()
+        return glib.Fail[*Post](err)
+    }
+    
+    post, err := c.Service.Create(req)
+    if err != nil {
+        return glib.Fail[*Post](err)
+    }
+    return glib.Created(post)
+}
+```
+
+**Validation Error Response (400):**
+```json
+{
+  "error": {
+    "code": "invalid_argument",
+    "message": "Validation failed",
+    "details": {
+      "title": ["must be at least 3 characters"],
+      "content": ["must be at least 10 characters"]
+    }
+  }
+}
+```
+
+---
+
+## Pattern 11: Raw HTTP Handlers
+
+### Signature
+
+```go
+func (c *Controller) HandlerName(w http.ResponseWriter, r *http.Request)
+```
+
+### When to Use
+
+**✅ Use Pattern 11 for:**
+- File downloads with custom headers
+- Streaming responses (video, audio)
+- Server-Sent Events (SSE)
+- WebSocket upgrades
+- Multipart file uploads
+- Custom binary protocols
+- Fine-grained response control
+
+**❌ Don't use Pattern 11 for:**
+- Standard JSON APIs (use Pattern 10)
+- CRUD operations (use Pattern 10)
+- Simple queries (use Pattern 10)
+
 ### Features
-- ✅ Full access to `http.ResponseWriter` and `*http.Request`
-- ✅ Complete control over response
-- ✅ No automatic parsing or marshalling
-- ❌ More boilerplate
+
+1. **Full Control** - Direct access to `http.ResponseWriter` and `*http.Request`
+2. **No Auto-Generation** - Handler registered directly with router
+3. **Manual Everything** - Parsing, validation, marshalling, status codes
+4. **Context Access** - Via `r.Context()`
 
 ### Examples
 
-#### File Upload
+#### File Download
+
 ```go
-// @Route POST /upload
-func (c *Controller) Upload(w http.ResponseWriter, r *http.Request) {
-    r.ParseMultipartForm(10 << 20) // 10MB max
-    
-    file, handler, err := r.FormFile("file")
+// @Route GET /posts/{id}/export
+func (c *PostsController) Export(w http.ResponseWriter, r *http.Request) {
+    // Extract path parameter manually
+    idStr := r.PathValue("id")
+    id, err := uuid.Parse(idStr)
     if err != nil {
-        http.Error(w, "Invalid file", http.StatusBadRequest)
+        http.Error(w, "invalid id", http.StatusBadRequest)
         return
     }
-    defer file.Close()
     
-    // Save file...
+    post, err := c.Service.GetByID(id)
+    if err != nil {
+        http.Error(w, "post not found", http.StatusNotFound)
+        return
+    }
     
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(map[string]string{
-        "filename": handler.Filename,
-    })
+    // Set headers for file download
+    w.Header().Set("Content-Type", "text/csv")
+    w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=post-%s.csv", id))
+    w.WriteHeader(http.StatusOK)
+    
+    // Write CSV
+    fmt.Fprintln(w, "id,title,content")
+    fmt.Fprintf(w, "%s,%s,%s\n", post.ID, post.Title, post.Content)
 }
 ```
 
 #### Server-Sent Events (SSE)
+
 ```go
-// @Route GET /events
-func (c *Controller) Events(w http.ResponseWriter, r *http.Request) {
+// @Route GET /posts/stream
+func (c *PostsController) Stream(w http.ResponseWriter, r *http.Request) {
+    // Set SSE headers
     w.Header().Set("Content-Type", "text/event-stream")
     w.Header().Set("Cache-Control", "no-cache")
     w.Header().Set("Connection", "keep-alive")
@@ -93,502 +377,264 @@ func (c *Controller) Events(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    ticker := time.NewTicker(1 * time.Second)
-    defer ticker.Stop()
+    // Subscribe to post updates
+    updates := c.Service.Subscribe()
+    defer c.Service.Unsubscribe(updates)
     
     for {
         select {
         case <-r.Context().Done():
             return
-        case <-ticker.C:
-            fmt.Fprintf(w, "data: %s\n\n", time.Now().Format(time.RFC3339))
+        case post := <-updates:
+            data, _ := json.Marshal(post)
+            fmt.Fprintf(w, "data: %s\n\n", data)
             flusher.Flush()
         }
     }
 }
 ```
 
----
-
-## Pattern 2: Context + Raw HTTP
-
-**When to use:** Need context for cancellation but want HTTP control
+#### Multipart File Upload
 
 ```go
-// @Route GET /download
-func (c *Controller) Download(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-    // Use ctx for cancellation
-    select {
-    case <-ctx.Done():
+// @Route POST /posts/{id}/image
+func (c *PostsController) UploadImage(w http.ResponseWriter, r *http.Request) {
+    // Parse multipart form (10MB max)
+    if err := r.ParseMultipartForm(10 << 20); err != nil {
+        http.Error(w, "Invalid form data", http.StatusBadRequest)
         return
-    default:
     }
     
-    // Full HTTP control
-    w.Header().Set("Content-Disposition", "attachment; filename=data.csv")
-    w.WriteHeader(http.StatusOK)
-    
-    // Write data...
-}
-```
-
----
-
-## Pattern 3: Context Only (No I/O)
-
-**When to use:** Simple actions, side effects, no request/response data
-
-```go
-// @Route POST /cache/clear
-func (c *Controller) ClearCache(ctx context.Context) error {
-    return c.Cache.FlushAll(ctx).Err()
-}
-
-// @Route POST /notifications/send
-func (c *Controller) SendNotification(ctx context.Context) error {
-    // Trigger background job
-    return c.Queue.Enqueue("send-notifications")
-}
-```
-
-### Response
-
-- **Success:** 200 OK with empty body
-- **Error:** 500 Internal Server Error with error message
-
----
-
-## Pattern 4: Context + Response (No Input)
-
-**When to use:** Static data, health checks, status endpoints
-
-```go
-// @Route GET /health
-func (c *Controller) Health(ctx context.Context) (*HealthResponse, error) {
-    return &HealthResponse{
-        Status: "ok",
-        Time:   time.Now(),
-        Version: "1.0.0",
-    }, nil
-}
-
-type HealthResponse struct {
-    Status  string    `json:"status"`
-    Time    time.Time `json:"time"`
-    Version string    `json:"version"`
-}
-```
-
-### Response Types
-
-Any Go type can be returned:
-
-```go
-// Struct
-func Handle(ctx context.Context) (*Post, error)
-
-// Slice
-func Handle(ctx context.Context) ([]Post, error)
-
-// Map
-func Handle(ctx context.Context) (map[string]any, error)
-
-// Primitive
-func Handle(ctx context.Context) (string, error)
-```
-
-**Auto-marshalled to JSON** with appropriate `Content-Type: application/json` header.
-
----
-
-## Pattern 5: Context + Request (No Response)
-
-**When to use:** Commands, updates, deletions (no response data needed)
-
-```go
-// @Route POST /posts/{id}/publish
-func (c *Controller) PublishPost(ctx context.Context, id uuid.UUID, req PublishRequest) error {
-    post := &Post{}
-    if err := c.DB.First(post, id).Error; err != nil {
-        return err
-    }
-    
-    post.PublishedAt = req.PublishAt
-    post.Status = "published"
-    
-    return c.DB.Save(post).Error
-}
-
-type PublishRequest struct {
-    PublishAt time.Time `json:"publish_at" validate:"required"`
-}
-```
-
-### Response
-
-- **Success:** 200 OK (or 204 No Content)
-- **Error:** 500 Internal Server Error with error message
-
----
-
-## Pattern 6: Context + Request + Response (Most Common)
-
-**When to use:** CRUD operations, most API endpoints
-
-```go
-// @Route POST /posts
-func (c *Controller) CreatePost(ctx context.Context, req CreatePostRequest) (*Post, error) {
-    post := &Post{
-        Title:   req.Title,
-        Content: req.Content,
-        Status:  "draft",
-    }
-    
-    if err := c.DB.Create(post).Error; err != nil {
-        return nil, err
-    }
-    
-    return post, nil
-}
-
-type CreatePostRequest struct {
-    Title   string   `json:"title" validate:"required,min=3,max=200"`
-    Content string   `json:"content" validate:"required,min=10"`
-    Tags    []string `json:"tags"`
-}
-```
-
-### Request Parsing
-
-Request struct fields are automatically parsed from:
-- **Path parameters** (`param:"name"`)
-- **Query strings** (`query:"name"`)
-- **Headers** (`header:"Name"`)
-- **Body** (`json:"name"`) - default for fields without other tags
-
-### Response Marshalling
-
-Response is automatically:
-- Marshalled to JSON
-- Written with `Content-Type: application/json`
-- Status code 200 OK (or 201 Created for POST)
-
----
-
-## Pattern 7: Path Parameters + Request + Response
-
-**When to use:** Resource operations with identifiers
-
-```go
-// @Route PUT /posts/{id}
-func (c *Controller) UpdatePost(
-    ctx context.Context, 
-    id uuid.UUID, 
-    req UpdatePostRequest,
-) (*Post, error) {
-    post := &Post{}
-    if err := c.DB.First(post, id).Error; err != nil {
-        return nil, err
-    }
-    
-    post.Title = req.Title
-    post.Content = req.Content
-    
-    if err := c.DB.Save(post).Error; err != nil {
-        return nil, err
-    }
-    
-    return post, nil
-}
-
-type UpdatePostRequest struct {
-    Title   string `json:"title" validate:"required,min=3"`
-    Content string `json:"content" validate:"required,min=10"`
-}
-```
-
-### Path Parameter Types
-
-Supported in route annotation:
-
-```go
-/{id}              // string (default)
-/{id}         // int
-/{id}64       // int64
-/{id}        // uuid.UUID
-/:slug:string    // explicit string
-```
-
-### Parameter Matching
-
-Path parameters matched **by name and position**:
-
-```go
-// @Route GET /posts/{postID}/comments/{commentID}
-
-// ✅ Correct
-func Handle(ctx context.Context, postID uuid.UUID, commentID int) (*Response, error)
-
-// ❌ Wrong order (but still works - matched by name)
-func Handle(ctx context.Context, commentID int, postID uuid.UUID) (*Response, error)
-
-// ✅ Also correct (via request struct)
-type Request struct {
-    PostID    uuid.UUID `param:"postID"`
-    CommentID int       `param:"commentID"`
-}
-func Handle(ctx context.Context, req Request) (*Response, error)
-```
-
----
-
-## Pattern 8: Multiple Path Parameters
-
-**When to use:** Nested resources, complex routes
-
-```go
-// @Route GET /posts/{postID}/comments/{commentID}
-func (c *Controller) GetComment(
-    ctx context.Context, 
-    postID uuid.UUID, 
-    commentID uuid.UUID,
-) (*Comment, error) {
-    comment := &Comment{}
-    err := c.DB.
-        Where("post_id = ? AND id = ?", postID, commentID).
-        First(comment).
-        Error
-    
-    return comment, err
-}
-```
-
-### Wildcard Parameters
-
-Use `*name` for catch-all:
-
-```go
-// @Route GET /static/{path...}
-func (c *Controller) ServeStatic(ctx context.Context, path string) {
-    // path contains everything after /static/
-    // /static/css/main.css → path = "css/main.css"
-}
-```
-
----
-
-## Pattern 9: Mix Everything
-
-**When to use:** Need partial control (e.g., custom headers but typed request)
-
-```go
-// @Route POST /posts/{id}/upload
-func (c *Controller) UploadImage(
-    ctx context.Context,
-    id uuid.UUID,
-    w http.ResponseWriter,
-    r *http.Request,
-    req UploadImageRequest,
-) error {
-    // Path parameter: id
-    // Request struct: req (parsed from query/headers)
-    // Raw HTTP: w, r (for multipart form)
-    
-    // Parse multipart form
+    // Get file
     file, header, err := r.FormFile("image")
     if err != nil {
-        return err
+        http.Error(w, "No file provided", http.StatusBadRequest)
+        return
     }
     defer file.Close()
     
-    // Use request struct data
-    filename := fmt.Sprintf("%s-%s", id, req.Name)
+    // Validate file type
+    if !strings.HasPrefix(header.Header.Get("Content-Type"), "image/") {
+        http.Error(w, "File must be an image", http.StatusBadRequest)
+        return
+    }
     
-    // Custom response
-    w.Header().Set("X-Upload-ID", uuid.NewString())
+    // Get post ID from path
+    idStr := r.PathValue("id")
+    id, _ := uuid.Parse(idStr)
+    
+    // Save file
+    url, err := c.Storage.Save(id, file)
+    if err != nil {
+        http.Error(w, "Failed to save file", http.StatusInternalServerError)
+        return
+    }
+    
+    // Return success
+    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)
-    
-    return nil
+    json.NewEncoder(w).Encode(map[string]string{
+        "url": url,
+    })
 }
+```
 
-type UploadImageRequest struct {
-    Name string `query:"name" validate:"required"`
-    Alt  string `query:"alt"`
+#### Video Streaming with Range Requests
+
+```go
+// @Route GET /videos/{id}
+func (c *VideosController) Stream(w http.ResponseWriter, r *http.Request) {
+    idStr := r.PathValue("id")
+    id, _ := uuid.Parse(idStr)
+    
+    video, err := c.Service.GetByID(id)
+    if err != nil {
+        http.Error(w, "video not found", http.StatusNotFound)
+        return
+    }
+    
+    file, err := os.Open(video.FilePath)
+    if err != nil {
+        http.Error(w, "Failed to open video", http.StatusInternalServerError)
+        return
+    }
+    defer file.Close()
+    
+    stat, _ := file.Stat()
+    
+    // Handle range requests for video seeking
+    http.ServeContent(w, r, video.Filename, stat.ModTime(), file)
 }
+```
+
+---
+
+## Result[T] API Reference
+
+### Success Responses
+
+| Function | Status Code | Use Case |
+|----------|-------------|----------|
+| `glib.OK[T](data)` | 200 | Standard success response |
+| `glib.Created[T](data)` | 201 | Resource created successfully |
+| `glib.Accepted[T](data)` | 202 | Request accepted for processing |
+| `glib.NoContent[T]()` | 204 | Success with no response body |
+
+### Redirection Responses
+
+| Function | Status Code | Use Case |
+|----------|-------------|----------|
+| `glib.MovedPermanently[T](url)` | 301 | Resource moved permanently |
+| `glib.Found[T](url)` | 302 | Temporary redirect |
+| `glib.SeeOther[T](url)` | 303 | See other resource |
+| `glib.NotModified[T]()` | 304 | Resource not modified (caching) |
+| `glib.TemporaryRedirect[T](url)` | 307 | Temporary redirect (keep method) |
+| `glib.PermanentRedirect[T](url)` | 308 | Permanent redirect (keep method) |
+
+### Client Error Responses
+
+| Function | Status Code | Use Case |
+|----------|-------------|----------|
+| `glib.BadRequest[T](msg)` | 400 | Invalid request data |
+| `glib.Unauthorized[T](msg)` | 401 | Authentication required |
+| `glib.Forbidden[T](msg)` | 403 | Insufficient permissions |
+| `glib.NotFound[T](msg)` | 404 | Resource not found |
+| `glib.MethodNotAllowed[T](msg)` | 405 | HTTP method not allowed |
+| `glib.NotAcceptable[T](msg)` | 406 | Cannot produce requested content-type |
+| `glib.RequestTimeout[T](msg)` | 408 | Request took too long |
+| `glib.Conflict[T](msg)` | 409 | Resource conflict (e.g., duplicate) |
+| `glib.Gone[T](msg)` | 410 | Resource permanently deleted |
+| `glib.PreconditionFailed[T](msg)` | 412 | Precondition not met |
+| `glib.PayloadTooLarge[T](msg)` | 413 | Request body too large |
+| `glib.UnsupportedMediaType[T](msg)` | 415 | Content-type not supported |
+| `glib.UnprocessableEntity[T](msg)` | 422 | Semantic validation failed |
+| `glib.Locked[T](msg)` | 423 | Resource is locked |
+| `glib.TooManyRequests[T](msg)` | 429 | Rate limit exceeded |
+
+### Server Error Responses
+
+| Function | Status Code | Use Case |
+|----------|-------------|----------|
+| `glib.InternalError[T](msg)` | 500 | Unexpected server error |
+| `glib.NotImplemented[T](msg)` | 501 | Feature not implemented |
+| `glib.BadGateway[T](msg)` | 502 | Upstream server error |
+| `glib.ServiceUnavailable[T](msg)` | 503 | Service temporarily down |
+| `glib.GatewayTimeout[T](msg)` | 504 | Upstream timeout |
+
+### Custom Responses
+
+| Function | Description |
+|----------|-------------|
+| `glib.WithStatus[T](data, code)` | Custom status with data |
+| `glib.WithError[T](err, code)` | Custom status with error |
+| `glib.Fail[T](err)` | Auto-extract status from `errs.Error` |
+
+### Fluent API
+
+```go
+result.WithHeader(key, value string) Result[T]
+result.WithHeaders(headers http.Header) Result[T]
+result.Error() error  // Get internal error (for logging)
+```
+
+**Examples:**
+
+```go
+// Single header
+return glib.OK(post).WithHeader("X-Version", "1.0")
+
+// Multiple headers
+headers := http.Header{}
+headers.Set("Cache-Control", "max-age=3600")
+headers.Set("X-Custom", "value")
+return glib.OK(post).WithHeaders(headers)
+
+// Chain headers
+return glib.OK(post).
+    WithHeader("X-Version", "1.0").
+    WithHeader("Cache-Control", "max-age=3600")
 ```
 
 ---
 
 ## Code Generation Behavior
 
-### Detection Rules
-
-Generator analyzes handler signature:
-
-1. **Has `(http.ResponseWriter, *http.Request)`?**
-   - → Raw handler, no code generation
-   - → Direct registration with `http.ServeMux`
-
-2. **Has `context.Context` as first param?**
-   - → Generates wrapper with context
-
-3. **Has struct parameter?**
-   - → Generates request parser
-   - → Validates before calling handler
-
-4. **Returns `(T, error)` where T != void?**
-   - → Generates response marshaller
-   - → Handles errors automatically
-
-5. **Has path parameters in route?**
-   - → Generates path parameter extraction
-   - → Type conversion and validation
-
-### Generated Wrapper Example
+### Pattern 10: Generated Wrapper
 
 **User writes:**
 ```go
 // @Route POST /posts
-func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) (*Post, error) {
-    // ...
+func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
+    post, err := c.Service.Create(req)
+    if err != nil {
+        return glib.Fail[*Post](err)
+    }
+    return glib.Created(post)
 }
 ```
 
 **Generator creates:**
 ```go
-func registerPostsControllerCreate(mux *http.ServeMux, ctrl *PostsController) {
-    mux.HandleFunc("POST /posts", func(w http.ResponseWriter, r *http.Request) {
-        // Parse request
-        req, err := parseCreatePostRequest(r)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
+func wrapPostsController_Create(container *container, ctrl *PostsController) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Parse request body
+        var req CreatePostRequest
+        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+            writeResult(w, glib.BadRequest[*Post]("invalid JSON"))
             return
         }
         
         // Call handler
-        result, err := ctrl.Create(r.Context(), req)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
+        result := ctrl.Create(r.Context(), req)
         
-        // Marshal response
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusOK)
-        json.NewEncoder(w).Encode(result)
+        // Write result
+        writeResult(w, result)
     })
 }
 
-func parseCreatePostRequest(r *http.Request) (CreatePostRequest, error) {
-    var req CreatePostRequest
-    
-    // Parse body
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        return req, fmt.Errorf("invalid JSON: %w", err)
+func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
+    // Set custom headers
+    for key, values := range result.Headers {
+        for _, value := range values {
+            w.Header().Add(key, value)
+        }
     }
     
-    // Validate
-    validate := validator.New()
-    if err := validate.Struct(req); err != nil {
-        return req, fmt.Errorf("validation failed: %w", err)
+    // Handle error response
+    if err := result.Error(); err != nil {
+        writeErrorJSON(w, result.StatusCode, err)
+        return
     }
     
-    return req, nil
+    // Handle no-content response
+    if result.StatusCode == http.StatusNoContent {
+        w.WriteHeader(result.StatusCode)
+        return
+    }
+    
+    // Write success response
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(result.StatusCode)
+    if err := json.NewEncoder(w).Encode(result.Data); err != nil {
+        log.Printf("failed to encode response: %v", err)
+    }
 }
 ```
 
----
+### Pattern 11: Direct Registration
 
-## Error Handling
-
-All handler patterns can return `error`. Generator handles errors automatically:
-
-### Error Detection
-
+**User writes:**
 ```go
-func Handle(...) error {
-    return errors.New("something failed")
+// @Route GET /stream
+func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
+    // Raw implementation
 }
 ```
 
-**Default behavior:** 500 Internal Server Error
-
-### Custom Error Status
-
-Use custom error type for specific status codes:
-
+**Generator creates:**
 ```go
-type HTTPError struct {
-    Status  int
-    Message string
-}
-
-func (e *HTTPError) Error() string {
-    return e.Message
-}
-
-// Usage
-func Handle(...) error {
-    return &HTTPError{Status: 404, Message: "Post not found"}
-}
-```
-
-### Error Type Detection
-
-Generator can detect common error types:
-
-```go
-// 404 Not Found
-if errors.Is(err, gorm.ErrRecordNotFound) {
-    return &HTTPError{Status: 404, Message: "Not found"}
-}
-
-// 401 Unauthorized
-if errors.Is(err, ErrUnauthorized) {
-    return &HTTPError{Status: 401, Message: "Unauthorized"}
-}
-```
-
----
-
-## HTTP Status Codes
-
-### Automatic Status Codes
-
-| Pattern | Success Status |
-|---------|---------------|
-| Raw `net/http` | User controls |
-| Context only | 200 OK |
-| Context + Response | 200 OK |
-| Context + Request | 200 OK (204 No Content optional) |
-| Context + Request + Response | 200 OK (POST → 201 Created) |
-
-### Custom Status Codes
-
-For typed responses, add `HttpStatus` field:
-
-```go
-type Response struct {
-    Message string `json:"message"`
-    Status  int    `json:"-"` // Excluded from JSON
-}
-
-// Set custom status
-func Handle(...) (*Response, error) {
-    return &Response{
-        Message: "Created",
-        Status:  201,
-    }, nil
-}
-```
-
-Or use response struct tag:
-
-```go
-type Response struct {
-    Message    string `json:"message"`
-    HTTPStatus int    `json:"-" httpstatus:""`
-}
+// Direct registration - no wrapper
+mux.HandleFunc("GET /stream", ctrl.Stream)
 ```
 
 ---
@@ -597,90 +643,137 @@ type Response struct {
 
 ### 1. Choose the Right Pattern
 
-- **Pattern 1 (Raw):** Only when absolutely necessary
-- **Pattern 6 (Request + Response):** Default choice for most APIs
-- **Pattern 3 (Context only):** Simple actions, health checks
-- **Pattern 9 (Mix):** Rare cases needing partial control
+```go
+// ✅ Good - Pattern 10 for JSON API
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
+    return glib.OK(c.Service.GetAll())
+}
 
-### 2. Request Structs
+// ❌ Bad - Don't use Pattern 11 for simple JSON
+func (c *Controller) Index(w http.ResponseWriter, r *http.Request) {
+    posts := c.Service.GetAll()
+    json.NewEncoder(w).Encode(posts)  // Unnecessary complexity
+}
 
-- Use descriptive names: `CreatePostRequest`, `UpdateUserRequest`
-- Group related fields
-- Add validation tags
-- Document complex rules
+// ✅ Good - Pattern 11 for streaming
+func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/event-stream")
+    // Stream events...
+}
+```
+
+### 2. Use Result[T] Helpers
 
 ```go
+// ✅ Good - Use helpers for clarity
+return glib.NotFound[*Post]("post not found")
+
+// ❌ Bad - Don't build Result manually
+return glib.Result[*Post]{
+    StatusCode: 404,
+    err: errs.B().Code(errs.NotFound).Msg("post not found").Err(),
+}
+```
+
+### 3. Proper Error Handling
+
+```go
+// ✅ Good - Use glib.Fail() for errs.Error
+post, err := c.Service.GetByID(id)
+if err != nil {
+    return glib.Fail[*Post](err)  // Auto-extracts HTTP status
+}
+
+// ✅ Good - Use specific helpers for known errors
+if errors.Is(err, gorm.ErrRecordNotFound) {
+    return glib.NotFound[*Post]("post not found")
+}
+
+// ❌ Bad - Don't return generic 500 for client errors
+if id == uuid.Nil {
+    return glib.InternalError[*Post]("invalid id")  // Should be BadRequest
+}
+```
+
+### 4. Request Struct Organization
+
+```go
+// ✅ Good - Descriptive names, validation tags
 type CreatePostRequest struct {
-    // Title of the blog post (3-200 characters)
-    Title string `json:"title" validate:"required,min=3,max=200"`
-    
-    // Post content in Markdown format
-    Content string `json:"content" validate:"required,min=10"`
-    
-    // Tags for categorization (2-10 chars each)
-    Tags []string `json:"tags" validate:"dive,min=2,max=10"`
-    
-    // Draft status (defaults to true)
-    Draft bool `json:"draft" default:"true"`
+    Title   string   `json:"title" validate:"required,min=3,max=200"`
+    Content string   `json:"content" validate:"required,min=10"`
+    Tags    []string `json:"tags" validate:"max=10,dive,min=2,max=30"`
+}
+
+// ❌ Bad - Generic names, no validation
+type Request struct {
+    A string `json:"a"`
+    B string `json:"b"`
 }
 ```
 
-### 3. Response Structs
-
-- Use pointers for optional fields
-- Consistent naming
-- JSON tags for field names
+### 5. Response Type Consistency
 
 ```go
+// ✅ Good - Consistent response structure
 type PostResponse struct {
-    ID          uuid.UUID  `json:"id"`
-    Title       string     `json:"title"`
-    Content     string     `json:"content"`
-    Author      *User      `json:"author,omitempty"`
-    PublishedAt *time.Time `json:"published_at,omitempty"`
-    CreatedAt   time.Time  `json:"created_at"`
-    UpdatedAt   time.Time  `json:"updated_at"`
+    ID        uuid.UUID  `json:"id"`
+    Title     string     `json:"title"`
+    Content   string     `json:"content"`
+    CreatedAt time.Time  `json:"created_at"`
+}
+
+// ✅ Good - Use pointer for optional/nullable
+type UserResponse struct {
+    ID      uuid.UUID       `json:"id"`
+    Name    string          `json:"name"`
+    Profile *ProfileDetails `json:"profile,omitempty"`
 }
 ```
 
-### 4. Error Handling
-
-- Return specific errors
-- Use custom error types for status codes
-- Log errors before returning
+### 6. Custom Headers
 
 ```go
-func (c *Controller) GetPost(ctx context.Context, id uuid.UUID) (*Post, error) {
-    post := &Post{}
-    err := c.DB.First(post, id).Error
-    
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return nil, &HTTPError{Status: 404, Message: "Post not found"}
-    }
-    
-    if err != nil {
-        c.Logger.Error("database error", "error", err)
-        return nil, err
-    }
-    
-    return post, nil
-}
+// ✅ Good - Add headers for caching, versioning
+return glib.OK(post).
+    WithHeader("Cache-Control", "max-age=3600").
+    WithHeader("X-API-Version", "3.0")
+
+// ✅ Good - ETags for conditional requests
+etag := fmt.Sprintf(`"%s"`, post.Version)
+return glib.OK(post).WithHeader("ETag", etag)
 ```
 
 ---
 
 ## Summary
 
-| Pattern | Signature | Use Case |
-|---------|-----------|----------|
-| 1 | `(w, r)` | Full control |
-| 2 | `(ctx, w, r)` | Context + control |
-| 3 | `(ctx) error` | Simple action |
-| 4 | `(ctx) (T, error)` | Static response |
-| 5 | `(ctx, req) error` | Command |
-| 6 | `(ctx, req) (T, error)` | **Most common** |
-| 7 | `(ctx, id, req) (T, error)` | With path param |
-| 8 | `(ctx, id1, id2) (T, error)` | Multiple params |
-| 9 | `(ctx, id, w, r, req) error` | Mix everything |
+### Pattern Comparison
 
-**Choose based on needs:** Start with Pattern 6, use others when necessary.
+| Aspect | Pattern 10 (Result[T]) | Pattern 11 (Raw HTTP) |
+|--------|----------------------|---------------------|
+| **Use Cases** | ~95% of endpoints | ~5% of endpoints |
+| **Type Safety** | ✅ Full generic safety | ⚠️ Manual |
+| **Status Control** | Explicit via helpers | Manual via WriteHeader |
+| **Error Handling** | Auto-mapped from errs.Error | Manual |
+| **Code Generation** | Wrapper generated | Direct registration |
+| **Performance** | Excellent | Excellent |
+| **Learning Curve** | Easy | Easy (standard Go) |
+
+### Quick Reference
+
+**Pattern 10 Signature:**
+```go
+func(ctx context.Context, [params...]) glib.Result[T]
+```
+
+**Pattern 11 Signature:**
+```go
+func(w http.ResponseWriter, r *http.Request)
+```
+
+**Rule of Thumb:** Start with Pattern 10. Only use Pattern 11 when you need fine-grained control over the HTTP response (streaming, file downloads, custom protocols).
+
+---
+
+**Next:** `03-CODE-GENERATION.md` - Code generation internals and templates

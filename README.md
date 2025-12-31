@@ -1,16 +1,17 @@
-# Glib 2.0
+# Glib
 
 **Code-generation-first web framework for Go**
 
-Glib 2.0 is a complete rewrite that uses annotation-based code generation to eliminate boilerplate and let you focus on business logic. Write annotations in comments, and Glib generates all the HTTP handling, routing, dependency injection, and error serialization code.
+Glib uses annotation-based code generation to eliminate boilerplate and let you focus on business logic. Write annotations in comments, and Glib generates all the HTTP handling, routing, dependency injection, and error serialization code.
 
 ## Features
 
 - **Annotation-Based**: Define routes, controllers, middleware, and DI providers using simple annotations
 - **Code Generation**: Generates optimized, type-safe HTTP handlers and routing code
-- **9 Handler Patterns**: Support for multiple handler signatures - from raw HTTP to high-level request/response
+- **Result[T] Pattern**: Type-safe responses with explicit HTTP status control and fluent API
+- **Raw HTTP Support**: Full control for streaming, SSE, file uploads when needed
 - **Dependency Injection**: Built-in DI container with singleton and transient lifecycles
-- **Structured Errors**: Encore.dev-style error handling with HTTP status mapping
+- **Structured Errors**: Encore.dev-style error handling with HTTP status mapping and ValidationErrors support
 - **Hot Reload**: Development server with automatic code regeneration using Air
 - **CLI Tools**: Generate boilerplate, validate annotations, and manage development workflow
 
@@ -66,6 +67,8 @@ package controllers
 import (
     "context"
     "github.com/google/uuid"
+    "github.com/azizndao/glib"
+    "github.com/azizndao/glib/pkg/errs"
 )
 
 // @Controller /api/v1/posts
@@ -75,32 +78,51 @@ type PostsController struct {
 }
 
 // @Route GET /
-func (c *PostsController) Index(ctx context.Context) ([]*Post, error) {
+func (c *PostsController) Index(ctx context.Context) glib.Result[[]*Post] {
     var posts []*Post
     err := c.DB.Find(&posts).Error
-    return posts, err
+    if err != nil {
+        return glib.Fail[[]*Post](err)
+    }
+    return glib.OK(posts)
 }
 
 // @Route GET /{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
     err := c.DB.First(&post, id).Error
-    return &post, err
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        return glib.NotFound[*Post]("post not found")
+    }
+    if err != nil {
+        return glib.Fail[*Post](err)
+    }
+    return glib.OK(&post)
 }
 
 // @Route POST /
-func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) (*Post, error) {
+func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
     post := &Post{
         Title:   req.Title,
         Content: req.Content,
     }
     err := c.DB.Create(post).Error
-    return post, err
+    if err != nil {
+        return glib.Fail[*Post](err)
+    }
+    return glib.Created(post)
 }
 
 // @Route DELETE /{id}
-func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) error {
-    return c.DB.Delete(&Post{}, id).Error
+func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+    result := c.DB.Delete(&Post{}, id)
+    if result.Error != nil {
+        return glib.Fail[any](result.Error)
+    }
+    if result.RowsAffected == 0 {
+        return glib.NotFound[any]("post not found")
+    }
+    return glib.NoContent[any]()
 }
 ```
 
@@ -257,93 +279,203 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 
 ## Handler Patterns
 
-Glib supports 9 different handler signatures:
+Glib supports 2 handler patterns:
 
-### 1. Raw HTTP
+### Pattern 10: Type-Safe Result[T] (Recommended)
+
+```go
+func (c *Controller) Handle(ctx context.Context, params...) glib.Result[T]
+```
+
+**Use for:** Most API endpoints - CRUD operations, queries, commands
+
+**Features:**
+- Explicit HTTP status control
+- Type-safe generic responses
+- Fluent API for common responses
+- Automatic error handling
+
+**Available Result Helpers:**
+```go
+// Success responses
+glib.OK[T](data)           // 200 OK
+glib.Created[T](data)      // 201 Created
+glib.Accepted[T](data)     // 202 Accepted
+glib.NoContent[T]()        // 204 No Content
+
+// Error responses
+glib.Fail[T](err)          // Auto-extract status from errs.Error
+glib.BadRequest[T](msg)    // 400
+glib.Unauthorized[T](msg)  // 401
+glib.Forbidden[T](msg)     // 403
+glib.NotFound[T](msg)      // 404
+glib.Conflict[T](msg)      // 409
+glib.InternalError[T](msg) // 500
+
+// Redirects
+glib.MovedPermanently[T](url)    // 301
+glib.Found[T](url)                // 302
+glib.TemporaryRedirect[T](url)   // 307
+glib.PermanentRedirect[T](url)   // 308
+
+// Custom
+glib.WithStatus[T](data, code)   // Custom status
+glib.WithError[T](err, code)     // Custom error
+
+// Fluent headers
+result.WithHeader("X-Custom", "value")
+result.WithHeaders(headers)
+```
+
+**Examples:**
+```go
+// @Route GET /posts
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
+    posts := c.Service.GetAll()
+    return glib.OK(posts)
+}
+
+// @Route GET /posts/{id}
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
+    post, err := c.Service.GetByID(id)
+    if err != nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    return glib.OK(post)
+}
+
+// @Route POST /posts
+func (c *Controller) Create(ctx context.Context, req CreateRequest) glib.Result[*Post] {
+    post, err := c.Service.Create(req)
+    if err != nil {
+        return glib.Fail[*Post](err)  // Auto-maps errs.Error to HTTP status
+    }
+    return glib.Created(post)
+}
+
+// @Route DELETE /posts/{id}
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+    if err := c.Service.Delete(id); err != nil {
+        return glib.Fail[any](err)
+    }
+    return glib.NoContent[any]()
+}
+```
+
+### Pattern 11: Raw HTTP (Advanced)
 
 ```go
 func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
 ```
 
-### 2. Raw HTTP + Error
+**Use for:** Streaming, SSE, file uploads, websockets, custom protocols
 
+**Features:**
+- Full control over response
+- No automatic parsing/marshalling
+- Direct access to HTTP primitives
+
+**Examples:**
 ```go
-func (c *Controller) Handle(w http.ResponseWriter, r *http.Request) error
-```
+// @Route GET /export
+func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/csv")
+    w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
+    fmt.Fprintln(w, "id,title,created_at")
+    // Write CSV data...
+}
 
-### 3. Context Only
-
-```go
-func (c *Controller) Handle(ctx context.Context)
-```
-
-### 4. Context + Error
-
-```go
-func (c *Controller) Handle(ctx context.Context) error
-```
-
-### 5. Context + Response
-
-```go
-func (c *Controller) Handle(ctx context.Context) (*Response, error)
-```
-
-### 6. Context + Request
-
-```go
-func (c *Controller) Handle(ctx context.Context, req Request) (*Response, error)
-```
-
-### 7. Context + Path Parameter
-
-```go
-func (c *Controller) Handle(ctx context.Context, id uuid.UUID) (*Response, error)
-```
-
-### 8. Context + Path Parameter + Request
-
-```go
-func (c *Controller) Handle(ctx context.Context, id uuid.UUID, req Request) (*Response, error)
-```
-
-### 9. Context + Multiple Parameters
-
-```go
-func (c *Controller) Handle(ctx context.Context, userId uuid.UUID, postId uuid.UUID, req Request) (*Response, error)
+// @Route GET /stream
+func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/event-stream")
+    flusher := w.(http.Flusher)
+    for {
+        select {
+        case <-r.Context().Done():
+            return
+        case event := <-c.Events:
+            fmt.Fprintf(w, "data: %s\n\n", event)
+            flusher.Flush()
+        }
+    }
+}
 ```
 
 ## Error Handling
 
-Glib uses structured errors with automatic HTTP status mapping:
+Glib uses Encore.dev-style structured errors with automatic HTTP status mapping:
 
 ```go
-import "github.com/azizndao/glib/pkg/errs"
+import (
+    "github.com/azizndao/glib"
+    "github.com/azizndao/glib/pkg/errs"
+)
 
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
     if err := c.DB.First(&post, id).Error; err != nil {
         if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, errs.B().
-                Code(errs.NotFound).
-                Msg("Post not found").
-                Meta("id", id).
-                Err()
+            return glib.NotFound[*Post]("post not found")
         }
-        return nil, err
+        
+        // Wrap database error with structured error
+        return glib.Fail[*Post](
+            errs.B().
+                Code(errs.Internal).
+                Msg("failed to fetch post").
+                Cause(err).
+                Err(),
+        )
     }
-    return &post, nil
+    return glib.OK(&post)
 }
 ```
 
-Error codes and HTTP status mapping:
+### Error Codes and HTTP Status Mapping
 
-- `InvalidArgument` → 400
-- `NotFound` → 404
-- `PermissionDenied` → 403
-- `Unauthenticated` → 401
-- `Internal` → 500
-- And more...
+- `InvalidArgument` → 400 Bad Request
+- `Unauthenticated` → 401 Unauthorized
+- `PermissionDenied` → 403 Forbidden
+- `NotFound` → 404 Not Found
+- `AlreadyExists` → 409 Conflict
+- `Internal` → 500 Internal Server Error
+- `Unavailable` → 503 Service Unavailable
+
+### Validation Errors
+
+Structured validation errors with field-level details:
+
+```go
+func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
+    // Validation errors are automatically formatted
+    validationErrs := errs.NewValidationErrors([]errs.ValidationError{
+        {Field: "email", Messages: []string{"must be a valid email"}},
+        {Field: "password", Messages: []string{"must be at least 8 characters"}},
+    })
+
+    err := errs.B().
+        Code(errs.InvalidArgument).
+        Msg("Validation failed").
+        Details(validationErrs).
+        Err()
+    
+    return glib.Fail[*Post](err)
+}
+```
+
+**Generated JSON Response:**
+```json
+{
+  "error": {
+    "code": "invalid_argument",
+    "message": "Validation failed",
+    "details": {
+      "email": ["must be a valid email"],
+      "password": ["must be at least 8 characters"]
+    }
+  }
+}
+```
 
 ## CLI Commands
 
@@ -489,7 +621,7 @@ go run .
 
 ## Architecture
 
-Glib 2.0 follows a code-generation-first architecture:
+Glib follows a code-generation-first architecture:
 
 1. **Annotations** - You write annotations in Go comments
 2. **Scanner** - AST-based scanner extracts annotations and analyzes code
@@ -505,18 +637,15 @@ The generated code is optimized and type-safe:
 - Direct function calls
 - Type-safe request parsing
 - Proper error handling
+- Import resolution for cross-package types
+- Topological sorting for dependency injection
 
-## Comparison with Goyave v4
+### Handler Patterns
 
-| Feature     | Goyave v4            | Glib 2.0         |
-| ----------- | -------------------- | ---------------- |
-| Routing     | Runtime registration | Generated        |
-| DI          | Reflection-based     | Generated        |
-| Validation  | Runtime              | Compile-time     |
-| Handlers    | Interface-based      | Annotation-based |
-| Boilerplate | Manual               | Auto-generated   |
-| Type Safety | Runtime checks       | Compile-time     |
-| Performance | Good                 | Excellent        |
+Glib uses two patterns:
+
+- **Pattern 10**: `func(ctx, params...) glib.Result[T]` - Type-safe with explicit status control
+- **Pattern 11**: `func(w, r)` - Raw HTTP for advanced use cases (streaming, SSE, etc.)
 
 ## Requirements
 
@@ -531,12 +660,8 @@ Contributions are welcome! Please read the specifications in `.spec/` directory 
 
 MIT License - see LICENSE file for details.
 
-## Credits
-
-Created by the Goyave team. Inspired by modern frameworks like Spring Boot (Java) and NestJS (TypeScript).
-
 ---
 
-**Status**: Beta - API may change before v2.0.0 release
+**Status**: Experimental - Under active development
 
 For detailed specifications and implementation details, see the `.spec/` directory.

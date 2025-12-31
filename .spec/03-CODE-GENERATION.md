@@ -1,7 +1,7 @@
 # 03. Code Generation System
 
-**Status:** Specification v1.0  
-**Last Updated:** 2025-12-30
+**Status:** Specification (Under Development)  
+**Last Updated:** 2025-12-31
 
 ---
 
@@ -10,14 +10,14 @@
 1. [Overview](#overview)
 2. [Architecture](#architecture)
 3. [Scanner Phase](#scanner-phase)
-4. [Validation Phase](#validation-phase)
-5. [Generation Phase](#generation-phase)
-6. [Generated Code Structure](#generated-code-structure)
-7. [Template System](#template-system)
-8. [DI Graph Resolution](#di-graph-resolution)
-9. [Request Parser Generation](#request-parser-generation)
-10. [Route Registration Generation](#route-registration-generation)
-11. [Hot Reload Integration](#hot-reload-integration)
+4. [Import Resolution](#import-resolution)
+5. [Validation Phase](#validation-phase)
+6. [Generation Phase](#generation-phase)
+7. [Generated Code Structure](#generated-code-structure)
+8. [Template System](#template-system)
+9. [DI Container with Topological Sort](#di-container-with-topological-sort)
+10. [Request Parser Generation](#request-parser-generation)
+11. [Route Registration Generation](#route-registration-generation)
 
 ---
 
@@ -25,15 +25,15 @@
 
 ### What Gets Generated
 
-Glib 2.0 generates a **single cohesive bootstrapping package** that wires your entire application together:
+Glib generates a **single cohesive bootstrapping package** that wires your entire application together:
 
 ```
 generated/
-├── glib.gen.go              # Main bootstrap file
-├── di.gen.go                # Dependency injection container
-├── routes.gen.go            # Route registration
-├── parsers.gen.go           # Request parsers
-└── middleware.gen.go        # Middleware chain builders
+├── glib.gen.go      # Main bootstrap function
+├── di.gen.go        # DI container with topological sorting
+├── routes.gen.go    # Route registration
+├── parsers.gen.go   # Request/response handlers with import resolution
+└── errors.gen.go    # Error handling with ValidationErrors support
 ```
 
 ### When Generation Happens
@@ -54,11 +54,11 @@ glib dev  # Watches files → generates on change → rebuilds
 ```
 Source Code
     ↓
-[1. SCAN]     ← Parse Go AST, extract annotations
+[1. SCAN]     ← Parse Go AST, extract annotations, resolve imports
     ↓
 [2. VALIDATE] ← Check DI graph, routes, types
     ↓
-[3. GENERATE] ← Execute templates, write files
+[3. GENERATE] ← Execute templates, track imports, write files
     ↓
 Generated Code
 ```
@@ -457,6 +457,254 @@ func (s *Scanner) ScanConfig(file *ast.File) *ConfigDeclaration {
 
 ---
 
+## Import Resolution
+
+### Problem
+
+Handlers can return types from other packages (e.g., `models.Post`). The generated code needs to reference these types and import their packages correctly.
+
+**Example:**
+
+```go
+// controllers/post/controller.go
+package post
+
+import "myapp/models"
+
+// @Route GET /{id}
+func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
+    return glib.OK(c.Service.GetPost(id))
+}
+```
+
+**Generated code must:**
+1. Import `myapp/models`
+2. Use `*models.Post` correctly in wrapper code
+
+### Solution: parseImports() + trackTypePackage()
+
+#### 1. Scanner: Extract Imports (internal/scanner/controllers.go)
+
+```go
+// parseImports extracts import declarations from an AST file
+func (s *Scanner) parseImports(file *ast.File) map[string]string {
+    imports := make(map[string]string)
+    
+    for _, imp := range file.Imports {
+        // Remove quotes from import path
+        importPath := strings.Trim(imp.Path.Value, `"`)
+        
+        // Determine package name
+        var pkgName string
+        if imp.Name != nil {
+            // Aliased import: import foo "github.com/bar"
+            pkgName = imp.Name.Name
+        } else {
+            // Default: use last component of path
+            parts := strings.Split(importPath, "/")
+            pkgName = parts[len(parts)-1]
+        }
+        
+        imports[pkgName] = importPath
+    }
+    
+    return imports
+}
+```
+
+#### 2. Scanner: Resolve Package Paths (internal/scanner/controllers.go)
+
+```go
+// scanHandlers scans all handler methods for a controller
+func (s *Scanner) scanHandlers(file *ast.File, ctrl *Controller) error {
+    // Parse imports first!
+    s.currentImports = s.parseImports(file)
+    
+    // Now scan handlers - parseType() can resolve package paths
+    for _, decl := range file.Decls {
+        funcDecl, ok := decl.(*ast.FuncDecl)
+        if !ok {
+            continue
+        }
+        // ... rest of handler scanning
+    }
+    
+    return nil
+}
+
+// parseType analyzes a type expression and returns TypeInfo
+func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
+    switch t := expr.(type) {
+    case *ast.SelectorExpr:
+        // Type from another package: models.Post
+        pkgIdent, ok := t.X.(*ast.Ident)
+        if !ok {
+            return nil
+        }
+        
+        pkgName := pkgIdent.Name        // "models"
+        typeName := t.Sel.Name          // "Post"
+        
+        // Look up full import path
+        pkgPath := s.currentImports[pkgName]  // "myapp/models"
+        
+        return &TypeInfo{
+            Name:        typeName,
+            PackageName: pkgName,
+            PackagePath: pkgPath,  // ← Now set correctly!
+            IsPointer:   false,
+        }
+    
+    // ... other cases
+    }
+}
+```
+
+**Key Fields:**
+- `PackageName`: Short name used in code (`models`)
+- `PackagePath`: Full import path (`myapp/models`)
+
+#### 3. Generator: Track Required Imports (internal/generator/parsers.go)
+
+```go
+// trackTypePackage recursively tracks all packages used by a type
+func (g *Generator) trackTypePackage(typeInfo *TypeInfo, imports map[string]string) {
+    if typeInfo == nil {
+        return
+    }
+    
+    // Add this type's package
+    if typeInfo.PackagePath != "" && typeInfo.PackageName != "" {
+        imports[typeInfo.PackageName] = typeInfo.PackagePath
+    }
+    
+    // Recursively track generic type parameters: Result[*models.Post]
+    for _, param := range typeInfo.TypeParams {
+        g.trackTypePackage(param, imports)
+    }
+    
+    // Track map key/value types
+    if typeInfo.IsMap {
+        g.trackTypePackage(typeInfo.MapKey, imports)
+        g.trackTypePackage(typeInfo.MapValue, imports)
+    }
+    
+    // Track slice element type
+    if typeInfo.IsSlice {
+        g.trackTypePackage(typeInfo.SliceElem, imports)
+    }
+}
+```
+
+#### 4. Generator: Add Imports to Generated File (internal/generator/parsers.go)
+
+```go
+func (g *Generator) GenerateParsers() error {
+    imports := make(map[string]string)
+    
+    // Always need these
+    imports["context"] = "context"
+    imports["glib"] = "github.com/azizndao/glib"
+    imports["http"] = "net/http"
+    
+    // Track imports from all handler response types
+    for _, ctrl := range g.model.Controllers {
+        for _, handler := range ctrl.Handlers {
+            // Track response type packages
+            if handler.Signature.ResponseType != nil {
+                g.trackTypePackage(handler.Signature.ResponseType, imports)
+            }
+            
+            // Track request type packages
+            if handler.Signature.RequestType != nil {
+                g.trackTypePackage(handler.Signature.RequestType, imports)
+            }
+            
+            // Track path parameter types
+            for _, param := range handler.Signature.PathParams {
+                g.trackTypePackage(param.Type, imports)
+            }
+        }
+    }
+    
+    // Pass imports to template
+    data := map[string]any{
+        "Imports":     imports,
+        "Controllers": g.model.Controllers,
+    }
+    
+    return g.executeTemplate("parsers.tmpl", data)
+}
+```
+
+#### 5. Template: Generate Import Statements
+
+```go
+// Template: parsers.tmpl
+package {{.PackageName}}
+
+import (
+{{- range $name, $path := .Imports}}
+    {{if ne $name (base $path)}}{{$name}} {{end}}"{{$path}}"
+{{- end}}
+)
+
+// Now can use models.Post correctly!
+func wrapController_Show(...) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        result := ctrl.Show(r.Context(), id)
+        writeResult[*models.Post](w, result)  // ← Correct type reference
+    })
+}
+```
+
+### Complete Flow Example
+
+**Input:**
+```go
+// controllers/post/controller.go
+package post
+
+import (
+    "context"
+    "myapp/models"
+    "github.com/azizndao/glib"
+)
+
+// @Controller /api/v1/posts
+type Controller struct {}
+
+// @Route GET /{id}
+func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
+    return glib.OK(&models.Post{ID: id})
+}
+```
+
+**Generated:**
+```go
+// generated/parsers.gen.go
+package generated
+
+import (
+    "context"
+    "net/http"
+    
+    "github.com/azizndao/glib"
+    "myapp/controllers/post"
+    "myapp/models"  // ← Correctly imported!
+)
+
+func wrapPostController_Show(container *container, ctrl *post.Controller) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        id, _ := parsePathParamInt(r, "id")
+        result := ctrl.Show(r.Context(), id)
+        writeResult[*models.Post](w, result)  // ← Correct type!
+    })
+}
+```
+
+---
+
 ## Validation Phase
 
 ### DI Graph Validation
@@ -821,49 +1069,290 @@ func wrap{{ .ControllerName }}_{{ .FuncName }}(ctrl *{{ .ControllerPackage }}.{{
 
 ---
 
-## DI Graph Resolution
+## DI Container with Topological Sort
 
-### Topological Sort Algorithm
+### Problem: Dependency Initialization Order
+
+Providers must be initialized in the correct order to avoid nil pointer errors:
 
 ```go
-// Sort providers in dependency order
-func (g *DependencyGraph) TopologicalSort() ([]*ProviderDeclaration, error) {
-    var sorted []*ProviderDeclaration
-    visited := make(map[string]bool)
-    visiting := make(map[string]bool)
+// ❌ WRONG ORDER - PostService initialized before UserService
+container.postService = services.NewPostService(container.userService) // userService is nil!
+container.userService = services.NewUserService()
+
+// ✅ CORRECT ORDER - Dependencies initialized first
+container.userService = services.NewUserService()
+container.postService = services.NewPostService(container.userService) // userService is ready!
+```
+
+### Solution: Topological Sort
+
+The generator uses topological sort to determine the correct initialization order based on the dependency graph.
+
+#### Implementation (internal/generator/di.go)
+
+```go
+// sortProvidersByDependencies performs topological sort on providers
+func sortProvidersByDependencies(providers []ProviderData) ([]ProviderData, error) {
+    // Build dependency graph
+    graph := make(map[string][]string)  // provider -> dependencies
+    inDegree := make(map[string]int)    // provider -> number of dependencies
     
-    var visit func(string) error
-    visit = func(name string) error {
-        if visited[name] {
-            return nil
-        }
-        if visiting[name] {
-            return fmt.Errorf("circular dependency: %s", name)
-        }
+    for _, provider := range providers {
+        providerKey := provider.FieldName
+        inDegree[providerKey] = 0
+        graph[providerKey] = []string{}
+    }
+    
+    // Build edges
+    for _, provider := range providers {
+        providerKey := provider.FieldName
         
-        visiting[name] = true
-        
-        provider := g.providers[name]
         for _, dep := range provider.Dependencies {
-            if err := visit(dep.TypeName); err != nil {
-                return err
+            // Find which provider provides this dependency
+            for _, other := range providers {
+                if dep.FullName == other.Type.FullName {
+                    graph[other.FieldName] = append(graph[other.FieldName], providerKey)
+                    inDegree[providerKey]++
+                    break
+                }
             }
         }
-        
-        visiting[name] = false
-        visited[name] = true
-        sorted = append(sorted, provider)
-        
-        return nil
     }
     
-    for name := range g.providers {
-        if err := visit(name); err != nil {
-            return nil, err
+    // Kahn's algorithm for topological sort
+    var queue []string
+    for key, degree := range inDegree {
+        if degree == 0 {
+            queue = append(queue, key)
         }
     }
     
-    return sorted, nil
+    var sorted []string
+    for len(queue) > 0 {
+        current := queue[0]
+        queue = queue[1:]
+        sorted = append(sorted, current)
+        
+        for _, neighbor := range graph[current] {
+            inDegree[neighbor]--
+            if inDegree[neighbor] == 0 {
+                queue = append(queue, neighbor)
+            }
+        }
+    }
+    
+    // Check for cycles
+    if len(sorted) != len(providers) {
+        return nil, fmt.Errorf("circular dependency detected in providers")
+    }
+    
+    // Reorder providers
+    providerMap := make(map[string]ProviderData)
+    for _, provider := range providers {
+        providerMap[provider.FieldName] = provider
+    }
+    
+    result := make([]ProviderData, 0, len(sorted))
+    for _, key := range sorted {
+        result = append(result, providerMap[key])
+    }
+    
+    return result, nil
+}
+```
+
+#### Generated Code Example
+
+**Input:**
+
+```go
+// @Provider singleton
+func NewUserService() *UserService {
+    return &UserService{}
+}
+
+// @Provider singleton
+func NewPostService(userService *UserService) *PostService {
+    return &PostService{UserService: userService}
+}
+```
+
+**Generated (generated/di.gen.go):**
+
+```go
+type container struct {
+    userSerivce *services.UserSerivce
+    postSerivce *services.PostSerivce
+}
+
+func newContainer(ctx context.Context) (*container, error) {
+    container := &container{}
+    
+    // Topologically sorted - UserService first!
+    var err error
+    
+    container.userSerivce, err = services.NewUserSerivce()
+    if err != nil {
+        return nil, fmt.Errorf("failed to create UserSerivce: %w", err)
+    }
+    
+    container.postSerivce, err = services.NewPostSerivce(container.userSerivce)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create PostSerivce: %w", err)
+    }
+    
+    return container, nil
+}
+```
+
+### Topological Sort Algorithm (Detailed)
+
+```go
+// Kahn's algorithm for topological sorting
+func TopologicalSort(providers []*Provider) ([]*Provider, error) {
+    // Step 1: Build adjacency list and calculate in-degrees
+    graph := make(map[string][]string)
+    inDegree := make(map[string]int)
+    
+    for _, p := range providers {
+        inDegree[p.ID] = 0
+        graph[p.ID] = []string{}
+    }
+    
+    for _, p := range providers {
+        for _, dep := range p.Dependencies {
+            graph[dep.ID] = append(graph[dep.ID], p.ID)
+            inDegree[p.ID]++
+        }
+    }
+    
+    // Step 2: Find all nodes with in-degree 0
+    var queue []string
+    for id, degree := range inDegree {
+        if degree == 0 {
+            queue = append(queue, id)
+        }
+    }
+    
+    // Step 3: Process queue
+    var sorted []string
+    for len(queue) > 0 {
+        current := queue[0]
+        queue = queue[1:]
+        sorted = append(sorted, current)
+        
+        // Reduce in-degree for neighbors
+        for _, neighbor := range graph[current] {
+            inDegree[neighbor]--
+            if inDegree[neighbor] == 0 {
+                queue = append(queue, neighbor)
+            }
+        }
+    }
+    
+    // Step 4: Check for cycles
+    if len(sorted) != len(providers) {
+        return nil, errors.New("circular dependency detected")
+    }
+    
+    // Step 5: Return sorted providers
+    providerMap := make(map[string]*Provider)
+    for _, p := range providers {
+        providerMap[p.ID] = p
+    }
+    
+    result := make([]*Provider, len(sorted))
+    for i, id := range sorted {
+        result[i] = providerMap[id]
+    }
+    
+    return result, nil
+}
+```
+
+### Example: Complex Dependency Graph
+
+**Providers:**
+
+```go
+// @Provider singleton
+func NewConfig() *Config { return &Config{} }
+
+// @Provider singleton  
+func NewDatabase(cfg *Config) (*Database, error) {
+    return Connect(cfg.DBUrl)
+}
+
+// @Provider singleton
+func NewCache(cfg *Config) (*Cache, error) {
+    return ConnectRedis(cfg.RedisUrl)
+}
+
+// @Provider singleton
+func NewUserService(db *Database, cache *Cache) *UserService {
+    return &UserService{DB: db, Cache: cache}
+}
+
+// @Provider singleton
+func NewPostService(db *Database, userSvc *UserService) *PostService {
+    return &PostService{DB: db, Users: userSvc}
+}
+```
+
+**Dependency Graph:**
+
+```
+Config (no dependencies)
+   ↓
+   ├─→ Database
+   │      ↓
+   │      ├─→ UserService
+   │      │      ↓
+   │      │      └─→ PostService
+   │      └─→ PostService
+   │
+   └─→ Cache
+          ↓
+          └─→ UserService
+```
+
+**Topological Sort Result:**
+1. Config
+2. Database
+3. Cache
+4. UserService
+5. PostService
+
+**Generated Initialization:**
+
+```go
+func newContainer(ctx context.Context) (*container, error) {
+    container := &container{}
+    var err error
+    
+    // 1. Config (no dependencies)
+    container.config = NewConfig()
+    
+    // 2. Database (needs Config)
+    container.database, err = NewDatabase(container.config)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 3. Cache (needs Config)
+    container.cache, err = NewCache(container.config)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 4. UserService (needs Database + Cache)
+    container.userService = NewUserService(container.database, container.cache)
+    
+    // 5. PostService (needs Database + UserService)
+    container.postService = NewPostService(container.database, container.userService)
+    
+    return container, nil
 }
 ```
 

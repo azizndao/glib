@@ -1,13 +1,13 @@
-# Glib 2.0 - Annotation Reference
+# Glib - Annotation Reference
 
-Complete guide to all annotations supported by Glib 2.0 code generator.
+Complete guide to all annotations supported by Glib code generator.
 
 ---
 
 ## Table of Contents
 
 1. [@Controller](#controller) - Define HTTP controllers
-2. [@Route](#route) - Define HTTP endpoints
+2. [@Route](#route) - Define HTTP endpoints  
 3. [@Provider](#provider) - Define DI providers
 4. [@Middleware](#middleware) - Define middleware
 5. [Request Struct Tags](#request-struct-tags) - Parse HTTP requests
@@ -47,8 +47,8 @@ All struct fields are automatically injected by type from registered providers. 
 type HomeController struct {}
 
 // @Route GET /
-func (c *HomeController) Index(ctx context.Context) (*HomeResponse, error) {
-    return &HomeResponse{Message: "Welcome"}, nil
+func (c *HomeController) Index(ctx context.Context) glib.Result[*HomeResponse] {
+    return glib.OK(&HomeResponse{Message: "Welcome"})
 }
 ```
 
@@ -62,18 +62,22 @@ type PostsController struct {
 
 // Full path: GET /api/v1/posts
 // @Route GET /
-func (c *PostsController) Index(ctx context.Context) ([]Post, error) {
+func (c *PostsController) Index(ctx context.Context) glib.Result[[]Post] {
     var posts []Post
-    c.DB.Find(&posts)
-    return posts, nil
+    if err := c.DB.Find(&posts).Error; err != nil {
+        return glib.Fail[[]Post](err)
+    }
+    return glib.OK(posts)
 }
 
 // Full path: GET /api/v1/posts/{id}
 // @Route GET /{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
-    c.DB.First(&post, id)
-    return &post, nil
+    if err := c.DB.First(&post, id).Error; err != nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    return glib.OK(&post)
 }
 ```
 
@@ -89,17 +93,23 @@ type AdminController struct {
 
 // Middleware: [auth, admin] (from controller)
 // @Route GET /users
-func (c *AdminController) ListUsers(ctx context.Context) ([]User, error) {
+func (c *AdminController) ListUsers(ctx context.Context) glib.Result[[]User] {
     var users []User
-    c.DB.Find(&users)
-    return users, nil
+    if err := c.DB.Find(&users).Error; err != nil {
+        return glib.Fail[[]User](err)
+    }
+    return glib.OK(users)
+}
 }
 
 // Middleware: [auth, admin, ratelimit] (controller + route)
 // @Route DELETE /users/{id}
 // @Middleware ratelimit
-func (c *AdminController) DeleteUser(ctx context.Context, id uuid.UUID) error {
-    return c.DB.Delete(&User{}, id).Error
+func (c *AdminController) DeleteUser(ctx context.Context, id uuid.UUID) glib.Result[any] {
+    if err := c.DB.Delete(&User{}, id).Error; err != nil {
+        return glib.Fail[any](err)
+    }
+    return glib.NoContent[any]()
 }
 ```
 
