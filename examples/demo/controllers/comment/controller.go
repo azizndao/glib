@@ -2,6 +2,7 @@ package comment
 
 import (
 	"context"
+	"glib/demo/services"
 
 	"github.com/azizndao/glib"
 	"github.com/google/uuid"
@@ -9,12 +10,12 @@ import (
 
 // @Controller path=/api/v1/comment tags=api
 type Controller struct {
-	// Add dependencies here (auto-injected)
+	Logger *services.Logger // Transient provider - each controller gets fresh instance
 }
 
 // @Route method=GET path=/
 func (c *Controller) Index(ctx context.Context) glib.Result[[]Comment] {
-	// TODO: implement
+	c.Logger.Info("Fetching all comments")
 	return glib.OK([]Comment{})
 }
 

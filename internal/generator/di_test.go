@@ -140,3 +140,79 @@ func TestFindProviderForType(t *testing.T) {
 		})
 	}
 }
+
+func TestIsProviderTransient(t *testing.T) {
+	tests := []struct {
+		name      string
+		typeInfo  *scanner.TypeInfo
+		providers []*scanner.Provider
+		expected  bool
+	}{
+		{
+			name: "transient provider",
+			typeInfo: &scanner.TypeInfo{
+				FullName: "services.Logger",
+			},
+			providers: []*scanner.Provider{
+				{
+					Lifecycle: "transient",
+					ReturnType: &scanner.TypeInfo{
+						FullName: "services.Logger",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "singleton provider",
+			typeInfo: &scanner.TypeInfo{
+				FullName: "services.Database",
+			},
+			providers: []*scanner.Provider{
+				{
+					Lifecycle: "singleton",
+					ReturnType: &scanner.TypeInfo{
+						FullName: "services.Database",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "not found",
+			typeInfo: &scanner.TypeInfo{
+				FullName: "services.Unknown",
+			},
+			providers: []*scanner.Provider{
+				{
+					Lifecycle: "singleton",
+					ReturnType: &scanner.TypeInfo{
+						FullName: "services.Database",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:      "nil type info",
+			typeInfo:  nil,
+			providers: []*scanner.Provider{},
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := &Generator{
+				project: &scanner.Project{
+					Providers: tt.providers,
+				},
+			}
+
+			result := g.isProviderTransient(tt.typeInfo)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}

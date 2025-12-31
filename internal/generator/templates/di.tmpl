@@ -27,7 +27,11 @@ import (
 type container struct {
 	ctx context.Context
 {{- range .Providers}}
+{{- if eq .Lifecycle "singleton"}}
 	{{.FieldName}} {{.TypeName}}
+{{- else}}
+	{{.FieldName}}Factory func() {{.TypeName}}
+{{- end}}
 {{- end}}
 {{- range .Controllers}}
 	{{.FieldName}} *{{.PackageName}}.{{.Name}}
@@ -49,6 +53,7 @@ func initContainer(ctx context.Context) (*container, error) {
 
 	// Initialize providers
 {{- range .Providers}}
+{{- if eq .Lifecycle "singleton"}}
 {{- if .ReturnsError}}
 	var err error
 	container.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
@@ -58,13 +63,28 @@ func initContainer(ctx context.Context) (*container, error) {
 {{- else}}
 	container.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 {{- end}}
+{{- else}}
+	// Transient provider - store factory function
+	container.{{.FieldName}}Factory = func() {{.TypeName}} {
+{{- if .ReturnsError}}
+		result, _ := {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+		return result
+{{- else}}
+		return {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+{{- end}}
+	}
+{{- end}}
 {{- end}}
 
 	// Initialize controllers
 {{- range .Controllers}}
 	container.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
 {{- range .Fields}}
+{{- if .IsTransient}}
+		{{.Name}}: container.{{.ProviderField}}Factory(),
+{{- else}}
 		{{.Name}}: container.{{.ProviderField}},
+{{- end}}
 {{- end}}
 	}
 {{- end}}

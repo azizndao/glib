@@ -11,6 +11,7 @@ import (
 // @Controller path=/api/v1/auth tags=public
 type Controller struct {
 	UserSerivce *services.UserSerivce
+	Auditor     *services.Auditor // Transient provider with singleton dependency
 }
 
 // @Route method=GET path=/{id}
@@ -20,6 +21,7 @@ func (c *Controller) GetSession(ctx context.Context, id uuid.UUID) glib.Result[*
 
 // @Route method=POST path=/register
 func (c *Controller) Register(ctx context.Context, req CreateAuthRequest) glib.Result[*Auth] {
+	c.Auditor.LogAction("user registration")
 	auth := &Auth{ID: uuid.New()}
 	return glib.Created(auth)
 }

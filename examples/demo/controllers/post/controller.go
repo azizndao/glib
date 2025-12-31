@@ -17,10 +17,12 @@ import (
 type Controller struct {
 	UserSerivce *services.UserSerivce
 	PostSerivce *services.PostSerivce
+	Logger      *services.Logger // Transient provider
 }
 
 // @Route method=GET path=/
 func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
+	c.Logger.Info("Fetching all posts")
 	return glib.OK(
 		c.PostSerivce.GetPosts(),
 	)

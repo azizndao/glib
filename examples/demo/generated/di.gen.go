@@ -20,6 +20,8 @@ import (
 type container struct {
 	ctx                 context.Context
 	userSerivce         *services.UserSerivce
+	auditorFactory      func() *services.Auditor
+	loggerFactory       func() *services.Logger
 	postSerivce         *services.PostSerivce
 	authController      *auth.Controller
 	commentController   *comment.Controller
@@ -37,16 +39,28 @@ func initContainer(ctx context.Context) (*container, error) {
 
 	// Initialize providers
 	container.userSerivce = services.NewUserSerivce()
+	// Transient provider - store factory function
+	container.auditorFactory = func() *services.Auditor {
+		return services.NewAuditor(container.userSerivce)
+	}
+	// Transient provider - store factory function
+	container.loggerFactory = func() *services.Logger {
+		return services.NewLogger()
+	}
 	container.postSerivce = services.NewPostSerivce(container.userSerivce)
 
 	// Initialize controllers
 	container.authController = &auth.Controller{
 		UserSerivce: container.userSerivce,
+		Auditor:     container.auditorFactory(),
 	}
-	container.commentController = &comment.Controller{}
+	container.commentController = &comment.Controller{
+		Logger: container.loggerFactory(),
+	}
 	container.postController = &post.Controller{
 		UserSerivce: container.userSerivce,
 		PostSerivce: container.postSerivce,
+		Logger:      container.loggerFactory(),
 	}
 
 	// Initialize middleware

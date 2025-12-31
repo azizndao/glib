@@ -15,6 +15,7 @@ type ProviderData struct {
 	Name         string
 	ArgsString   string
 	ReturnsError bool
+	Lifecycle    string // "singleton" or "transient"
 }
 
 // ControllerData represents data for a controller in the template
@@ -29,6 +30,7 @@ type ControllerData struct {
 type ControllerFieldData struct {
 	Name          string
 	ProviderField string
+	IsTransient   bool // Whether this field's provider is transient
 }
 
 // MiddlewareData represents data for middleware in the template
@@ -84,7 +86,12 @@ func (g *Generator) generateDI() (string, error) {
 		for _, dep := range prov.Dependencies {
 			depFieldName := g.findProviderForType(dep.Type)
 			if depFieldName != "" {
-				args = append(args, "container."+depFieldName)
+				// For transient providers, call the factory function
+				if g.isProviderTransient(dep.Type) {
+					args = append(args, "container."+depFieldName+"Factory()")
+				} else {
+					args = append(args, "container."+depFieldName)
+				}
 			}
 		}
 
@@ -110,6 +117,7 @@ func (g *Generator) generateDI() (string, error) {
 			Name:         prov.Name,
 			ArgsString:   strings.Join(args, ", "),
 			ReturnsError: returnsError,
+			Lifecycle:    prov.Lifecycle,
 		})
 	}
 
@@ -123,6 +131,7 @@ func (g *Generator) generateDI() (string, error) {
 				fields = append(fields, ControllerFieldData{
 					Name:          field.Name,
 					ProviderField: providerField,
+					IsTransient:   g.isProviderTransient(field.Type),
 				})
 			}
 		}
@@ -202,6 +211,22 @@ func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 	}
 
 	return ""
+}
+
+// isProviderTransient checks if the provider for a type is transient
+func (g *Generator) isProviderTransient(typeInfo *scanner.TypeInfo) bool {
+	if typeInfo == nil {
+		return false
+	}
+
+	// Find the provider that returns this type
+	for _, prov := range g.project.Providers {
+		if prov.ReturnType != nil && prov.ReturnType.FullName == typeInfo.FullName {
+			return prov.Lifecycle == "transient"
+		}
+	}
+
+	return false
 }
 
 func (g *Generator) typeString(typeInfo *scanner.TypeInfo) string {
