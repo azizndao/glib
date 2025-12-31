@@ -1,6 +1,7 @@
 package cli
 
-// glibConfig represents the .glibrc configuration file structure
+// glibConfig represents the glib.json configuration file structure
+// This is for CLI/build-time configuration only
 type glibConfig struct {
 	Version  string `json:"version"`
 	Generate struct {

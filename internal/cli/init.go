@@ -24,7 +24,7 @@ func newInitCmd() *cobra.Command {
 Creates a new project with:
   - main.go (application entry point)
   - configs/config.go (configuration struct with @Config annotation)
-  - .glibrc (Glib configuration)
+  - glib.json (Glib configuration)
   - .gitignore (Git ignore file)
 
 Optional:
@@ -148,11 +148,14 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 	// main.go
 	files["main.go"] = renderMainGo(module, minimal)
 
+	// bootstrap.go - User's bootstrap function
+	files["bootstrap.go"] = renderBootstrapGo(module)
+
 	// configs/config.go (in separate package to avoid import cycle)
 	files["configs/config.go"] = renderConfigGo(minimal)
 
-	// .glibrc
-	files[".glibrc"] = renderGlibRC()
+	// glib.json
+	files["glib.json"] = renderGlibRC()
 
 	// .gitignore
 	files[".gitignore"] = renderGitignore()
@@ -183,6 +186,14 @@ func renderMainGo(module string, minimal bool) string {
 	return result
 }
 
+func renderBootstrapGo(module string) string {
+	result, err := executeTemplate("bootstrap.go.tmpl", map[string]any{"Module": module})
+	if err != nil {
+		panic(err) // Should never happen with valid templates
+	}
+	return result
+}
+
 func renderConfigGo(minimal bool) string {
 	tmplName := "config.go.tmpl"
 	if minimal {
@@ -197,7 +208,7 @@ func renderConfigGo(minimal bool) string {
 }
 
 func renderGlibRC() string {
-	// .glibrc is JSON, keeping it inline since it's simple and doesn't need templating
+	// glib.json is JSON, keeping it inline since it's simple and doesn't need templating
 	return `{
   "version": "2",
   "generate": {

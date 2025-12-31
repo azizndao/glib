@@ -34,6 +34,7 @@ func templateFuncs() template.FuncMap {
 		"trimPrefix":      strings.TrimPrefix,
 		"trimSuffix":      strings.TrimSuffix,
 		"typeRef":         typeRef,
+		"toChiMethod":     toChiMethod,
 	}
 }
 
@@ -76,6 +77,32 @@ func typeRef(typeInfo *scanner.TypeInfo) string {
 		return after
 	}
 	return typeInfo.FullName
+}
+
+func toChiMethod(method string) string {
+	method = strings.ToUpper(method)
+	switch method {
+	case "GET":
+		return "Get"
+	case "POST":
+		return "Post"
+	case "PUT":
+		return "Put"
+	case "DELETE":
+		return "Delete"
+	case "PATCH":
+		return "Patch"
+	case "HEAD":
+		return "Head"
+	case "OPTIONS":
+		return "Options"
+	case "CONNECT":
+		return "Connect"
+	case "TRACE":
+		return "Trace"
+	default:
+		return "Method"
+	}
 }
 
 // executeTemplate executes a template with the given data

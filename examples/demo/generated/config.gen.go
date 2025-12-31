@@ -5,59 +5,73 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"glib/demo/configs"
 )
 
-// loadConfig loads Config configuration from environment variables.
-// It returns an error if required fields are missing or invalid.
-// This is a private function called internally by the DI container.
 func loadConfig() (*configs.Config, error) {
 	cfg := &configs.Config{}
 
-	// APP_PORT [default: 8080]
 	if v := os.Getenv("APP_PORT"); v != "" {
 		val, err := strconv.Atoi(v)
 		if err != nil {
 			return nil, fmt.Errorf("APP_PORT: invalid integer: %w", err)
 		}
-		cfg.App.Port = val
+		cfg.Server.Port = val
 	} else {
-		cfg.App.Port = 8080
+		cfg.Server.Port = 8080
 	}
 
-	// APP_ENV [default: development]
-	cfg.App.Env = getEnvHelper("APP_ENV", "development")
+	cfg.Server.Env = getEnvHelper("APP_ENV", "development")
 
-	// DB_HOST [default: localhost]
-	cfg.Database.Host = getEnvHelper("DB_HOST", "localhost")
-
-	// DB_PORT [default: 5432]
-	if v := os.Getenv("DB_PORT"); v != "" {
+	if v := os.Getenv("ROUTER_TIMEOUT"); v != "" {
 		val, err := strconv.Atoi(v)
 		if err != nil {
-			return nil, fmt.Errorf("DB_PORT: invalid integer: %w", err)
+			return nil, fmt.Errorf("ROUTER_TIMEOUT: invalid integer: %w", err)
 		}
-		cfg.Database.Port = val
+		cfg.Server.Timeout = val
 	} else {
-		cfg.Database.Port = 5432
+		cfg.Server.Timeout = 60
 	}
 
-	// DB_NAME [default: app]
-	cfg.Database.Name = getEnvHelper("DB_NAME", "app")
+	if v := os.Getenv("CORS_ENABLED"); v != "" {
+		val, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("CORS_ENABLED: invalid boolean: %w", err)
+		}
+		cfg.CORS.Enabled = val
+	}
 
-	// DB_USER [default: postgres]
-	cfg.Database.User = getEnvHelper("DB_USER", "postgres")
+	cfg.CORS.AllowedOrigins = getEnvSliceHelper("CORS_ALLOWED_ORIGINS", "")
 
-	// DB_PASSWORD (required)
-	cfg.Database.Password = getEnvHelper("DB_PASSWORD", "")
+	cfg.CORS.AllowedMethods = getEnvSliceHelper("CORS_ALLOWED_METHODS", "")
 
-	// Validation
+	cfg.CORS.AllowedHeaders = getEnvSliceHelper("CORS_ALLOWED_HEADERS", "")
+
+	cfg.CORS.ExposedHeaders = getEnvSliceHelper("CORS_EXPOSED_HEADERS", "")
+
+	if v := os.Getenv("CORS_ALLOW_CREDENTIALS"); v != "" {
+		val, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("CORS_ALLOW_CREDENTIALS: invalid boolean: %w", err)
+		}
+		cfg.CORS.AllowCredentials = val
+	}
+
+	if v := os.Getenv("CORS_MAX_AGE"); v != "" {
+		val, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("CORS_MAX_AGE: invalid integer: %w", err)
+		}
+		cfg.CORS.MaxAge = val
+	} else {
+		cfg.CORS.MaxAge = 300
+	}
+
+	cfg.Database.Filename = getEnvHelper("DB_FILENAME", "db.sqlite")
+
 	var validationErrors []string
-
-	if cfg.Database.Password == "" {
-		validationErrors = append(validationErrors, "DB_PASSWORD is required")
-	}
 
 	if len(validationErrors) > 0 {
 		return nil, fmt.Errorf("config validation failed:\n  - %s",
@@ -67,10 +81,28 @@ func loadConfig() (*configs.Config, error) {
 	return cfg, nil
 }
 
-// getEnvHelper retrieves an environment variable or returns the fallback
 func getEnvHelper(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
+}
+
+func getEnvSliceHelper(key, fallback string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		value = fallback
+	}
+	if value == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

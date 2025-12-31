@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,26 +9,20 @@ import (
 	"syscall"
 	"time"
 	
-	"{{.Module}}/generated"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
+
 	ctx := context.Background()
-	
-	// Bootstrap application (config auto-loaded by DI container)
-	handler, err := generated.Bootstrap(ctx)
+
+	handler, err := Bootstrap(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
-	
-	// Get port from environment or use default
-	port := os.Getenv("APP_PORT")
-	if port == "" {
-		port = "8080"
-	}
-	
-	// Create server
-	addr := fmt.Sprintf(":%s", port)
+
+	addr := ":8080"
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
@@ -37,29 +30,26 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	
-	// Start server in goroutine
+
 	go func() {
 		log.Printf("🚀 Server starting on %s", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server failed: %v", err)
 		}
 	}()
-	
-	// Wait for interrupt signal
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	log.Println("🛑 Shutting down server...")
-	
-	// Graceful shutdown with timeout
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
-	
+
 	log.Println("✅ Server stopped")
 }

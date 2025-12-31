@@ -18,8 +18,6 @@ import (
 )
 
 // container holds all application dependencies.
-// It is initialized once at startup and provides access to controllers,
-// providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx         context.Context
 	providers   providerContainer
@@ -27,39 +25,29 @@ type container struct {
 	middleware  middlewareContainer
 }
 
-// providerContainer holds all singleton and transient providers.
 type providerContainer struct {
-	// Configuration Providers
-	config *configs.Config
-	// Singleton Providers
+	config         *configs.Config
 	database       *gorm.DB
 	commentService *services.CommentService
 	jWTService     *services.JWTService
 	userSerivce    *services.UserSerivce
 	postSerivce    *services.PostSerivce
-	// Transient Provider Factories
 	auditorFactory func() *services.Auditor
 	loggerFactory  func() *services.Logger
 }
 
-// controllerContainer holds all HTTP controllers.
 type controllerContainer struct {
 	authController    *auth.Controller
 	commentController *comment.Controller
 	postController    *post.Controller
 }
 
-// middlewareContainer holds all HTTP middleware.
 type middlewareContainer struct {
-	loggerMiddleware    func(http.Handler) http.Handler // Wrapped new-style middleware
-	authMiddleware      func(http.Handler) http.Handler // Wrapped new-style middleware
-	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style middleware
+	authMiddleware      func(http.Handler) http.Handler
+	ratelimitMiddleware func(http.Handler) http.Handler
 }
 
-// initContainer initializes the dependency injection container.
-// It creates and wires all providers, controllers, and middleware.
-// Returns an error if any provider initialization fails.
-func initContainer(ctx context.Context) (*container, error) {
+func InitContainer(ctx context.Context) (*container, error) {
 	c := &container{ctx: ctx}
 
 	if err := c.initProviders(ctx); err != nil {
@@ -77,21 +65,25 @@ func initContainer(ctx context.Context) (*container, error) {
 	return c, nil
 }
 
-// initProviders initializes all singleton and transient providers.
 func (c *container) initProviders(ctx context.Context) error {
 	var err error
-
-	// Configuration Providers
-
-	// Auto-load config: Config
 	c.providers.config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
 	}
-
-	// Phase 1: Critical Transient Provider Factories (used by singletons)
 	c.providers.auditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.providers.userSerivce)
+	}
+	c.providers.database, err = services.NewDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
+	}
+	c.providers.commentService = services.NewCommentService(c.providers.database)
+	c.providers.jWTService = services.NewJWTService()
+	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
+	c.providers.postSerivce = services.NewPostSerivce(c.providers.database, c.providers.auditorFactory())
+	c.providers.loggerFactory = func() *services.Logger {
+		return services.NewLogger()
 	}
 
 	// Phase 2: Singleton Providers (in dependency order)
@@ -116,20 +108,16 @@ func (c *container) initProviders(ctx context.Context) error {
 	return nil
 }
 
-// initControllers initializes all HTTP controllers and injects their dependencies.
 func (c *container) initControllers() error {
-
 	c.controllers.authController = &auth.Controller{
 		UserService: c.providers.userSerivce,
 		JWTService:  c.providers.jWTService,
 		Auditor:     c.providers.auditorFactory(),
 	}
-
 	c.controllers.commentController = &comment.Controller{
 		Logger:         c.providers.loggerFactory(),
 		CommentService: c.providers.commentService,
 	}
-
 	c.controllers.postController = &post.Controller{
 		UserSerivce: c.providers.userSerivce,
 		PostSerivce: c.providers.postSerivce,
@@ -139,38 +127,27 @@ func (c *container) initControllers() error {
 	return nil
 }
 
-// initMiddleware initializes all HTTP middleware.
 func (c *container) initMiddleware() error {
-	c.middleware.loggerMiddleware = wrapGlibMiddleware(middleware.Logger())
 	c.middleware.authMiddleware = wrapGlibMiddleware(middleware.Auth(c.providers.jWTService))
 	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
+
 	return nil
 }
 
-// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware.
-// It converts between the glib-style middleware signature and standard http.Handler.
 func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Wrap http.Request in glib.Request
 			req := glibmiddleware.NewRequest(r)
-
-			// Track if next was called
 			nextCalled := false
 
-			// Define next function
 			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
 				nextCalled = true
-				// Call next handler/middleware
 				next.ServeHTTP(w, req.HTTPRequest())
-				// Response already written by handler
 				return glib.OK[any](nil)
 			}
 
-			// Call middleware
 			result := mw(req, nextFn)
 
-			// Only write result if middleware didn't call next (early return/error)
 			if !nextCalled {
 				result.Write(w)
 			}

@@ -4,11 +4,11 @@ tmp_dir = "tmp"
 [build]
 args_bin = []
 bin = "./tmp/main"
-cmd = "glib generate && go build -o ./tmp/main ."
+cmd = "go  run ../../cmd/glib generate && go build -o ./tmp/main ."
 delay = 1000
-exclude_dir = ["tmp", "vendor", "node_modules", "generated"]
+exclude_dir = ["generated", "tmp", "vendor", "node_modules", "generated"]
 exclude_file = []
-exclude_regex = ["_test.go"]
+exclude_regex = ["_test.go", ".gen.go"]
 exclude_unchanged = false
 follow_symlink = false
 full_bin = ""

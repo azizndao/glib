@@ -204,7 +204,7 @@ func initProject(dir, module string, example, minimal bool) error {
     files := map[string]string{
         "main.go":    renderMainGo(module),
         "config.go":  renderConfigGo(module),
-        ".glibrc":    renderGlibRC(),
+        "glib.json":    renderGlibRC(),
         ".gitignore": renderGitignore(),
     }
     
@@ -310,7 +310,7 @@ func TestInitCommand(t *testing.T) {
     // Check files created
     assert.FileExists(t, filepath.Join(tmpDir, "main.go"))
     assert.FileExists(t, filepath.Join(tmpDir, "config.go"))
-    assert.FileExists(t, filepath.Join(tmpDir, ".glibrc"))
+    assert.FileExists(t, filepath.Join(tmpDir, "glib.json"))
 }
 ```
 

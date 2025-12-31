@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/azizndao/glib"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"glib/demo/controllers/auth"
@@ -17,7 +18,7 @@ import (
 )
 
 func handleAuthControllerRegister(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -31,15 +32,11 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 		result := container.controllers.authController.Register(ctx, req)
 		result.Write(w)
 
-	}))
-
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
+	}
 }
 
 func handleAuthControllerLogin(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -53,11 +50,7 @@ func handleAuthControllerLogin(container *container) http.HandlerFunc {
 		result := container.controllers.authController.Login(ctx, req)
 		result.Write(w)
 
-	}))
-
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
+	}
 }
 
 func handleAuthControllerGetMe(container *container) http.HandlerFunc {
@@ -71,7 +64,6 @@ func handleAuthControllerGetMe(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -94,7 +86,6 @@ func handleAuthControllerUpdateProfile(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -110,17 +101,16 @@ func handleAuthControllerLogout(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
 func handleAuthControllerGetUser(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*auth.UserResponse](
@@ -131,11 +121,7 @@ func handleAuthControllerGetUser(container *container) http.HandlerFunc {
 		result := container.controllers.authController.GetUser(ctx, id)
 		result.Write(w)
 
-	}))
-
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
+	}
 }
 
 func handleCommentControllerIndex(container *container) http.HandlerFunc {
@@ -149,7 +135,6 @@ func handleCommentControllerIndex(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -159,7 +144,7 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*models.Comment](
@@ -173,7 +158,6 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -197,7 +181,6 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -207,7 +190,7 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*models.Comment](
@@ -229,7 +212,6 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -239,7 +221,7 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[any](
@@ -254,7 +236,6 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -270,7 +251,6 @@ func handlePostControllerIndex(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -280,7 +260,7 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*models.Post](
@@ -294,7 +274,6 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -318,7 +297,6 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -328,7 +306,7 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*models.Post](
@@ -350,7 +328,6 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -360,7 +337,7 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := r.PathValue("id")
+		idStr := chi.URLParam(r, "id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[any](
@@ -375,7 +352,6 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -384,7 +360,6 @@ func handlePostControllerExport(container *container) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Export))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -393,7 +368,6 @@ func handlePostControllerStream(container *container) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Stream))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
-	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }

@@ -8,8 +8,5 @@
         "controllers": "controllers",
         "providers": "providers",
         "middleware": "middleware"
-    },
-    "dev": {
-        "port": 8091
     }
 }

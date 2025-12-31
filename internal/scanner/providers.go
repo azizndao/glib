@@ -94,18 +94,20 @@ func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation,
 		dependencies = s.parseFields(funcDecl.Type.Params)
 	}
 
-	// Detect signature type: old (http.Handler) or new (glib.Middleware)
-	signature := "old" // default
+	// Detect signature type: chi (func(http.Handler) http.Handler) or glib (middleware.Middleware)
+	signature := "chi" // default to chi standard
 	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 {
 		returnType := funcDecl.Type.Results.List[0].Type
 
 		// Check if return type is middleware.Middleware (selector)
 		if s.isGlibType(returnType, "Middleware") {
-			signature = "new"
+			signature = "glib"
 		} else if funcType, ok := returnType.(*ast.FuncType); ok {
 			// Check if return type is func(glib.Request, glib.Next) glib.Response
 			if s.isGlibMiddlewareSignature(funcType) {
-				signature = "new"
+				signature = "glib"
+			} else if s.isChiMiddlewareSignature(funcType) {
+				signature = "chi"
 			}
 		}
 	}
@@ -125,6 +127,29 @@ func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation,
 	}
 
 	return middleware, nil
+}
+
+// isChiMiddlewareSignature checks if a function type matches chi middleware pattern:
+// func(http.Handler) http.Handler
+func (s *Scanner) isChiMiddlewareSignature(funcType *ast.FuncType) bool {
+	// Check params: should have 1 parameter (http.Handler)
+	if funcType.Params == nil || len(funcType.Params.List) != 1 {
+		return false
+	}
+
+	// Check param: should be http.Handler
+	param := funcType.Params.List[0].Type
+	if !s.isHTTPHandler(param) {
+		return false
+	}
+
+	// Check return: should be http.Handler
+	if funcType.Results == nil || len(funcType.Results.List) != 1 {
+		return false
+	}
+
+	result := funcType.Results.List[0].Type
+	return s.isHTTPHandler(result)
 }
 
 // isGlibMiddlewareSignature checks if a function type matches:
@@ -154,6 +179,21 @@ func (s *Scanner) isGlibMiddlewareSignature(funcType *ast.FuncType) bool {
 
 	result := funcType.Results.List[0].Type
 	return s.isGlibType(result, "Response")
+}
+
+// isHTTPHandler checks if a type is http.Handler
+func (s *Scanner) isHTTPHandler(expr ast.Expr) bool {
+	switch t := expr.(type) {
+	case *ast.SelectorExpr:
+		// Check if it's http.Handler
+		if ident, ok := t.X.(*ast.Ident); ok {
+			return ident.Name == "http" && t.Sel.Name == "Handler"
+		}
+	case *ast.Ident:
+		// Direct reference (imported with .)
+		return t.Name == "Handler"
+	}
+	return false
 }
 
 // isGlibType checks if a type is from glib/pkg/middleware package

@@ -37,8 +37,8 @@ Generates:
 	}
 
 	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Project root directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (from .glibrc)")
-	cmd.Flags().StringVar(&opts.config, "config", ".glibrc", "Config file")
+	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (from glib.json)")
+	cmd.Flags().StringVar(&opts.config, "config", "glib.json", "Config file")
 	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output")
 	cmd.Flags().BoolVar(&opts.watch, "watch", false, "Watch mode")
 
@@ -60,7 +60,7 @@ func runGenerate(opts *generateOptions) error {
 	// Load config
 	cfg, err := loadGlibrc()
 	if err != nil {
-		return fmt.Errorf("failed to load .glibrc: %w", err)
+		return fmt.Errorf("failed to load glib.json: %w", err)
 	}
 
 	// Determine output directory

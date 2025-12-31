@@ -69,7 +69,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 
 // flattenFields recursively flattens nested config fields
 func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPath string) []map[string]interface{} {
-	var result []map[string]interface{}
+	var result []map[string]any
 
 	for _, field := range fields {
 		if field.IsNested && len(field.Fields) > 0 {
@@ -128,7 +128,7 @@ func (g *ConfigGenerator) GenerateEnvExample() (string, error) {
 
 	// Generate for all configs
 	for _, cfg := range g.project.Configs {
-		buf.WriteString(fmt.Sprintf("# %s\n", cfg.Name))
+		fmt.Fprintf(&buf, "# %s\n", cfg.Name)
 		generate(cfg.Fields, "")
 	}
 

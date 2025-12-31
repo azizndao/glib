@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"glib/demo/services"
-	"log"
 	"strings"
 	"time"
 
@@ -20,20 +19,7 @@ const (
 	EmailKey    ContextKey = "email"
 )
 
-// @Middleware name=logger target=all order=1
-func Logger() middleware.Middleware {
-	return func(request middleware.Request, next middleware.Next) glib.Result[any] {
-		start := time.Now()
-		log.Printf("[%s] %s - START", request.Method(), request.Path())
-
-		result := next(request)
-
-		log.Printf("[%s] %s - DONE (%v)", request.Method(), request.Path(), time.Since(start))
-
-		return result
-	}
-}
-
+// Auth middleware
 // @Middleware name=auth target=protected order=10
 func Auth(jwtService *services.JWTService) middleware.Middleware {
 	return func(request middleware.Request, next middleware.Next) glib.Result[any] {
@@ -68,8 +54,8 @@ func Auth(jwtService *services.JWTService) middleware.Middleware {
 	}
 }
 
+// RateLimit middleware
 // @Middleware name=ratelimit target=api order=5
-// RateLimit is a new-style middleware that demonstrates the glib.Middleware signature
 func RateLimit() middleware.Middleware {
 	// Simple in-memory rate limiter (for demo purposes)
 	requests := make(map[string][]time.Time)

@@ -96,6 +96,7 @@ func (g *Generator) generateParsers() (string, error) {
 
 	// Third-party imports
 	thirdPartyImports = append(thirdPartyImports, "github.com/azizndao/glib")
+	thirdPartyImports = append(thirdPartyImports, "github.com/go-chi/chi/v5")
 	if needsUUID {
 		thirdPartyImports = append(thirdPartyImports, "github.com/google/uuid")
 	}

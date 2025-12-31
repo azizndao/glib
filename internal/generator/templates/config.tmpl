@@ -5,34 +5,31 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 {{- if .NeedsTime }}
 	"time"
 {{- end }}
 {{- if .NeedsURL }}
 	"net/url"
 {{- end }}
-	
+
 	"{{ .ConfigImportPath }}"
 )
 
-// {{ .FunctionName }} loads {{ .ConfigName }} configuration from environment variables.
-// It returns an error if required fields are missing or invalid.
-// This is a private function called internally by the DI container.
 func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) {
 	cfg := &{{ .ConfigPackageName }}.{{ .ConfigName }}{}
-	
+
 {{- range .Fields }}
 	{{ template "parseField" . }}
 {{- end }}
 
-	// Validation
 	var validationErrors []string
 {{- range .Fields }}
 	{{ template "validateField" . }}
 {{- end }}
-	
+
 	if len(validationErrors) > 0 {
-		return nil, fmt.Errorf("config validation failed:\n  - %s", 
+		return nil, fmt.Errorf("config validation failed:\n  - %s",
 			validationErrors[0])
 	}
 
@@ -41,13 +38,17 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 
 {{ define "parseField" }}
 {{- if .IsNested }}
-	// Parse nested struct: {{ .Name }}
 {{- range .Fields }}
 	{{ template "parseField" . }}
 {{- end }}
 {{- else }}
-	// {{ .EnvName }}{{ if .Required }} (required){{ end }}{{ if .DefaultValue }} [default: {{ .DefaultValue }}]{{ end }}
-	{{- if eq .Type.Name "string" }}
+	{{- if .Type.IsSlice }}
+		{{- if eq .Type.Name "string" }}
+	cfg.{{ .ParentPath }}{{ .Name }} = getEnvSliceHelper("{{ .EnvName }}", "{{ .DefaultValue }}")
+		{{- else }}
+	// Unsupported slice type: {{ .Type.FullName }}
+		{{- end }}
+	{{- else if eq .Type.Name "string" }}
 	cfg.{{ .ParentPath }}{{ .Name }} = getEnvHelper("{{ .EnvName }}", "{{ .DefaultValue }}")
 	{{- else if eq .Type.Name "int" }}
 	if v := os.Getenv("{{ .EnvName }}"); v != "" {
@@ -102,7 +103,6 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 	}{{ end }}
 	{{- else }}
 	// Unsupported type: {{ .Type.FullName }}
-	cfg.{{ .ParentPath }}{{ .Name }} = os.Getenv("{{ .EnvName }}")
 	{{- end }}
 {{- end }}
 {{ end }}
@@ -121,10 +121,28 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 {{- end }}
 {{ end }}
 
-// getEnvHelper retrieves an environment variable or returns the fallback
 func getEnvHelper(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
+}
+
+func getEnvSliceHelper(key, fallback string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		value = fallback
+	}
+	if value == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

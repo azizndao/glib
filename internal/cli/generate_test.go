@@ -24,7 +24,7 @@ require (
 		t.Fatal(err)
 	}
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "generate": {
@@ -33,7 +33,7 @@ require (
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   false,
 	}
@@ -108,7 +108,7 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 func TestRunGenerate_NoGoMod(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .glibrc but no go.mod
+	// Create glib.json but no go.mod
 	glibrcContent := `{
   "version": "1.0",
   "generate": {
@@ -117,7 +117,7 @@ func TestRunGenerate_NoGoMod(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -135,7 +135,7 @@ func TestRunGenerate_NoGoMod(t *testing.T) {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   false,
 	}
@@ -146,11 +146,11 @@ func TestRunGenerate_NoGoMod(t *testing.T) {
 	}
 }
 
-// TestRunGenerate_NoGlibrc tests error when .glibrc is missing
+// TestRunGenerate_NoGlibrc tests error when glib.json is missing
 func TestRunGenerate_NoGlibrc(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create go.mod but no .glibrc
+	// Create go.mod but no glib.json
 	goModContent := `module testproject
 
 go 1.21
@@ -173,14 +173,14 @@ go 1.21
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   false,
 	}
 
 	err = runGenerate(opts)
 	if err == nil {
-		t.Error("Expected error when .glibrc is missing")
+		t.Error("Expected error when glib.json is missing")
 	}
 }
 
@@ -197,7 +197,7 @@ go 1.21
 		t.Fatal(err)
 	}
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "generate": {
@@ -206,7 +206,7 @@ go 1.21
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -262,7 +262,7 @@ type ServiceB struct {}
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   false,
 	}
@@ -278,7 +278,7 @@ func TestRunGenerate_WatchMode(t *testing.T) {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   true,
 	}
@@ -309,7 +309,7 @@ require (
 		t.Fatal(err)
 	}
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "generate": {
@@ -318,7 +318,7 @@ require (
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -363,7 +363,7 @@ func (c *TestController) Get(ctx context.Context) glib.Result[string] {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  customOutput,
-		config:  ".glibrc",
+		config:  "glib.json",
 		verbose: false,
 		watch:   false,
 	}

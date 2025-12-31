@@ -499,7 +499,7 @@ glib init my-app
 Creates:
 
 - Project structure
-- `.glibrc` configuration
+- `glib.json` configuration
 - Sample `main.go`
 - Example controller
 
@@ -569,7 +569,7 @@ Features:
 
 ## Configuration
 
-### `.glibrc`
+### `glib.json`
 
 ```json
 {
@@ -606,7 +606,7 @@ my-app/
 │   ├── routes.gen.go
 │   └── parsers.gen.go
 ├── main.go              # Your entry point
-├── .glibrc              # Glib configuration
+├── glib.json              # Glib configuration
 ├── .air.toml            # Air configuration (auto-generated)
 └── go.mod
 ```

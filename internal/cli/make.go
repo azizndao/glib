@@ -35,10 +35,10 @@ Types:
 			componentType := args[0]
 			name := args[1]
 
-			// Load .glibrc to get configuration
+			// Load glib.json to get configuration
 			cfg, err := loadGlibrc()
 			if err != nil {
-				return fmt.Errorf("failed to load .glibrc: %w (run 'glib init' first)", err)
+				return fmt.Errorf("failed to load glib.json: %w (run 'glib init' first)", err)
 			}
 
 			switch componentType {
@@ -62,9 +62,14 @@ Types:
 }
 
 func loadGlibrc() (*glibConfig, error) {
-	data, err := os.ReadFile(".glibrc")
+	// Try glib.json first (new format)
+	data, err := os.ReadFile("glib.json")
 	if err != nil {
-		return nil, err
+		// Fallback to .glibrc (legacy format for backward compatibility)
+		data, err = os.ReadFile(".glibrc")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var cfg glibConfig

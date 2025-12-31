@@ -104,7 +104,7 @@ my-api/
 ├── main.go                    # Application entry point
 ├── config.go                  # Config struct
 ├── .air.toml                  # Air configuration (optional)
-├── .glibrc                    # Glib configuration
+├── glib.json                    # Glib configuration
 └── controllers/
     └── health.go              # Example health check controller
 ```
@@ -150,7 +150,7 @@ glib generate [flags]
 **Options:**
 - `--dir <path>` - Project root directory (default: current directory)
 - `--output <path>` - Output directory (default: `generated/`)
-- `--config <file>` - Config file (default: `.glibrc`)
+- `--config <file>` - Config file (default: `glib.json`)
 - `--verbose` - Verbose output
 - `--watch` - Watch mode (regenerate on file changes)
 
@@ -533,11 +533,11 @@ glib help make
 
 ## Configuration
 
-### `.glibrc` File
+### `glib.json` File
 
 Project-level configuration file (optional).
 
-**Location:** Project root (`.glibrc`)
+**Location:** Project root (`glib.json`)
 
 **Format:** JSON
 

@@ -19,7 +19,7 @@ go 1.21
 		t.Fatal(err)
 	}
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "make": {
@@ -27,7 +27,7 @@ go 1.21
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,7 +45,7 @@ go 1.21
 	// Load config
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load .glibrc: %v", err)
+		t.Fatalf("Failed to load glib.json: %v", err)
 	}
 
 	// Make controller
@@ -86,7 +86,7 @@ go 1.21
 func TestMakeController_CustomPath(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "make": {
@@ -94,7 +94,7 @@ func TestMakeController_CustomPath(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +111,7 @@ func TestMakeController_CustomPath(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load .glibrc: %v", err)
+		t.Fatalf("Failed to load glib.json: %v", err)
 	}
 
 	// Make controller with custom path
@@ -138,7 +138,7 @@ func TestMakeController_CustomPath(t *testing.T) {
 func TestMakeController_NoExample(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "make": {
@@ -146,7 +146,7 @@ func TestMakeController_NoExample(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +163,7 @@ func TestMakeController_NoExample(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load .glibrc: %v", err)
+		t.Fatalf("Failed to load glib.json: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -188,7 +188,7 @@ func TestMakeController_NoExample(t *testing.T) {
 func TestMakeProvider_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "make": {
@@ -196,7 +196,7 @@ func TestMakeProvider_Success(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +213,7 @@ func TestMakeProvider_Success(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load .glibrc: %v", err)
+		t.Fatalf("Failed to load glib.json: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -246,7 +246,7 @@ func TestMakeProvider_Success(t *testing.T) {
 func TestMakeMiddleware_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .glibrc
+	// Create glib.json
 	glibrcContent := `{
   "version": "1.0",
   "make": {
@@ -254,7 +254,7 @@ func TestMakeMiddleware_Success(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -271,7 +271,7 @@ func TestMakeMiddleware_Success(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load .glibrc: %v", err)
+		t.Fatalf("Failed to load glib.json: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -300,7 +300,7 @@ func TestMakeMiddleware_Success(t *testing.T) {
 	}
 }
 
-// TestLoadGlibrc_Success tests loading .glibrc
+// TestLoadGlibrc_Success tests loading glib.json
 func TestLoadGlibrc_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -317,7 +317,7 @@ func TestLoadGlibrc_Success(t *testing.T) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -348,11 +348,11 @@ func TestLoadGlibrc_Success(t *testing.T) {
 	}
 }
 
-// TestLoadGlibrc_NotFound tests error when .glibrc is missing
+// TestLoadGlibrc_NotFound tests error when glib.json is missing
 func TestLoadGlibrc_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Change to temp directory without .glibrc
+	// Change to temp directory without glib.json
 	originalDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -365,7 +365,7 @@ func TestLoadGlibrc_NotFound(t *testing.T) {
 
 	_, err = loadGlibrc()
 	if err == nil {
-		t.Error("Expected error when .glibrc is missing")
+		t.Error("Expected error when glib.json is missing")
 	}
 }
 
@@ -378,7 +378,7 @@ func TestLoadGlibrc_InvalidJSON(t *testing.T) {
   "version": "1.0",
   "invalid json
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".glibrc"), []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(invalidContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 

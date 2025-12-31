@@ -364,8 +364,8 @@ func (v *Validator) validateMiddleware(mw *scanner.Middleware) {
 	}
 
 	// Validate signature
-	if mw.Signature != "old" && mw.Signature != "new" {
-		v.addError(location, fmt.Sprintf("invalid middleware signature type: %s (must be 'old' or 'new')", mw.Signature))
+	if mw.Signature != "chi" && mw.Signature != "glib" {
+		v.addError(location, fmt.Sprintf("invalid middleware signature type: %s (must be 'chi' or 'glib')", mw.Signature))
 	}
 }
 

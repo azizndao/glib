@@ -37,7 +37,6 @@ func (g *Generator) Generate() error {
 		name      string
 		generator func() (string, error)
 	}{
-		{"glib.gen.go", g.generateBootstrap},
 		{"di.gen.go", g.generateDI},
 		{"routes.gen.go", g.generateRoutes},
 		{"parsers.gen.go", g.generateParsers},

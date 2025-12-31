@@ -3,21 +3,46 @@
 package {{.PackageName}}
 
 import (
-	"net/http"
+	"github.com/go-chi/chi/v5"
 )
 
-// registerRoutes registers all HTTP routes with their corresponding handlers.
-// Routes are grouped by controller and registered with the provided ServeMux.
-func registerRoutes(mux *http.ServeMux, container *container) error {
-{{- range .Routes}}
-	mux.HandleFunc("{{.Pattern}}", {{.HandlerName}}(container))
-{{- end}}
-	return nil
-}
+// RegisterRoutes registers all HTTP routes with their corresponding handlers.
+// Routes are organized by controller using chi's Route/Group/Use for clean code structure.
+func RegisterRoutes(r chi.Router, container *container) error {
+{{- range .ControllerGroups}}
+	// {{.Controller.Name}} - {{.Prefix}}
+	r.Route("{{.Prefix}}", func(r chi.Router) {
+		{{- if .Middleware}}
+		// Controller-level middleware
+		{{- range .Middleware}}
+		r.Use({{.}})
+		{{- end}}
+		{{- end}}
 
-// applyMiddleware applies global middleware to the handler chain.
-// Global middleware is applied to all routes in the application.
-func applyMiddleware(handler http.Handler, container *container) http.Handler {
-	// Apply global middleware here if needed
-	return handler
+		{{- range .StandaloneRoutes}}
+		{{- if .With}}
+		{{- if eq (index .With 0) "none"}}
+		// No middleware
+		{{- else}}
+		// Explicit middleware: {{join .With ", "}}
+		{{- end}}
+		{{- end}}
+		r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(container))
+		{{- end}}
+
+		{{- range .TagGroups}}
+		// Routes with tags: {{join .Tags ", "}}
+		r.Group(func(r chi.Router) {
+			{{- range .Middleware}}
+			r.Use({{.}})
+			{{- end}}
+			{{- range .Routes}}
+			r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(container))
+			{{- end}}
+		})
+		{{- end}}
+	})
+{{- end}}
+
+	return nil
 }

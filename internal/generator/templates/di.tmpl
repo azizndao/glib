@@ -22,8 +22,6 @@ import (
 )
 
 // container holds all application dependencies.
-// It is initialized once at startup and provides access to controllers,
-// providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx         context.Context
 	providers   providerContainer
@@ -31,24 +29,20 @@ type container struct {
 	middleware  middlewareContainer
 }
 
-// providerContainer holds all singleton and transient providers.
 type providerContainer struct {
 {{- if gt (len .ConfigProviders) 0}}
-	// Configuration Providers
 {{- range .ConfigProviders}}
 	{{.FieldName}} {{.TypeName}}
 {{- end}}
 {{- end}}
 
 {{- if gt (len .Singletons) 0}}
-	// Singleton Providers
 {{- range .Singletons}}
 	{{.FieldName}} {{.TypeName}}
 {{- end}}
 {{- end}}
 
 {{- if or (gt (len .CriticalTransients) 0) (gt (len .NonCriticalTransients) 0)}}
-	// Transient Provider Factories
 {{- range .CriticalTransients}}
 	{{.FieldName}}Factory func() {{.TypeName}}
 {{- end}}
@@ -58,34 +52,22 @@ type providerContainer struct {
 {{- end}}
 }
 
-// controllerContainer holds all HTTP controllers.
 type controllerContainer struct {
 {{- range .Controllers}}
 	{{.FieldName}} *{{.PackageName}}.{{.Name}}
 {{- end}}
 }
 
-// middlewareContainer holds all HTTP middleware.
 type middlewareContainer struct {
 {{- range .Middleware}}
-{{- if eq .Signature "new"}}
-	{{.FieldName}} func(http.Handler) http.Handler // Wrapped new-style middleware
-{{- else}}
 	{{.FieldName}} func(http.Handler) http.Handler
-{{- end}}
 {{- end}}
 }
 
-// initContainer initializes the dependency injection container.
-// It creates and wires all providers, controllers, and middleware.
-{{- if .ConfigNeedsParameter}}
-// The config parameter is required because Config is defined in the main package.
-{{- end}}
-// Returns an error if any provider initialization fails.
-func initContainer(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.ConfigParameterType}}{{end}}) (*container, error) {
+func InitContainer(ctx context.Context) (*container, error) {
 	c := &container{ctx: ctx}
 
-	if err := c.initProviders(ctx{{if .ConfigNeedsParameter}}, config{{end}}); err != nil {
+	if err := c.initProviders(ctx); err != nil {
 		return nil, err
 	}
 
@@ -100,8 +82,7 @@ func initContainer(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.Co
 	return c, nil
 }
 
-// initProviders initializes all singleton and transient providers.
-func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.ConfigParameterType}}{{end}}) error {
+func (c *container) initProviders(ctx context.Context) error {
 {{- $hasCriticalTransients := gt (len .CriticalTransients) 0}}
 {{- $hasSingletons := gt (len .Singletons) 0}}
 {{- $hasNonCriticalTransients := gt (len .NonCriticalTransients) 0}}
@@ -121,23 +102,15 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 {{- end}}
 
 {{- if $hasConfigs}}
-
-	// Configuration Providers
 {{- range .ConfigProviders}}
-
-	// Auto-load config: {{.Name}}
 	c.providers.{{.FieldName}}, err = {{.FunctionName}}()
 	if err != nil {
 		return fmt.Errorf("failed to load {{.Name}}: %w", err)
 	}
 {{- end}}
 {{- end}}
-{{- if and $hasConfigs $hasCriticalTransients}}
 
-{{- end}}
 {{- if $hasCriticalTransients}}
-
-	// Phase 1: Critical Transient Provider Factories (used by singletons)
 {{- range .CriticalTransients}}
 	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
 {{- if .ReturnsError}}
@@ -149,8 +122,30 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 	}
 {{- end}}
 {{- end}}
-{{- if and (or $hasConfigs $hasCriticalTransients) $hasSingletons}}
+{{- if $hasSingletons}}
+{{- range .Singletons}}
+{{- if .ReturnsError}}
+	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+	if err != nil {
+		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
+	}
+{{- else}}
+	c.providers.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+{{- end}}
+{{- end}}
+{{- end}}
 
+{{- if $hasNonCriticalTransients}}
+{{- range .NonCriticalTransients}}
+	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
+{{- if .ReturnsError}}
+		result, _ := {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+		return result
+{{- else}}
+		return {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+{{- end}}
+	}
+{{- end}}
 {{- end}}
 {{- if $hasSingletons}}
 
@@ -187,10 +182,8 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 	return nil
 }
 
-// initControllers initializes all HTTP controllers and injects their dependencies.
 func (c *container) initControllers() error {
 {{- range .Controllers}}
-
 	c.controllers.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
 {{- range .Fields}}
 {{- if .IsTransient}}
@@ -205,44 +198,34 @@ func (c *container) initControllers() error {
 	return nil
 }
 
-// initMiddleware initializes all HTTP middleware.
 func (c *container) initMiddleware() error {
 {{- range .Middleware}}
-{{- if eq .Signature "new"}}
+{{- if eq .Signature "glib"}}
 	c.middleware.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
 {{- else}}
 	c.middleware.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 {{- end}}
 {{- end}}
+
 	return nil
 }
 
 {{- if .NeedsGlibMiddleware}}
 
-// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware.
-// It converts between the glib-style middleware signature and standard http.Handler.
 func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Wrap http.Request in glib.Request
 			req := glibmiddleware.NewRequest(r)
-			
-			// Track if next was called
 			nextCalled := false
-			
-			// Define next function
+
 			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
 				nextCalled = true
-				// Call next handler/middleware
 				next.ServeHTTP(w, req.HTTPRequest())
-				// Response already written by handler
 				return glib.OK[any](nil)
 			}
-			
-			// Call middleware
+
 			result := mw(req, nextFn)
-			
-			// Only write result if middleware didn't call next (early return/error)
+
 			if !nextCalled {
 				result.Write(w)
 			}

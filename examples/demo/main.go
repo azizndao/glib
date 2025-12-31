@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"glib/demo/generated"
 	"log"
 	"net/http"
 	"os"
@@ -14,17 +13,19 @@ import (
 )
 
 func main() {
-	godotenv.Load()
+	// Load .env file
+	_ = godotenv.Load()
+
 	ctx := context.Background()
 
-	// Bootstrap application (config loaded internally)
-	handler, err := generated.Bootstrap(ctx)
+	// Bootstrap application
+	handler, err := Bootstrap(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 
 	// Create server
-	addr := ":8080" // Default port, can be overridden via APP_PORT env var
+	addr := ":8080"
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,

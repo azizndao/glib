@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,7 +24,7 @@ Uses Air for hot reload if available, falls back to basic file watcher.`,
 		},
 	}
 
-	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .glibrc or 8080)")
+	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from glib.json or 8080)")
 	cmd.Flags().StringVar(&airConfig, "air-config", ".air.toml", "Air config file")
 	cmd.Flags().BoolVar(&noAir, "no-air", false, "Disable Air, use basic file watcher")
 
@@ -33,15 +32,17 @@ Uses Air for hot reload if available, falls back to basic file watcher.`,
 }
 
 func runDev(port int, airConfig string, noAir bool) error {
-	// Check if .glibrc exists
-	if _, err := os.Stat(".glibrc"); os.IsNotExist(err) {
-		return fmt.Errorf("no .glibrc found - run 'glib init' first")
+	// Check if config exists (glib.json or .glibrc)
+	if _, err := os.Stat("glib.json"); os.IsNotExist(err) {
+		if _, err := os.Stat(".glibrc"); os.IsNotExist(err) {
+			return fmt.Errorf("no glib.json or .glibrc found - run 'glib init' first")
+		}
 	}
 
 	// Load config for port
-	cfg, err := loadGlibConfig()
+	cfg, err := loadGlibrc()
 	if err != nil {
-		return fmt.Errorf("failed to load .glibrc: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Use port from flag, or from config, or default to 8080
@@ -198,18 +199,4 @@ tmp_dir = "tmp"
 `, glibCmd, outputDir)
 
 	return os.WriteFile(path, []byte(airToml), 0644)
-}
-
-func loadGlibConfig() (*glibConfig, error) {
-	data, err := os.ReadFile(".glibrc")
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg glibConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-
-	return &cfg, nil
 }

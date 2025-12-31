@@ -4,7 +4,7 @@
 {{- if .Handler.Signature.PathParams}}
 		// Parse path parameters
 {{- range .Handler.Signature.PathParams}}
-		{{.Name}}Str := r.PathValue("{{.Name}}")
+		{{.Name}}Str := chi.URLParam(r, "{{.Name}}")
 {{- if eq .Type.PackageName "uuid"}}
 		{{.Name}}, err := uuid.Parse({{.Name}}Str)
 		if err != nil {

@@ -3,37 +3,57 @@
 package generated
 
 import (
-	"net/http"
+	"github.com/go-chi/chi/v5"
 )
 
-// registerRoutes registers all HTTP routes with their corresponding handlers.
-// Routes are grouped by controller and registered with the provided ServeMux.
-func registerRoutes(mux *http.ServeMux, container *container) error {
-	mux.HandleFunc("POST /api/v1/auth/register", handleAuthControllerRegister(container))
-	mux.HandleFunc("POST /api/v1/auth/login", handleAuthControllerLogin(container))
-	mux.HandleFunc("GET /api/v1/auth/me", handleAuthControllerGetMe(container))
-	mux.HandleFunc("PUT /api/v1/auth/me", handleAuthControllerUpdateProfile(container))
-	mux.HandleFunc("DELETE /api/v1/auth/logout", handleAuthControllerLogout(container))
-	mux.HandleFunc("GET /api/v1/auth/users/{id}", handleAuthControllerGetUser(container))
-	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(container))
-	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(container))
-	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(container))
-	mux.HandleFunc("PUT /api/v1/comment/{id}", handleCommentControllerUpdate(container))
-	mux.HandleFunc("DELETE /api/v1/comment/{id}", handleCommentControllerDelete(container))
-	mux.HandleFunc("GET /api/v1/post/", handlePostControllerIndex(container))
-	mux.HandleFunc("GET /api/v1/post/{id}", handlePostControllerShow(container))
-	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(container))
-	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(container))
-	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(container))
-	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(container))
-	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(container))
-	mux.HandleFunc("GET /api/v1/post/health", handlePostControllerHealth(container))
-	return nil
-}
+// RegisterRoutes registers all HTTP routes with their corresponding handlers.
+// Routes are organized by controller using chi's Route/Group/Use for clean code structure.
+func RegisterRoutes(r chi.Router, container *container) error {
+	// Controller - /api/v1/auth
+	r.Route("/api/v1/auth", func(r chi.Router) {
+		r.Post("/register", handleAuthControllerRegister(container))
+		r.Post("/login", handleAuthControllerLogin(container))
+		r.Get("/users/{id}", handleAuthControllerGetUser(container))
+		// Routes with tags: protected
+		r.Group(func(r chi.Router) {
+			r.Use(container.middleware.authMiddleware)
+			r.Get("/me", handleAuthControllerGetMe(container))
+			r.Put("/me", handleAuthControllerUpdateProfile(container))
+			r.Delete("/logout", handleAuthControllerLogout(container))
+		})
+	})
+	// Controller - /api/v1/comment
+	r.Route("/api/v1/comment", func(r chi.Router) {
+		// Controller-level middleware
+		r.Use(container.middleware.ratelimitMiddleware)
+		r.Get("/", handleCommentControllerIndex(container))
+		r.Get("/{id}", handleCommentControllerShow(container))
+		// Routes with tags: protected
+		r.Group(func(r chi.Router) {
+			r.Use(container.middleware.authMiddleware)
+			r.Post("/", handleCommentControllerCreate(container))
+			r.Put("/{id}", handleCommentControllerUpdate(container))
+			r.Delete("/{id}", handleCommentControllerDelete(container))
+		})
+	})
+	// Controller - /api/v1/post
+	r.Route("/api/v1/post", func(r chi.Router) {
+		// Controller-level middleware
+		r.Use(container.middleware.ratelimitMiddleware)
+		r.Get("/", handlePostControllerIndex(container))
+		r.Get("/{id}", handlePostControllerShow(container))
+		r.Get("/export", handlePostControllerExport(container))
+		r.Get("/stream", handlePostControllerStream(container))
+		// No middleware
+		r.Get("/health", handlePostControllerHealth(container))
+		// Routes with tags: protected
+		r.Group(func(r chi.Router) {
+			r.Use(container.middleware.authMiddleware)
+			r.Post("/", handlePostControllerCreate(container))
+			r.Put("/{id}", handlePostControllerUpdate(container))
+			r.Delete("/{id}", handlePostControllerDelete(container))
+		})
+	})
 
-// applyMiddleware applies global middleware to the handler chain.
-// Global middleware is applied to all routes in the application.
-func applyMiddleware(handler http.Handler, container *container) http.Handler {
-	// Apply global middleware here if needed
-	return handler
+	return nil
 }

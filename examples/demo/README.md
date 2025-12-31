@@ -42,23 +42,26 @@ Or use hot reload mode:
 ../../bin/glib dev
 ```
 
-The server will start on port 8091 (configured in `.glibrc`).
+The server will start on port 8091 (configured in `glib.json`).
 
 ## API Endpoints
 
 ### Posts API
 
 **List all posts:**
+
 ```bash
 curl http://localhost:8091/api/v1/post
 ```
 
 **Get specific post:**
+
 ```bash
 curl http://localhost:8091/api/v1/post/1
 ```
 
 **Create post:**
+
 ```bash
 curl -X POST http://localhost:8091/api/v1/post \
   -H "Content-Type: application/json" \
@@ -66,6 +69,7 @@ curl -X POST http://localhost:8091/api/v1/post \
 ```
 
 **Update post:**
+
 ```bash
 curl -X PUT http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
@@ -73,16 +77,19 @@ curl -X PUT http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-4466554400
 ```
 
 **Delete post:**
+
 ```bash
 curl -X DELETE http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-446655440000
 ```
 
 **Export posts as CSV (Raw HTTP):**
+
 ```bash
 curl http://localhost:8091/api/v1/post/export
 ```
 
 **Stream posts via SSE (Raw HTTP):**
+
 ```bash
 curl http://localhost:8091/api/v1/post/stream
 ```
@@ -90,6 +97,7 @@ curl http://localhost:8091/api/v1/post/stream
 ### Comments API
 
 **Create comment:**
+
 ```bash
 curl -X POST http://localhost:8091/api/v1/comment \
   -H "Content-Type: application/json" \
@@ -97,6 +105,7 @@ curl -X POST http://localhost:8091/api/v1/comment \
 ```
 
 **List comments:**
+
 ```bash
 curl http://localhost:8091/api/v1/comment
 ```
@@ -130,7 +139,7 @@ demo/
 │   └── parsers.gen.go      # Handler wrappers
 ├── config.go               # Configuration loading
 ├── main.go                 # Application entry point
-├── .glibrc                 # Glib configuration
+├── glib.json                 # Glib configuration
 └── .air.toml               # Hot reload configuration
 ```
 
@@ -169,7 +178,7 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
             Err()
         return glib.Fail[*models.Post](err)
     }
-    
+
     post := c.PostService.CreatePost(req)
     return glib.Created(post)
 }
@@ -184,6 +193,7 @@ func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] 
 ```
 
 **Available Result[T] Helpers:**
+
 - `glib.OK[T](data)` - 200 OK
 - `glib.Created[T](data)` - 201 Created
 - `glib.NoContent[T]()` - 204 No Content
@@ -201,7 +211,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/csv")
     w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
     w.WriteHeader(http.StatusOK)
-    
+
     fmt.Fprintln(w, "id,title,created_at")
     for _, post := range c.PostService.GetPosts() {
         fmt.Fprintf(w, "%d,%s,%s\n", post.ID, post.Title, post.CreatedAt)
@@ -213,13 +223,13 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
     w.Header().Set("Cache-Control", "no-cache")
     w.Header().Set("Connection", "keep-alive")
-    
+
     flusher, ok := w.(http.Flusher)
     if !ok {
         http.Error(w, "Streaming not supported", http.StatusInternalServerError)
         return
     }
-    
+
     for i := range 3 {
         select {
         case <-r.Context().Done():
@@ -253,6 +263,7 @@ func NewPostService(userService *UserService) *PostService {
 ```
 
 **Generated DI Container (generated/di.gen.go):**
+
 ```go
 type container struct {
     userSerivce *services.UserSerivce
@@ -261,11 +272,11 @@ type container struct {
 
 func newContainer(ctx context.Context) (*container, error) {
     container := &container{}
-    
+
     // Topologically sorted - UserService initialized first!
     container.userSerivce = services.NewUserSerivce()
     container.postSerivce = services.NewPostSerivce(container.userSerivce)
-    
+
     return container, nil
 }
 ```
@@ -291,22 +302,23 @@ return glib.Fail[*Post](err)
 ```
 
 **Response (400 Bad Request):**
+
 ```json
 {
-  "error": {
-    "code": "invalid_argument",
-    "message": "Validation failed",
-    "details": [
-      {
-        "field": "title",
-        "messages": ["must be at least 3 characters"]
-      },
-      {
-        "field": "body",
-        "messages": ["field is required"]
-      }
-    ]
-  }
+    "error": {
+        "code": "invalid_argument",
+        "message": "Validation failed",
+        "details": [
+            {
+                "field": "title",
+                "messages": ["must be at least 3 characters"]
+            },
+            {
+                "field": "body",
+                "messages": ["field is required"]
+            }
+        ]
+    }
 }
 ```
 
@@ -319,6 +331,7 @@ return glib.Fail[*Post](err)
 ```
 
 Watches for changes and automatically:
+
 1. Regenerates code
 2. Rebuilds application
 3. Restarts server
@@ -326,21 +339,25 @@ Watches for changes and automatically:
 ### Creating New Components
 
 **New controller:**
+
 ```bash
 ../../bin/glib make controller users
 ```
 
 **New provider:**
+
 ```bash
 ../../bin/glib make provider database
 ```
 
 **New middleware:**
+
 ```bash
 ../../bin/glib make middleware auth
 ```
 
 After creating components:
+
 ```bash
 ../../bin/glib generate
 ```
@@ -348,11 +365,13 @@ After creating components:
 ### Validation
 
 Validate annotations without generating code:
+
 ```bash
 ../../bin/glib validate
 ```
 
 Checks for:
+
 - Duplicate routes
 - Invalid HTTP methods
 - Malformed path parameters
@@ -377,20 +396,22 @@ func LoadConfig() *Config {
 ```
 
 **Environment Variables:**
+
 - `APP_PORT` - Server port (default: 8091)
 - `APP_ENV` - Environment (default: development)
 
-**Glib Configuration (`.glibrc`):**
+**Glib Configuration (`glib.json`):**
+
 ```json
 {
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "dev": {
-    "port": 8091
-  }
+    "version": "2",
+    "generate": {
+        "output": "generated",
+        "package": "generated"
+    },
+    "dev": {
+        "port": 8091
+    }
 }
 ```
 
@@ -408,6 +429,7 @@ go build -o demo .
 ```
 
 Or with custom port:
+
 ```bash
 APP_PORT=3000 ./demo
 ```
@@ -416,7 +438,8 @@ APP_PORT=3000 ./demo
 
 ### Port Already in Use
 
-Change port in `.glibrc` or use environment variable:
+Change port in `glib.json` or use environment variable:
+
 ```bash
 APP_PORT=3000 ../../bin/glib dev
 ```
@@ -424,6 +447,7 @@ APP_PORT=3000 ../../bin/glib dev
 ### Generated Code Not Updating
 
 Clean and regenerate:
+
 ```bash
 rm -rf generated/
 ../../bin/glib generate
@@ -432,6 +456,7 @@ rm -rf generated/
 ### Build Errors
 
 Ensure dependencies are installed:
+
 ```bash
 go mod tidy
 ```

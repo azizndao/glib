@@ -68,9 +68,9 @@ func (g *Generator) generateDI() (string, error) {
 		}
 	}
 
-	// Check if any middleware uses new-style signature
+	// Check if any middleware uses glib-style signature
 	for _, mw := range g.project.Middleware {
-		if mw.Signature == "new" {
+		if mw.Signature == "glib" {
 			needsGlibMiddleware = true
 			break
 		}
@@ -175,8 +175,6 @@ func (g *Generator) generateDI() (string, error) {
 		"NeedsFmt":              needsFmt,
 		"NeedsHTTP":             needsHTTP,
 		"NeedsGlibMiddleware":   needsGlibMiddleware,
-		"ConfigNeedsParameter":  false, // Always false - config loaded internally
-		"ConfigParameterType":   "",
 		"Imports":               g.collectImports(),
 		"ConfigProviders":       configProvidersData,
 		"CriticalTransients":    criticalTransients,
@@ -402,4 +400,3 @@ func (g *Generator) collectImports() []string {
 
 	return imports
 }
-
