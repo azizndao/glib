@@ -156,6 +156,17 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 		packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
 	}
 
+	// Scan for Config struct (no annotation needed)
+	if project.Config == nil {
+		config, err := s.scanConfig(file, packagePath, filePath)
+		if err != nil {
+			return err
+		}
+		if config != nil {
+			project.Config = config
+		}
+	}
+
 	// Iterate through declarations
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {

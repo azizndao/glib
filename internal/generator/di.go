@@ -75,12 +75,29 @@ func (g *Generator) generateDI() (string, error) {
 		}
 	}
 
+	// Add Config as a synthetic provider if it exists
+	allProviders := g.project.Providers
+	if g.project.Config != nil {
+		// Create synthetic provider for Config
+		configProvider := g.createConfigProvider()
+
+		// Prepend config provider (it should be initialized first)
+		allProviders = append([]*scanner.Provider{configProvider}, allProviders...)
+		needsFmt = true // Config loading needs fmt for error handling
+	}
+
 	// Sort providers in dependency order (topological sort)
-	sortedProviders := g.sortProvidersByDependencies(g.project.Providers)
+	sortedProviders := g.sortProvidersByDependencies(allProviders)
 
 	// Build provider data
 	var providers []ProviderData
 	for _, prov := range sortedProviders {
+		// Skip the synthetic config provider - handle it specially
+		if prov.Name == "__config__" {
+			providers = append(providers, g.buildConfigProviderData(prov))
+			continue
+		}
+
 		// Build dependency arguments
 		var args []string
 		for _, dep := range prov.Dependencies {
@@ -165,17 +182,66 @@ func (g *Generator) generateDI() (string, error) {
 	}
 
 	data := map[string]any{
-		"PackageName":         g.pkgName,
-		"NeedsFmt":            needsFmt,
-		"NeedsHTTP":           needsHTTP,
-		"NeedsGlibMiddleware": needsGlibMiddleware,
-		"Imports":             g.collectImports(),
-		"Providers":           providers,
-		"Controllers":         controllers,
-		"Middleware":          middleware,
+		"PackageName":          g.pkgName,
+		"NeedsFmt":             needsFmt,
+		"NeedsHTTP":            needsHTTP,
+		"NeedsGlibMiddleware":  needsGlibMiddleware,
+		"ConfigNeedsParameter": false, // Always false - config loaded internally
+		"ConfigParameterType":  "",
+		"Imports":              g.collectImports(),
+		"Providers":            providers,
+		"Controllers":          controllers,
+		"Middleware":           middleware,
 	}
 
 	return g.executeTemplate("di.tmpl", data)
+}
+
+// createConfigProvider creates a synthetic provider for Config
+func (g *Generator) createConfigProvider() *scanner.Provider {
+	configType := g.getConfigType()
+
+	return &scanner.Provider{
+		Name:         "__config__",
+		FunctionName: "loadConfig", // Private function in generated package
+		PackageName:  g.pkgName,    // generated package (where loadConfig lives)
+		PackagePath:  "",           // Empty = same package, no import needed
+		ReturnType:   configType,
+		Dependencies: nil,
+		Lifecycle:    "singleton",
+	}
+}
+
+// buildConfigProviderData builds ProviderData for the synthetic config provider
+func (g *Generator) buildConfigProviderData(prov *scanner.Provider) ProviderData {
+	// loadConfig is in the generated package (same package as DI container)
+	return ProviderData{
+		FieldName:    "config",
+		TypeName:     g.typeString(prov.ReturnType),
+		PackageName:  "",           // Empty = same package, no prefix needed
+		FunctionName: "loadConfig", // Private function in generated package
+		Name:         "Config",
+		ArgsString:   "",
+		ReturnsError: true, // loadConfig() always returns (*Config, error)
+		Lifecycle:    "singleton",
+	}
+}
+
+// getConfigType returns the TypeInfo for Config
+func (g *Generator) getConfigType() *scanner.TypeInfo {
+	if g.project.Config == nil {
+		return nil
+	}
+
+	// Config is always in an importable package (e.g., configs)
+	return &scanner.TypeInfo{
+		Name:        "Config",
+		PackagePath: g.project.Config.PackagePath,
+		PackageName: g.project.Config.PackageName,
+		FullName:    "*" + g.project.Config.PackageName + ".Config",
+		IsPointer:   true,
+		IsPrimitive: false,
+	}
 }
 
 // Helper functions
@@ -198,6 +264,21 @@ func (g *Generator) middlewareFieldName(mw *scanner.Middleware) string {
 func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 	if typeInfo == nil {
 		return ""
+	}
+
+	// Check if this is a Config type request
+	if g.project.Config != nil {
+		// Match by name "Config" or by full type path
+		if typeInfo.Name == "Config" {
+			configFullName := g.getConfigType().FullName
+			if typeInfo.FullName == configFullName || typeInfo.FullName == "*Config" || typeInfo.FullName == "any" {
+				return "config"
+			}
+		}
+		// Also check if the full name matches config type
+		if typeInfo.FullName == g.getConfigType().FullName {
+			return "config"
+		}
 	}
 
 	// Find a provider that returns this type
@@ -256,6 +337,11 @@ func (g *Generator) collectImports() []string {
 		for _, param := range typeInfo.TypeParams {
 			collectTypeImports(param)
 		}
+	}
+
+	// Add config package import if config exists
+	if g.project.Config != nil {
+		addImport(g.project.Config.PackagePath)
 	}
 
 	// Add imports from controllers

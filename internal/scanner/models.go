@@ -14,6 +14,7 @@ const (
 // Project represents the complete scanned project
 type Project struct {
 	Module      string
+	Config      *Config // type Config struct {...}
 	Controllers []*Controller
 	Providers   []*Provider
 	Middleware  []*Middleware
@@ -110,6 +111,29 @@ type Middleware struct {
 	Signature    string         // "old" (http.Handler) or "new" (glib.Middleware)
 	Dependencies []*Field       // What it depends on
 	FuncDecl     *ast.FuncDecl  // Original AST node
+	Position     token.Position // Source position
+}
+
+// Config represents a scanned configuration struct (type Config struct)
+type Config struct {
+	Name        string         // Always "Config"
+	PackageName string         // e.g., "main"
+	PackagePath string         // e.g., "myapp"
+	FilePath    string         // e.g., "/path/to/config.go"
+	Fields      []*ConfigField // Top-level config fields
+	TypeSpec    *ast.TypeSpec  // Original AST node
+	Position    token.Position // Source position
+}
+
+// ConfigField represents a field in the Config struct
+type ConfigField struct {
+	Name         string         // Field name (e.g., "App", "Database", "Port")
+	Type         *TypeInfo      // Field type (string, int, bool, or nested struct)
+	EnvName      string         // Environment variable name from `env:"VAR_NAME"` tag
+	DefaultValue string         // Default value from `default:"value"` tag
+	Required     bool           // Whether field is required from `required:"true"` tag
+	IsNested     bool           // True if type is a nested struct (not primitive)
+	Fields       []*ConfigField // Nested fields (if IsNested is true)
 	Position     token.Position // Source position
 }
 

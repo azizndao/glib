@@ -72,8 +72,8 @@ func typeRef(typeInfo *scanner.TypeInfo) string {
 	}
 
 	// Strip "main." prefix since main package types can't be imported
-	if strings.HasPrefix(typeInfo.FullName, "main.") {
-		return strings.TrimPrefix(typeInfo.FullName, "main.")
+	if after, ok := strings.CutPrefix(typeInfo.FullName, "main."); ok {
+		return after
 	}
 	return typeInfo.FullName
 }

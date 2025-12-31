@@ -1,15 +1,15 @@
 {
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "make": {
-    "controllers": "controllers",
-    "providers": "providers",
-    "middleware": "middleware"
-  },
-  "dev": {
-    "port": 8091
-  }
+    "version": "2",
+    "generate": {
+        "output": "generated",
+        "package": "generated"
+    },
+    "make": {
+        "controllers": "controllers",
+        "providers": "providers",
+        "middleware": "middleware"
+    },
+    "dev": {
+        "port": 8091
+    }
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,17 +15,14 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Load configuration
-	cfg := LoadConfig()
-
-	// Bootstrap application
+	// Bootstrap application (config loaded internally)
 	handler, err := generated.Bootstrap(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 
 	// Create server
-	addr := fmt.Sprintf(":%d", cfg.App.Port)
+	addr := ":8080" // Default port, can be overridden via APP_PORT env var
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,

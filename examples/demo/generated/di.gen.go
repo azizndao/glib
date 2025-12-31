@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
+	"glib/demo/configs"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
@@ -29,6 +30,7 @@ type container struct {
 // providerContainer holds all singleton and transient providers.
 type providerContainer struct {
 	// Singleton Providers
+	config         *configs.Config
 	database       *gorm.DB
 	userSerivce    *services.UserSerivce
 	commentService *services.CommentService
@@ -79,6 +81,11 @@ func initContainer(ctx context.Context) (*container, error) {
 func (c *container) initProviders(ctx context.Context) error {
 	// Singleton Providers
 	var err error
+	// Auto-load config
+	c.providers.config, err = loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
 	c.providers.database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)

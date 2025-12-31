@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 [build]
 args_bin = []
 bin = "./tmp/main"
-cmd = "../../bin/glib generate && go build -o ./tmp/main ."
+cmd = "glib generate && go build -o ./tmp/main ."
 delay = 1000
 exclude_dir = ["tmp", "vendor", "node_modules", "generated"]
 exclude_file = []

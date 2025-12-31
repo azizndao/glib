@@ -68,11 +68,14 @@ type middlewareContainer struct {
 
 // initContainer initializes the dependency injection container.
 // It creates and wires all providers, controllers, and middleware.
+{{- if .ConfigNeedsParameter}}
+// The config parameter is required because Config is defined in the main package.
+{{- end}}
 // Returns an error if any provider initialization fails.
-func initContainer(ctx context.Context) (*container, error) {
+func initContainer(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.ConfigParameterType}}{{end}}) (*container, error) {
 	c := &container{ctx: ctx}
 
-	if err := c.initProviders(ctx); err != nil {
+	if err := c.initProviders(ctx{{if .ConfigNeedsParameter}}, config{{end}}); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +91,7 @@ func initContainer(ctx context.Context) (*container, error) {
 }
 
 // initProviders initializes all singleton and transient providers.
-func (c *container) initProviders(ctx context.Context) error {
+func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.ConfigParameterType}}{{end}}) error {
 {{- $hasSingletons := false}}
 {{- $hasTransients := false}}
 {{- range .Providers}}
@@ -98,16 +101,35 @@ func (c *container) initProviders(ctx context.Context) error {
 
 {{- if $hasSingletons}}
 	// Singleton Providers
+{{- $needsErr := false}}
+{{- range .Providers}}
+{{- if and (eq .Lifecycle "singleton") (.ReturnsError)}}{{$needsErr = true}}{{end}}
+{{- end}}
+{{- if $needsErr}}
+	var err error
+{{- end}}
 {{- range .Providers}}
 {{- if eq .Lifecycle "singleton"}}
+{{- if eq .Name "Config"}}
+{{- if $.ConfigNeedsParameter}}
+	// Config provided as parameter
+	c.providers.{{.FieldName}} = config
+{{- else}}
+	// Auto-load config
+	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+{{- end}}
+{{- else}}
 {{- if .ReturnsError}}
-	var err error
-	c.providers.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
 {{- else}}
-	c.providers.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	c.providers.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+{{- end}}
 {{- end}}
 {{- end}}
 {{- end}}
@@ -120,10 +142,10 @@ func (c *container) initProviders(ctx context.Context) error {
 {{- if eq .Lifecycle "transient"}}
 	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
 {{- if .ReturnsError}}
-		result, _ := {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+		result, _ := {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 		return result
 {{- else}}
-		return {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+		return {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 {{- end}}
 	}
 {{- end}}

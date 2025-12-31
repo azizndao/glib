@@ -13,10 +13,15 @@ import (
 //  2. Creates and configures the HTTP router with all registered routes
 //  3. Applies global middleware to the handler chain
 //
+{{- if .ConfigNeedsParameter}}
+// The config parameter is required because Config is defined in the main package
+// and cannot be auto-loaded. Load your config first, then pass it to Bootstrap.
+{{- end}}
+//
 // Returns an error if initialization fails at any step.
-func Bootstrap(ctx context.Context) (http.Handler, error) {
+func Bootstrap(ctx context.Context{{if .ConfigNeedsParameter}}, config {{.ConfigParameterType}}{{end}}) (http.Handler, error) {
 	// Initialize DI container
-	container, err := initContainer(ctx)
+	container, err := initContainer(ctx{{if .ConfigNeedsParameter}}, config{{end}})
 	if err != nil {
 		return nil, err
 	}
