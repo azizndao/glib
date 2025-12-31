@@ -25,7 +25,7 @@ func TestValidateController(t *testing.T) {
 						Method: "GET",
 						Path:   "/",
 						Signature: &scanner.HandlerSignature{
-							Pattern: 10, // Pattern 10 is the only valid pattern in Glib 3.0
+							Pattern: scanner.PatternResult,
 						},
 					},
 				},
@@ -79,13 +79,13 @@ func TestValidateHandler(t *testing.T) {
 		expectErrors int
 	}{
 		{
-			name: "valid handler - Pattern 10",
+			name: "valid handler - Result pattern",
 			handler: &scanner.Handler{
 				Name:   "Show",
 				Method: "GET",
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
-					Pattern: 10, // Pattern 10: Result[T]
+					Pattern: scanner.PatternResult,
 					PathParams: []*scanner.PathParam{
 						{
 							Name: "id",
@@ -101,13 +101,13 @@ func TestValidateHandler(t *testing.T) {
 			expectErrors: 0,
 		},
 		{
-			name: "valid handler - Pattern 11",
+			name: "valid handler - Raw HTTP pattern",
 			handler: &scanner.Handler{
 				Name:   "Export",
 				Method: "GET",
 				Path:   "/export",
 				Signature: &scanner.HandlerSignature{
-					Pattern:    11, // Pattern 11: Raw HTTP
+					Pattern:    scanner.PatternRawHTTP,
 					HasRawHTTP: true,
 				},
 			},
@@ -120,7 +120,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "INVALID",
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
-					Pattern: 10,
+					Pattern: scanner.PatternResult,
 					PathParams: []*scanner.PathParam{
 						{
 							Name: "id",
@@ -142,7 +142,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "GET",
 				Path:   "users",
 				Signature: &scanner.HandlerSignature{
-					Pattern: 10,
+					Pattern: scanner.PatternResult,
 				},
 			},
 			expectErrors: 1,
@@ -154,7 +154,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "GET",
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
-					Pattern: 7, // Pattern 7 is no longer valid in Glib 3.0
+					Pattern: "invalid_pattern",
 					PathParams: []*scanner.PathParam{
 						{
 							Name: "id",

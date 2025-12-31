@@ -41,7 +41,6 @@ func (g *Generator) Generate() error {
 		{"di.gen.go", g.generateDI},
 		{"routes.gen.go", g.generateRoutes},
 		{"parsers.gen.go", g.generateParsers},
-		{"errors.gen.go", g.generateErrors},
 	}
 
 	for _, file := range files {

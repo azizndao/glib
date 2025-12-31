@@ -25,6 +25,7 @@ func registerRoutes(mux *http.ServeMux, container *container) error {
 	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(container))
 	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(container))
 	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(container))
+	mux.HandleFunc("GET /api/v1/post/health", handlePostControllerHealth(container))
 	return nil
 }
 

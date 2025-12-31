@@ -140,7 +140,7 @@ func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Ha
 
 			// Only write result if middleware didn't call next (early return/error)
 			if !nextCalled {
-				writeResult(w, result)
+				result.Write(w)
 			}
 		})
 	}

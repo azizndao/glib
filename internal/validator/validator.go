@@ -115,9 +115,9 @@ func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Cont
 		return
 	}
 
-	// Glib 3.0: Only Pattern 10 (Result[T]) or Pattern 11 (raw) are valid
-	if handler.Signature.Pattern != 10 && handler.Signature.Pattern != 11 {
-		v.addError(location, fmt.Sprintf("invalid handler signature: must return glib.Result[T] (Pattern 10) or use raw http.ResponseWriter/Request (Pattern 11), got pattern %d", handler.Signature.Pattern))
+	// Validate handler pattern
+	if handler.Signature.Pattern != scanner.PatternResult && handler.Signature.Pattern != scanner.PatternRawHTTP {
+		v.addError(location, fmt.Sprintf("invalid handler signature: must return glib.Result[T] or use raw http.ResponseWriter/Request, got pattern '%s'", handler.Signature.Pattern))
 	}
 
 	// Validate path parameters match handler signature
@@ -129,8 +129,8 @@ func (v *Validator) validatePathParams(handler *scanner.Handler, location string
 	// Extract path parameters from the route path
 	pathParams := extractPathParams(handler.Path)
 
-	// For Pattern 11 (raw HTTP), we don't validate params since handler gets raw request
-	if handler.Signature.Pattern == 11 {
+	// For raw HTTP pattern, we don't validate params since handler gets raw request
+	if handler.Signature.Pattern == scanner.PatternRawHTTP {
 		return
 	}
 

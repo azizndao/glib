@@ -4,14 +4,11 @@ package generated
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/pkg/errs"
 	"github.com/google/uuid"
 
 	"glib/demo/controllers/auth"
@@ -20,8 +17,6 @@ import (
 	"glib/demo/models"
 )
 
-// handleAuthControllerGetSession wraps Controller.GetSession for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -30,16 +25,13 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.authController.GetSession(ctx, id)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.loggerMiddleware(handler)
@@ -47,8 +39,6 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerRegister wraps Controller.Register for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleAuthControllerRegister(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -56,16 +46,13 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 		// Parse request body
 		var req auth.CreateAuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.authController.Register(ctx, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.loggerMiddleware(handler)
@@ -73,8 +60,6 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerUpdate wraps Controller.Update for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -82,16 +67,13 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 		// Parse request body
 		var req auth.UpdateAuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*auth.Auth](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.authController.Update(ctx, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.loggerMiddleware(handler)
@@ -99,18 +81,13 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerDelete wraps Controller.Delete for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleAuthControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		// Call handler
 		result := container.controllers.authController.Delete(ctx)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.loggerMiddleware(handler)
@@ -118,18 +95,13 @@ func handleAuthControllerDelete(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerIndex wraps Controller.Index for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleCommentControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		// Call handler
 		result := container.controllers.commentController.Index(ctx)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -138,8 +110,6 @@ func handleCommentControllerIndex(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerShow wraps Controller.Show for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleCommentControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -148,16 +118,13 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*comment.Comment](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.commentController.Show(ctx, id)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -166,8 +133,6 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerCreate wraps Controller.Create for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleCommentControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -175,16 +140,13 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 		// Parse request body
 		var req comment.CreateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*comment.Comment](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.commentController.Create(ctx, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -194,8 +156,6 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerUpdate wraps Controller.Update for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -204,23 +164,20 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*comment.Comment](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 		// Parse request body
 		var req comment.UpdateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*comment.Comment](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*comment.Comment](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.commentController.Update(ctx, id, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -230,8 +187,6 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerDelete wraps Controller.Delete for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handleCommentControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -240,16 +195,13 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[any](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.commentController.Delete(ctx, id)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -259,18 +211,13 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerIndex wraps Controller.Index for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		// Call handler
 		result := container.controllers.postController.Index(ctx)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -279,8 +226,6 @@ func handlePostControllerIndex(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerShow wraps Controller.Show for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -289,16 +234,13 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*models.Post](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[*models.Post](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.postController.Show(ctx, id)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -307,8 +249,6 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerCreate wraps Controller.Create for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -316,16 +256,13 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 		// Parse request body
 		var req post.CreatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*models.Post](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*models.Post](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.postController.Create(ctx, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -335,8 +272,6 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerUpdate wraps Controller.Update for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -345,23 +280,20 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*models.Post](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[*models.Post](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 		// Parse request body
 		var req post.UpdatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*models.Post](
-				fmt.Sprintf("invalid request body: %v", err)))
+			glib.BadRequest[*models.Post](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.postController.Update(ctx, id, req)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -371,8 +303,6 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerDelete wraps Controller.Delete for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -381,16 +311,13 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[any](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
+			glib.BadRequest[any](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		// Call handler
 		result := container.controllers.postController.Delete(ctx, id)
-
-		// Write result
-		writeResult(w, result)
+		result.Write(w)
 	})
 
 	handler = container.middleware.authMiddleware(handler)
@@ -400,14 +327,8 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerExport wraps Controller.Export for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerExport(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// Raw handler - direct passthrough
-		container.controllers.postController.Export(w, r)
-	})
+	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Export))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -415,14 +336,8 @@ func handlePostControllerExport(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handlePostControllerStream wraps Controller.Stream for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
 func handlePostControllerStream(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// Raw handler - direct passthrough
-		container.controllers.postController.Stream(w, r)
-	})
+	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Stream))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -430,75 +345,6 @@ func handlePostControllerStream(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// writeResult writes a glib.Result[T] to the http.ResponseWriter
-func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
-	// Set custom headers
-	if result.Headers != nil {
-		for key, values := range result.Headers {
-			for _, value := range values {
-				w.Header().Add(key, value)
-			}
-		}
-	}
-
-	// Handle error response
-	if err := result.Error(); err != nil {
-		statusCode := result.StatusCode
-		if statusCode == 0 {
-			statusCode = http.StatusInternalServerError
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(statusCode)
-
-		// Check if it's an errs.Error for structured error response
-		var errsErr *errs.Error
-		var response ErrorResponse
-
-		if errors.As(err, &errsErr) {
-			errorInfo := ErrorInfo{
-				Code:    errsErr.Code.String(),
-				Message: errsErr.Message,
-			}
-
-			// Include details if present
-			if errsErr.Details != nil {
-				errorInfo.Details = convertDetails(errsErr.Details)
-			}
-
-			response = ErrorResponse{Error: errorInfo}
-		} else {
-			// Fallback for standard errors
-			response = ErrorResponse{
-				Error: ErrorInfo{
-					Code:    http.StatusText(statusCode),
-					Message: err.Error(),
-				},
-			}
-		}
-
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("Failed to encode error response: %v", err)
-		}
-		return
-	}
-
-	// Handle success response
-	statusCode := result.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusOK
-	}
-
-	// No content responses
-	if statusCode == http.StatusNoContent {
-		w.WriteHeader(statusCode)
-		return
-	}
-
-	// Encode success data as JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(result.Data); err != nil {
-		log.Printf("Failed to encode success response: %v", err)
-	}
+func handlePostControllerHealth(container *container) http.HandlerFunc {
+	return container.controllers.postController.Health
 }

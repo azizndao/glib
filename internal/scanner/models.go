@@ -5,6 +5,12 @@ import (
 	"go/token"
 )
 
+// Handler pattern types
+const (
+	PatternResult  = "result"   // Result[T] - Type-safe handlers with glib.Result[T] return type
+	PatternRawHTTP = "raw_http" // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
+)
+
 // Project represents the complete scanned project
 type Project struct {
 	Module      string
@@ -42,7 +48,7 @@ type Handler struct {
 
 // HandlerSignature represents a parsed handler signature
 type HandlerSignature struct {
-	Pattern      int          // 1-9 (see 02-HANDLERS.md)
+	Pattern      string       // "result" or "raw_http" - handler pattern type
 	Receiver     *Field       // Controller receiver
 	PathParams   []*PathParam // Path parameters (e.g., id uuid.UUID)
 	RequestType  *TypeInfo    // Request body type (if any)

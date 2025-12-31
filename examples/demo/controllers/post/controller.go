@@ -102,3 +102,10 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+// @Route method=GET path=/health with=none
+// Health is a simple health check endpoint with no middleware
+func (c *Controller) Health(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}

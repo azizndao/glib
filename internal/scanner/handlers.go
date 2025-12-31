@@ -60,11 +60,11 @@ func (s *Scanner) parseHandlerSignature(funcDecl *ast.FuncDecl) (*HandlerSignatu
 }
 
 // analyzeSignature determines the handler pattern from parameters and returns
-// Glib 3.0: Supports two patterns:
-//   - Pattern 10: func(ctx context.Context, ...params) glib.Result[T]  (type-safe)
-//   - Pattern 11: func(w http.ResponseWriter, r *http.Request)        (raw)
+// Supports two handler patterns:
+//   - Result: func(ctx context.Context, ...params) glib.Result[T]  (type-safe)
+//   - Raw HTTP: func(w http.ResponseWriter, r *http.Request)        (raw)
 func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*TypeInfo, funcDecl *ast.FuncDecl) (*HandlerSignature, error) {
-	// Check for Pattern 11: Raw HTTP handler
+	// Check for Pattern: Raw HTTP handler
 	// Must have exactly 2 params: (http.ResponseWriter, *http.Request)
 	if len(params) == 2 && s.isRawHTTPHandler(params) {
 		// No return value required for raw handlers
@@ -72,7 +72,7 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			return nil, fmt.Errorf("raw HTTP handler must not return any value, got %d return values", len(returns))
 		}
 
-		sig.Pattern = 11
+		sig.Pattern = PatternRawHTTP
 		sig.HasRawHTTP = true
 		sig.HasContext = false // Context accessed via r.Context()
 		sig.ReturnsError = false
@@ -80,7 +80,7 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		return sig, nil
 	}
 
-	// Pattern 10: Type-safe handler with Result[T]
+	// Pattern: Type-safe handler with Result[T]
 	// Must have at least one parameter (context.Context)
 	if len(params) == 0 {
 		return nil, fmt.Errorf("handler must have at least one parameter (context.Context) or be a raw handler (w, r)")
@@ -135,8 +135,8 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		}
 	}
 
-	// Pattern 10: Unified Result[T] pattern
-	sig.Pattern = 10
+	// Pattern: Unified Result[T] pattern
+	sig.Pattern = PatternResult
 	sig.ReturnsError = false // Result[T] handles errors internally
 
 	return sig, nil

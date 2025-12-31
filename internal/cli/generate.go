@@ -30,8 +30,7 @@ Generates:
   - Bootstrap code (generated/glib.gen.go)
   - DI container (generated/di.gen.go)
   - Route registration (generated/routes.gen.go)  
-  - Request parsers (generated/parsers.gen.go)
-  - Error handlers (generated/errors.gen.go)`,
+  - Request parsers (generated/parsers.gen.go)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGenerate(opts)
 		},
@@ -137,7 +136,6 @@ func runGenerate(opts *generateOptions) error {
 	fmt.Printf("   ✓ %s/di.gen.go\n", outputDir)
 	fmt.Printf("   ✓ %s/routes.gen.go\n", outputDir)
 	fmt.Printf("   ✓ %s/parsers.gen.go\n", outputDir)
-	fmt.Printf("   ✓ %s/errors.gen.go\n", outputDir)
 
 	fmt.Println("\n✅ Generation complete!")
 

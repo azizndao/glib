@@ -64,12 +64,10 @@ func (g *Generator) generateParsers() (string, error) {
 	var localImports []string
 
 	// Standard library imports
-	stdlibImports = append(stdlibImports, "errors")
 	if needsJSON {
 		stdlibImports = append(stdlibImports, "encoding/json")
 	}
 	stdlibImports = append(stdlibImports, "fmt")
-	stdlibImports = append(stdlibImports, "log")
 	stdlibImports = append(stdlibImports, "net/http")
 	if needsStrconv {
 		stdlibImports = append(stdlibImports, "strconv")
@@ -77,7 +75,6 @@ func (g *Generator) generateParsers() (string, error) {
 
 	// Third-party imports
 	thirdPartyImports = append(thirdPartyImports, "github.com/azizndao/glib")
-	thirdPartyImports = append(thirdPartyImports, "github.com/azizndao/glib/pkg/errs")
 	if needsUUID {
 		thirdPartyImports = append(thirdPartyImports, "github.com/google/uuid")
 	}
@@ -125,7 +122,6 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString(")\n\n")
 
 	// Generate handler wrappers for each handler
-	hasPattern10 := false
 	for _, ctrl := range g.project.Controllers {
 		for _, handler := range ctrl.Handlers {
 			wrapper, err := g.generateHandlerWrapper(ctrl, handler)
@@ -133,17 +129,7 @@ func (g *Generator) generateParsers() (string, error) {
 				return "", err
 			}
 			b.WriteString(wrapper)
-
-			// Track if we have any Pattern 10 handlers (need writeResult helper)
-			if handler.Signature.Pattern == 10 {
-				hasPattern10 = true
-			}
 		}
-	}
-
-	// Add writeResult helper function only if needed (Pattern 10 handlers)
-	if hasPattern10 {
-		b.WriteString(g.generateWriteResultHelper())
 	}
 
 	return b.String(), nil
@@ -159,16 +145,34 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 		handler.Name)
 	ctrlField := g.controllerFieldName(ctrl)
 
-	// Generate function signature
-	var b strings.Builder
-	fmt.Fprintf(&b, "// %s wraps %s.%s for HTTP request handling.\n", wrapperName, ctrl.Name, handler.Name)
-	fmt.Fprintf(&b, "// It handles parameter parsing, validation, and response serialization.\n")
-	fmt.Fprintf(&b, "func %s(container *container) http.HandlerFunc {\n", wrapperName)
-
 	// Build middleware chain (controller middleware + handler middleware)
 	middlewareChain := g.buildMiddlewareChain(ctrl, handler)
 
-	// If there are middleware, wrap the handler
+	var b strings.Builder
+	fmt.Fprintf(&b, "func %s(container *container) http.HandlerFunc {\n", wrapperName)
+
+	// Optimization: For raw HTTP handlers, use method directly (no wrapper needed)
+	if handler.Signature.Pattern == scanner.PatternRawHTTP {
+		if len(middlewareChain) == 0 {
+			// No middleware: return method directly
+			fmt.Fprintf(&b, "\treturn container.controllers.%s.%s\n", ctrlField, handler.Name)
+		} else {
+			// With middleware: wrap method reference
+			fmt.Fprintf(&b, "\thandler := http.Handler(http.HandlerFunc(container.controllers.%s.%s))\n\n", ctrlField, handler.Name)
+
+			// Apply middleware chain in reverse order (innermost first)
+			for i := len(middlewareChain) - 1; i >= 0; i-- {
+				mwFieldName := g.middlewareFieldName(middlewareChain[i])
+				fmt.Fprintf(&b, "\thandler = container.middleware.%s(handler)\n", mwFieldName)
+			}
+
+			b.WriteString("\n\treturn handler.ServeHTTP\n")
+		}
+		b.WriteString("}\n\n")
+		return b.String(), nil
+	}
+
+	// For Result[T] handlers, we need the wrapper for parsing/serialization
 	if len(middlewareChain) > 0 {
 		b.WriteString("\tvar handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n")
 	} else {
@@ -205,9 +209,9 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scanner.Handler, ctrlField string) (string, error) {
 	sig := handler.Signature
 
-	// Glib 3.0: Support Pattern 10 (Result[T]) and Pattern 11 (raw HTTP)
-	if sig.Pattern != 10 && sig.Pattern != 11 {
-		return "", fmt.Errorf("unsupported handler pattern: %d (only pattern 10 Result[T] and pattern 11 raw HTTP are supported in Glib 3.0)", sig.Pattern)
+	// Validate pattern
+	if sig.Pattern != scanner.PatternResult && sig.Pattern != scanner.PatternRawHTTP {
+		return "", fmt.Errorf("unsupported handler pattern: %s (only 'result' and 'raw_http' patterns are supported)", sig.Pattern)
 	}
 
 	data := map[string]any{
@@ -216,8 +220,8 @@ func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scann
 		"CtrlField":  ctrlField,
 	}
 
-	// Use appropriate template based on pattern
-	templateName := fmt.Sprintf("pattern_%d.tmpl", sig.Pattern)
+	// Use appropriate template based on pattern name
+	templateName := sig.Pattern + ".tmpl"
 	return g.executeTemplate(templateName, data)
 }
 
@@ -337,84 +341,6 @@ func compareMiddleware(a, b *scanner.Middleware) int {
 	}
 
 	return 0
-}
-
-// generateWriteResultHelper generates the writeResult helper function
-func (g *Generator) generateWriteResultHelper() string {
-	return `
-// writeResult writes a glib.Result[T] to the http.ResponseWriter
-func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
-	// Set custom headers
-	if result.Headers != nil {
-		for key, values := range result.Headers {
-			for _, value := range values {
-				w.Header().Add(key, value)
-			}
-		}
-	}
-	
-	// Handle error response
-	if err := result.Error(); err != nil {
-		statusCode := result.StatusCode
-		if statusCode == 0 {
-			statusCode = http.StatusInternalServerError
-		}
-		
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(statusCode)
-		
-		// Check if it's an errs.Error for structured error response
-		var errsErr *errs.Error
-		var response ErrorResponse
-		
-		if errors.As(err, &errsErr) {
-			errorInfo := ErrorInfo{
-				Code:    errsErr.Code.String(),
-				Message: errsErr.Message,
-			}
-			
-			// Include details if present
-			if errsErr.Details != nil {
-				errorInfo.Details = convertDetails(errsErr.Details)
-			}
-			
-			response = ErrorResponse{Error: errorInfo}
-		} else {
-			// Fallback for standard errors
-			response = ErrorResponse{
-				Error: ErrorInfo{
-					Code:    http.StatusText(statusCode),
-					Message: err.Error(),
-				},
-			}
-		}
-		
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			log.Printf("Failed to encode error response: %v", err)
-		}
-		return
-	}
-	
-	// Handle success response
-	statusCode := result.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusOK
-	}
-	
-	// No content responses
-	if statusCode == http.StatusNoContent {
-		w.WriteHeader(statusCode)
-		return
-	}
-	
-	// Encode success data as JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(result.Data); err != nil {
-		log.Printf("Failed to encode success response: %v", err)
-	}
-}
-`
 }
 
 // trackTypePackage recursively tracks packages used by a type (including nested generic types)
