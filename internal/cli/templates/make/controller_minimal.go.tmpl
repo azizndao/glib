@@ -2,15 +2,17 @@ package {{.PkgName}}
 
 import (
 	"context"
+	
+	"github.com/azizndao/glib"
 )
 
-// @Controller {{.RoutePrefix}}
+// @Controller path={{.RoutePrefix}}
 type Controller struct {
-	// Add dependencies here (auto-injected)
+	// Add dependencies here (auto-injected by type from providers)
 }
 
-// @Route GET /
-func (c *Controller) Index(ctx context.Context) error {
+// @Route method=GET path=/
+func (c *Controller) Index(ctx context.Context) glib.Result[any] {
 	// TODO: implement
-	return nil
+	return glib.OK[any](nil)
 }

@@ -9,7 +9,7 @@ import (
 	"glib/demo/configs"
 )
 
-// loadConfig loads configuration from environment variables.
+// loadConfig loads Config configuration from environment variables.
 // It returns an error if required fields are missing or invalid.
 // This is a private function called internally by the DI container.
 func loadConfig() (*configs.Config, error) {

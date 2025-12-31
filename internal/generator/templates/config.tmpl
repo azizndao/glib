@@ -15,11 +15,11 @@ import (
 	"{{ .ConfigImportPath }}"
 )
 
-// loadConfig loads configuration from environment variables.
+// {{ .FunctionName }} loads {{ .ConfigName }} configuration from environment variables.
 // It returns an error if required fields are missing or invalid.
 // This is a private function called internally by the DI container.
-func loadConfig() (*{{ .ConfigPackageName }}.Config, error) {
-	cfg := &{{ .ConfigPackageName }}.Config{}
+func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) {
+	cfg := &{{ .ConfigPackageName }}.{{ .ConfigName }}{}
 	
 {{- range .Fields }}
 	{{ template "parseField" . }}

@@ -13,6 +13,7 @@ var (
 	routePattern      = regexp.MustCompile(`^//\s*@Route\s+(.+)$`)
 	providerPattern   = regexp.MustCompile(`^//\s*@Provider\s+(\w+)$`)
 	middlewarePattern = regexp.MustCompile(`^//\s*@Middleware\s+(.+)$`)
+	configPattern     = regexp.MustCompile(`^//\s*@Config\s*$`)
 )
 
 // extractAnnotations extracts all annotations from a comment group
@@ -61,6 +62,16 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 			annotations = append(annotations, &Annotation{
 				Type:  "Middleware",
 				Value: strings.TrimSpace(match[1]),
+				Line:  int(comment.Pos()),
+			})
+			continue
+		}
+
+		// Config annotation: @Config
+		if configPattern.MatchString(text) {
+			annotations = append(annotations, &Annotation{
+				Type:  "Config",
+				Value: "", // No value for @Config
 				Line:  int(comment.Pos()),
 			})
 			continue

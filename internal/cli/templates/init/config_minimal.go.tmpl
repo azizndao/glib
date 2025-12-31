@@ -1,13 +1,10 @@
-package main
+package configs
 
+// @Config
+// Config holds application configuration.
+// Configuration is automatically loaded from environment variables by glib.
 type Config struct {
 	App struct {
-		Port int
+		Port int `env:"APP_PORT" default:"8080"`
 	}
-}
-
-func LoadConfig() *Config {
-	cfg := &Config{}
-	cfg.App.Port = 8080
-	return cfg
 }

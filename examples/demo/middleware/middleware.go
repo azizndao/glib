@@ -2,10 +2,8 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"glib/demo/services"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -23,59 +21,50 @@ const (
 )
 
 // @Middleware name=logger target=all order=1
-func Logger() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			log.Printf("[%s] %s - START", r.Method, r.URL.Path)
+func Logger() middleware.Middleware {
+	return func(request middleware.Request, next middleware.Next) glib.Result[any] {
+		start := time.Now()
+		log.Printf("[%s] %s - START", request.Method(), request.Path())
 
-			next.ServeHTTP(w, r)
+		result := next(request)
 
-			log.Printf("[%s] %s - DONE (%v)", r.Method, r.URL.Path, time.Since(start))
-		})
+		log.Printf("[%s] %s - DONE (%v)", request.Method(), request.Path(), time.Since(start))
+
+		return result
 	}
 }
 
 // @Middleware name=auth target=protected order=10
-func Auth(jwtService *services.JWTService) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(`{"error":{"code":"unauthenticated","message":"Authorization header required"}}`))
-				return
-			}
+func Auth(jwtService *services.JWTService) middleware.Middleware {
+	return func(request middleware.Request, next middleware.Next) glib.Result[any] {
+		authHeader := request.Header("Authorization")
+		if authHeader == "" {
+			return glib.Unauthorized[any]("Authorization header required")
+		}
 
-			// Extract token from "Bearer <token>"
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(`{"error":{"code":"unauthenticated","message":"Invalid authorization header format. Use: Bearer <token>"}}`))
-				return
-			}
+		// Extract token from "Bearer <token>"
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return glib.Unauthorized[any](
+				"Invalid authorization header format. Use: Bearer <token>",
+			)
+		}
 
-			token := parts[1]
+		token := parts[1]
 
-			// Validate token
-			claims, err := jwtService.ValidateToken(token)
-			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(fmt.Sprintf(`{"error":{"code":"unauthenticated","message":"Invalid token: %s"}}`, err.Error())))
-				return
-			}
+		// Validate token
+		claims, err := jwtService.ValidateToken(token)
+		if err != nil {
+			return glib.Fail[any](err)
+		}
 
-			// Add user info to context
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-			ctx = context.WithValue(ctx, UsernameKey, claims.Username)
-			ctx = context.WithValue(ctx, EmailKey, claims.Email)
+		// Add user info to context
+		ctx := context.WithValue(request.Context(), UserIDKey, claims.UserID)
+		ctx = context.WithValue(ctx, UsernameKey, claims.Username)
+		ctx = context.WithValue(ctx, EmailKey, claims.Email)
 
-			// Continue with updated context
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		// Continue with updated context
+		return next(request.WithContext(ctx))
 	}
 }
 
@@ -103,10 +92,7 @@ func RateLimit() middleware.Middleware {
 
 		// Check limit
 		if len(requests[ip]) >= limit {
-			return middleware.Error(
-				fmt.Errorf("rate limit exceeded"),
-				http.StatusTooManyRequests,
-			)
+			return glib.TooManyRequests[any]("rate limit exceeded")
 		}
 
 		// Record request

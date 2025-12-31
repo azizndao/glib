@@ -23,7 +23,7 @@ func newInitCmd() *cobra.Command {
 
 Creates a new project with:
   - main.go (application entry point)
-  - config.go (configuration struct)
+  - configs/config.go (configuration struct with @Config annotation)
   - .glibrc (Glib configuration)
   - .gitignore (Git ignore file)
 
@@ -148,8 +148,8 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 	// main.go
 	files["main.go"] = renderMainGo(module, minimal)
 
-	// config.go
-	files["config.go"] = renderConfigGo(minimal)
+	// configs/config.go (in separate package to avoid import cycle)
+	files["configs/config.go"] = renderConfigGo(minimal)
 
 	// .glibrc
 	files[".glibrc"] = renderGlibRC()

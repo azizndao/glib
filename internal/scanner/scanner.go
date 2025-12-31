@@ -156,15 +156,13 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 		packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
 	}
 
-	// Scan for Config struct (no annotation needed)
-	if project.Config == nil {
-		config, err := s.scanConfig(file, packagePath, filePath)
-		if err != nil {
-			return err
-		}
-		if config != nil {
-			project.Config = config
-		}
+	// Scan for @Config annotated structs
+	configs, err := s.scanConfig(file, packagePath, filePath)
+	if err != nil {
+		return err
+	}
+	if len(configs) > 0 {
+		project.Configs = append(project.Configs, configs...)
 	}
 
 	// Iterate through declarations

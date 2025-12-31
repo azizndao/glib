@@ -22,42 +22,46 @@ func NewConfigGenerator(project *scanner.Project, targetPackage string) *ConfigG
 	}
 }
 
-// GenerateConfigLoaderForPackage generates loadConfig function for the target package
+// GenerateConfigLoaderForPackage generates loadXxxConfig functions for all configs
 func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath string) (string, error) {
-	if g.project.Config == nil {
+	if len(g.project.Configs) == 0 {
 		return "", nil
 	}
 
-	cfg := g.project.Config
-
-	// Flatten nested fields for easier template processing
-	fields := g.flattenFields(cfg.Fields, "")
-
-	// Detect if we need special imports
-	needsTime := false
-	needsURL := false
-	for _, field := range fields {
-		typeInfo := field["Type"].(*scanner.TypeInfo)
-		if typeInfo.FullName == "time.Duration" {
-			needsTime = true
-		}
-		if typeInfo.FullName == "url.URL" || typeInfo.FullName == "*url.URL" {
-			needsURL = true
-		}
-	}
-
-	// Use the config.tmpl file from templates
 	var buf bytes.Buffer
-	err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]interface{}{
-		"PackageName":       g.targetPackage,
-		"ConfigImportPath":  configPackagePath, // Full import path: "glib/demo/configs"
-		"ConfigPackageName": cfg.PackageName,   // Just package name: "configs"
-		"Fields":            fields,
-		"NeedsTime":         needsTime,
-		"NeedsURL":          needsURL,
-	})
-	if err != nil {
-		return "", err
+
+	// Generate loader function for each config
+	for _, cfg := range g.project.Configs {
+		// Flatten nested fields for easier template processing
+		fields := g.flattenFields(cfg.Fields, "")
+
+		// Detect if we need special imports
+		needsTime := false
+		needsURL := false
+		for _, field := range fields {
+			typeInfo := field["Type"].(*scanner.TypeInfo)
+			if typeInfo.FullName == "time.Duration" {
+				needsTime = true
+			}
+			if typeInfo.FullName == "url.URL" || typeInfo.FullName == "*url.URL" {
+				needsURL = true
+			}
+		}
+
+		// Use the config.tmpl file from templates
+		err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]interface{}{
+			"PackageName":       g.targetPackage,
+			"ConfigImportPath":  configPackagePath, // Full import path: "glib/demo/configs"
+			"ConfigPackageName": cfg.PackageName,   // Just package name: "configs"
+			"ConfigName":        cfg.Name,          // Config struct name: "AppConfig", "DatabaseConfig"
+			"FunctionName":      "load" + cfg.Name, // Function name: "loadAppConfig"
+			"Fields":            fields,
+			"NeedsTime":         needsTime,
+			"NeedsURL":          needsURL,
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return buf.String(), nil
@@ -90,7 +94,7 @@ func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPat
 
 // GenerateEnvExample generates a .env.example file
 func (g *ConfigGenerator) GenerateEnvExample() (string, error) {
-	if g.project.Config == nil {
+	if len(g.project.Configs) == 0 {
 		return "", nil
 	}
 
@@ -122,7 +126,11 @@ func (g *ConfigGenerator) GenerateEnvExample() (string, error) {
 		buf.WriteString("\n")
 	}
 
-	generate(g.project.Config.Fields, "")
+	// Generate for all configs
+	for _, cfg := range g.project.Configs {
+		buf.WriteString(fmt.Sprintf("# %s\n", cfg.Name))
+		generate(cfg.Fields, "")
+	}
 
 	return buf.String(), nil
 }

@@ -43,8 +43,8 @@ func (g *Generator) Generate() error {
 		{"parsers.gen.go", g.generateParsers},
 	}
 
-	// Add config loader to generated files if Config exists
-	if g.project.Config != nil {
+	// Add config loader to generated files if Configs exist
+	if len(g.project.Configs) > 0 {
 		files = append(files, struct {
 			name      string
 			generator func() (string, error)
@@ -57,8 +57,8 @@ func (g *Generator) Generate() error {
 		}
 	}
 
-	// Generate .env.example if Config exists
-	if g.project.Config != nil {
+	// Generate .env.example if Configs exist
+	if len(g.project.Configs) > 0 {
 		if err := g.generateEnvExample(); err != nil {
 			fmt.Printf("Warning: failed to generate .env.example: %v\n", err)
 		}
@@ -94,15 +94,17 @@ func (g *Generator) generateFile(filename string, gen func() (string, error)) er
 
 // generateConfigLoader generates the config loader in the generated package
 func (g *Generator) generateConfigLoader() (string, error) {
-	if g.project.Config == nil {
-		return "", fmt.Errorf("no config found")
+	if len(g.project.Configs) == 0 {
+		return "", fmt.Errorf("no configs found")
 	}
 
-	cfg := g.project.Config
+	// Get config package path from first config (all configs should be in same package)
+	configPackagePath := g.project.Configs[0].PackagePath
+
 	configGen := NewConfigGenerator(g.project, g.pkgName)
 
 	// Pass full package path (e.g., "glib/demo/configs") not just package name
-	return configGen.GenerateConfigLoaderForPackage(cfg.PackagePath)
+	return configGen.GenerateConfigLoaderForPackage(configPackagePath)
 }
 
 // generateEnvExample generates the .env.example file

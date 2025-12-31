@@ -16,6 +16,7 @@ type ProviderData struct {
 	ArgsString   string
 	ReturnsError bool
 	Lifecycle    string // "singleton" or "transient"
+	IsConfig     bool   // true if this is a config provider
 }
 
 // ControllerData represents data for a controller in the template
@@ -75,14 +76,15 @@ func (g *Generator) generateDI() (string, error) {
 		}
 	}
 
-	// Add Config as a synthetic provider if it exists
+	// Add Configs as synthetic providers if they exist
 	allProviders := g.project.Providers
-	if g.project.Config != nil {
-		// Create synthetic provider for Config
-		configProvider := g.createConfigProvider()
-
-		// Prepend config provider (it should be initialized first)
-		allProviders = append([]*scanner.Provider{configProvider}, allProviders...)
+	if len(g.project.Configs) > 0 {
+		// Create synthetic providers for each Config
+		for _, cfg := range g.project.Configs {
+			configProvider := g.createConfigProvider(cfg)
+			// Prepend config providers (they should be initialized first)
+			allProviders = append([]*scanner.Provider{configProvider}, allProviders...)
+		}
 		needsFmt = true // Config loading needs fmt for error handling
 	}
 
@@ -92,8 +94,8 @@ func (g *Generator) generateDI() (string, error) {
 	// Build provider data
 	var providers []ProviderData
 	for _, prov := range sortedProviders {
-		// Skip the synthetic config provider - handle it specially
-		if prov.Name == "__config__" {
+		// Skip the synthetic config providers - handle them specially
+		if strings.HasPrefix(prov.Name, "__config_") {
 			providers = append(providers, g.buildConfigProviderData(prov))
 			continue
 		}
@@ -198,14 +200,15 @@ func (g *Generator) generateDI() (string, error) {
 }
 
 // createConfigProvider creates a synthetic provider for Config
-func (g *Generator) createConfigProvider() *scanner.Provider {
-	configType := g.getConfigType()
+func (g *Generator) createConfigProvider(cfg *scanner.Config) *scanner.Provider {
+	configType := g.getConfigType(cfg)
+	funcName := "load" + cfg.Name // loadAppConfig, loadDatabaseConfig, loadConfig
 
 	return &scanner.Provider{
-		Name:         "__config__",
-		FunctionName: "loadConfig", // Private function in generated package
-		PackageName:  g.pkgName,    // generated package (where loadConfig lives)
-		PackagePath:  "",           // Empty = same package, no import needed
+		Name:         "__config_" + cfg.Name + "__", // __config_AppConfig__, __config_Config__
+		FunctionName: funcName,                      // Private function in generated package
+		PackageName:  g.pkgName,                     // generated package (where loadXxxConfig lives)
+		PackagePath:  "",                            // Empty = same package, no import needed
 		ReturnType:   configType,
 		Dependencies: nil,
 		Lifecycle:    "singleton",
@@ -214,31 +217,32 @@ func (g *Generator) createConfigProvider() *scanner.Provider {
 
 // buildConfigProviderData builds ProviderData for the synthetic config provider
 func (g *Generator) buildConfigProviderData(prov *scanner.Provider) ProviderData {
-	// loadConfig is in the generated package (same package as DI container)
+	// Extract config name from provider name: __config_AppConfig__ -> AppConfig
+	configName := strings.TrimSuffix(strings.TrimPrefix(prov.Name, "__config_"), "__")
+	fieldName := strings.ToLower(configName[:1]) + configName[1:] // AppConfig -> appConfig
+
+	// loadXxxConfig is in the generated package (same package as DI container)
 	return ProviderData{
-		FieldName:    "config",
+		FieldName:    fieldName,
 		TypeName:     g.typeString(prov.ReturnType),
-		PackageName:  "",           // Empty = same package, no prefix needed
-		FunctionName: "loadConfig", // Private function in generated package
-		Name:         "Config",
+		PackageName:  "",                // Empty = same package, no prefix needed
+		FunctionName: prov.FunctionName, // loadAppConfig, loadConfig, etc.
+		Name:         configName,
 		ArgsString:   "",
-		ReturnsError: true, // loadConfig() always returns (*Config, error)
+		ReturnsError: true, // loadXxxConfig() always returns (*XxxConfig, error)
 		Lifecycle:    "singleton",
+		IsConfig:     true, // Mark as config provider
 	}
 }
 
-// getConfigType returns the TypeInfo for Config
-func (g *Generator) getConfigType() *scanner.TypeInfo {
-	if g.project.Config == nil {
-		return nil
-	}
-
+// getConfigType returns the TypeInfo for a Config
+func (g *Generator) getConfigType(cfg *scanner.Config) *scanner.TypeInfo {
 	// Config is always in an importable package (e.g., configs)
 	return &scanner.TypeInfo{
-		Name:        "Config",
-		PackagePath: g.project.Config.PackagePath,
-		PackageName: g.project.Config.PackageName,
-		FullName:    "*" + g.project.Config.PackageName + ".Config",
+		Name:        cfg.Name,
+		PackagePath: cfg.PackagePath,
+		PackageName: cfg.PackageName,
+		FullName:    "*" + cfg.PackageName + "." + cfg.Name,
 		IsPointer:   true,
 		IsPrimitive: false,
 	}
@@ -267,17 +271,13 @@ func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 	}
 
 	// Check if this is a Config type request
-	if g.project.Config != nil {
-		// Match by name "Config" or by full type path
-		if typeInfo.Name == "Config" {
-			configFullName := g.getConfigType().FullName
-			if typeInfo.FullName == configFullName || typeInfo.FullName == "*Config" || typeInfo.FullName == "any" {
-				return "config"
-			}
-		}
-		// Also check if the full name matches config type
-		if typeInfo.FullName == g.getConfigType().FullName {
-			return "config"
+	for _, cfg := range g.project.Configs {
+		configType := g.getConfigType(cfg)
+
+		// Match by name or by full type path
+		if typeInfo.Name == cfg.Name || typeInfo.FullName == configType.FullName {
+			// Return field name: AppConfig -> appConfig
+			return strings.ToLower(cfg.Name[:1]) + cfg.Name[1:]
 		}
 	}
 
@@ -339,9 +339,9 @@ func (g *Generator) collectImports() []string {
 		}
 	}
 
-	// Add config package import if config exists
-	if g.project.Config != nil {
-		addImport(g.project.Config.PackagePath)
+	// Add config package imports if configs exist
+	for _, cfg := range g.project.Configs {
+		addImport(cfg.PackagePath)
 	}
 
 	// Add imports from controllers

@@ -1,6 +1,7 @@
 package configs
 
 // Config holds application configuration
+// @Config
 type Config struct {
 	App struct {
 		Port int    `env:"APP_PORT" default:"8080"`

@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-// scanConfig scans for type Config struct declaration
-func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) (*Config, error) {
-	var config *Config
+// scanConfig scans for @Config annotated structs
+func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) ([]*Config, error) {
+	var configs []*Config
 
-	// Look for type Config struct
+	// Look for type declarations with @Config annotation
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok {
@@ -24,20 +24,24 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) (*Con
 				continue
 			}
 
-			// Check if it's named "Config"
-			if typeSpec.Name.Name != "Config" {
-				continue
+			// Check for @Config annotation
+			annotations := extractAnnotations(genDecl.Doc)
+			configAnn := findAnnotation(annotations, "Config")
+
+			if configAnn == nil {
+				continue // No @Config annotation, skip
 			}
 
-			// Check if it's a struct
+			// Must be a struct
 			structType, ok := typeSpec.Type.(*ast.StructType)
 			if !ok {
-				continue
+				return nil, fmt.Errorf("@Config annotation found on non-struct type %s at %s",
+					typeSpec.Name.Name, s.fset.Position(typeSpec.Pos()))
 			}
 
-			// Found Config struct
-			config = &Config{
-				Name:        "Config",
+			// Found @Config struct - parse it
+			config := &Config{
+				Name:        typeSpec.Name.Name, // Can be any name now!
 				PackageName: file.Name.Name,
 				PackagePath: packagePath,
 				FilePath:    filePath,
@@ -48,15 +52,15 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) (*Con
 			// Parse struct fields
 			fields, err := s.scanConfigFields(structType, "")
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse Config fields: %w", err)
+				return nil, fmt.Errorf("failed to parse @Config %s fields: %w", config.Name, err)
 			}
 			config.Fields = fields
 
-			return config, nil
+			configs = append(configs, config)
 		}
 	}
 
-	return nil, nil
+	return configs, nil
 }
 
 // scanConfigFields recursively scans struct fields and extracts config metadata

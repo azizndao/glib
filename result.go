@@ -23,6 +23,8 @@ type Result[T any] struct {
 	Headers http.Header
 }
 
+type Nothing Result[any]
+
 // Success response helpers
 
 // OK creates a 200 OK response with the given data

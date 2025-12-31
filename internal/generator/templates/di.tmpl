@@ -110,26 +110,19 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 {{- end}}
 {{- range .Providers}}
 {{- if eq .Lifecycle "singleton"}}
-{{- if eq .Name "Config"}}
-{{- if $.ConfigNeedsParameter}}
-	// Config provided as parameter
-	c.providers.{{.FieldName}} = config
-{{- else}}
-	// Auto-load config
-	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}()
+{{- if .IsConfig}}
+	// Auto-load config: {{.Name}}
+	c.providers.{{.FieldName}}, err = {{.FunctionName}}()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return fmt.Errorf("failed to load {{.Name}}: %w", err)
 	}
-{{- end}}
-{{- else}}
-{{- if .ReturnsError}}
+{{- else if .ReturnsError}}
 	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
 {{- else}}
 	c.providers.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
-{{- end}}
 {{- end}}
 {{- end}}
 {{- end}}

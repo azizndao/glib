@@ -6,7 +6,7 @@ Glib application.
 
 ### Prerequisites
 
-- Go 1.25 or higher
+- Go 1.21 or higher
 - Glib CLI: `go install github.com/azizndao/glib/cmd/glib@latest`
 
 ### Development
@@ -31,14 +31,25 @@ Run without hot reload:
 go run .
 ```
 
+### Environment Variables
+
+Configuration is loaded from environment variables. See `.env.example` for available options.
+
+Create a `.env` file:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your configuration values.
+
 ### Project Structure
 
 - `main.go` - Application entry point
-- `config.go` - Configuration loading
+- `config.go` - Configuration struct with `@Config` annotation
 - `generated/` - Auto-generated code (do not edit)
-- `controllers/` - HTTP controllers
-- `providers/` - Dependency injection providers
-- `middleware/` - HTTP middleware
+- `controllers/` - HTTP controllers with `@Controller` and `@Route` annotations
+- `providers/` - Dependency injection providers with `@Provider` annotation
+- `middleware/` - HTTP middleware with `@Middleware` annotation
 
 ### Creating Components
 
@@ -57,6 +68,16 @@ Create middleware:
 glib make middleware auth
 ```
 
+### Annotations
+
+Glib uses annotations to generate code:
+
+- `@Config` - Mark config structs (auto-loaded from environment)
+- `@Controller path=/api tags=api` - Define HTTP controllers
+- `@Route method=GET path=/{id}` - Define HTTP endpoints
+- `@Provider singleton` - Define DI providers (singleton or transient)
+- `@Middleware name=auth target=protected` - Define HTTP middleware
+
 ### Building for Production
 
 Build:
@@ -73,8 +94,6 @@ Run:
 ## Documentation
 
 - [Glib Documentation](https://github.com/azizndao/glib)
-- [Annotations Reference](https://github.com/azizndao/glib/blob/main/.spec/01-ANNOTATIONS.md)
-- [Handler Patterns](https://github.com/azizndao/glib/blob/main/.spec/02-HANDLERS.md)
 
 ## License
 

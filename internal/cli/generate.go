@@ -102,6 +102,7 @@ func runGenerate(opts *generateOptions) error {
 	fmt.Printf("   Found %d controllers\n", len(project.Controllers))
 	fmt.Printf("   Found %d providers\n", len(project.Providers))
 	fmt.Printf("   Found %d middleware\n", len(project.Middleware))
+	fmt.Printf("   Found %d configs\n", len(project.Configs))
 	fmt.Printf("   Found %d handlers\n", totalHandlers)
 
 	// Validate

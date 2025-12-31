@@ -51,8 +51,8 @@ type controllerContainer struct {
 
 // middlewareContainer holds all HTTP middleware.
 type middlewareContainer struct {
-	loggerMiddleware    func(http.Handler) http.Handler
-	authMiddleware      func(http.Handler) http.Handler
+	loggerMiddleware    func(http.Handler) http.Handler // Wrapped new-style middleware
+	authMiddleware      func(http.Handler) http.Handler // Wrapped new-style middleware
 	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style middleware
 }
 
@@ -81,10 +81,10 @@ func initContainer(ctx context.Context) (*container, error) {
 func (c *container) initProviders(ctx context.Context) error {
 	// Singleton Providers
 	var err error
-	// Auto-load config
+	// Auto-load config: Config
 	c.providers.config, err = loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return fmt.Errorf("failed to load Config: %w", err)
 	}
 	c.providers.database, err = services.NewDatabase()
 	if err != nil {
@@ -128,8 +128,10 @@ func (c *container) initControllers() error {
 
 // initMiddleware initializes all HTTP middleware.
 func (c *container) initMiddleware() error {
-	c.middleware.loggerMiddleware = middleware.Logger()
-	c.middleware.authMiddleware = middleware.Auth(c.providers.jWTService)
+	// Wrap new-style middleware to http.Handler adapter
+	c.middleware.loggerMiddleware = wrapGlibMiddleware(middleware.Logger())
+	// Wrap new-style middleware to http.Handler adapter
+	c.middleware.authMiddleware = wrapGlibMiddleware(middleware.Auth(c.providers.jWTService))
 	// Wrap new-style middleware to http.Handler adapter
 	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 

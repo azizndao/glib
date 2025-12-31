@@ -2,6 +2,8 @@ package health
 
 import (
 	"context"
+	
+	"github.com/azizndao/glib"
 )
 
 // HealthResponse represents the health check response.
@@ -9,12 +11,12 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
-// @Controller /health
-type HealthController struct{}
+// @Controller path=/health
+type Controller struct{}
 
-// @Route GET /
-func (c *HealthController) Check(ctx context.Context) (*HealthResponse, error) {
-	return &HealthResponse{
+// @Route method=GET path=/
+func (c *Controller) Check(ctx context.Context) glib.Result[*HealthResponse] {
+	return glib.OK(&HealthResponse{
 		Status: "ok",
-	}, nil
+	})
 }

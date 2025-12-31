@@ -74,16 +74,3 @@ func (r *requestImpl) Path() string {
 func (r *requestImpl) HTTPRequest() *http.Request {
 	return r.req
 }
-
-// Success creates a successful Result with the given payload
-func Success(payload any) glib.Result[any] {
-	return glib.OK(payload)
-}
-
-// Error creates an error Result
-func Error(err error, statusCode int) glib.Result[any] {
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
-	}
-	return glib.WithError[any](err, statusCode)
-}

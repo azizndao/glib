@@ -14,7 +14,7 @@ const (
 // Project represents the complete scanned project
 type Project struct {
 	Module      string
-	Config      *Config // type Config struct {...}
+	Configs     []*Config // @Config annotated structs
 	Controllers []*Controller
 	Providers   []*Provider
 	Middleware  []*Middleware
@@ -114,12 +114,12 @@ type Middleware struct {
 	Position     token.Position // Source position
 }
 
-// Config represents a scanned configuration struct (type Config struct)
+// Config represents a scanned configuration struct (annotated with @Config)
 type Config struct {
-	Name        string         // Always "Config"
-	PackageName string         // e.g., "main"
-	PackagePath string         // e.g., "myapp"
-	FilePath    string         // e.g., "/path/to/config.go"
+	Name        string         // e.g., "Config", "AppConfig", "DatabaseConfig"
+	PackageName string         // e.g., "configs"
+	PackagePath string         // e.g., "myapp/configs"
+	FilePath    string         // e.g., "/path/to/configs/config.go"
 	Fields      []*ConfigField // Top-level config fields
 	TypeSpec    *ast.TypeSpec  // Original AST node
 	Position    token.Position // Source position

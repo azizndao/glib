@@ -16,17 +16,20 @@ import (
 func main() {
 	ctx := context.Background()
 	
-	// Load configuration
-	cfg := LoadConfig()
-	
-	// Bootstrap application
+	// Bootstrap application (config auto-loaded by DI container)
 	handler, err := generated.Bootstrap(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 	
+	// Get port from environment or use default
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+	
 	// Create server
-	addr := fmt.Sprintf(":%d", cfg.App.Port)
+	addr := fmt.Sprintf(":%s", port)
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
