@@ -12,6 +12,7 @@ import (
 	"glib/demo/controllers/post"
 	"glib/demo/controllers/session"
 	"glib/demo/middleware"
+	"glib/demo/services"
 	"net/http"
 )
 
@@ -20,6 +21,8 @@ import (
 // providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx                 context.Context
+	postSerivce         *services.PostSerivce
+	userSerivce         *services.UserSerivce
 	adminController     *admin.Controller
 	authController      *auth.Controller
 	commentController   *comment.Controller
@@ -37,13 +40,20 @@ func initContainer(ctx context.Context) (*container, error) {
 	container := &container{ctx: ctx}
 
 	// Initialize providers
+	container.postSerivce = services.NewPostSerivce()
+	container.userSerivce = services.NewUserSerivce()
 
 	// Initialize controllers
 	container.adminController = &admin.Controller{}
 	container.authController = &auth.Controller{}
 	container.commentController = &comment.Controller{}
-	container.postController = &post.Controller{}
-	container.sessionController = &session.Controller{}
+	container.postController = &post.Controller{
+		UserSerivce: container.userSerivce,
+		PostSerivce: container.postSerivce,
+	}
+	container.sessionController = &session.Controller{
+		UserSerivce: container.userSerivce,
+	}
 
 	// Initialize middleware
 	container.loggerMiddleware = middleware.Logger()
@@ -62,20 +72,25 @@ func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Ha
 			// Wrap http.Request in glib.Request
 			req := glibmiddleware.NewRequest(r)
 
+			// Track if next was called
+			nextCalled := false
+
 			// Define next function
 			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+				nextCalled = true
 				// Call next handler/middleware
-				// Note: We can't capture the actual result from next handler easily
-				// So we just pass through and return empty success
 				next.ServeHTTP(w, req.HTTPRequest())
+				// Response already written by handler
 				return glib.OK[any](nil)
 			}
 
 			// Call middleware
 			result := mw(req, nextFn)
 
-			// Write result using writeResult helper
-			writeResult(w, result)
+			// Only write result if middleware didn't call next (early return/error)
+			if !nextCalled {
+				writeResult(w, result)
+			}
 		})
 	}
 }

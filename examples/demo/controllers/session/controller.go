@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"glib/demo/services"
 
 	"github.com/azizndao/glib"
 	"github.com/google/uuid"
@@ -9,7 +10,7 @@ import (
 
 // @Controller path=/api/v1/session tags=api
 type Controller struct {
-	// Add dependencies here (auto-injected)
+	UserSerivce *services.UserSerivce
 }
 
 // @Route method=GET path=/

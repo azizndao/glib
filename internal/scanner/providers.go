@@ -7,6 +7,10 @@ import (
 
 // scanProvider scans a function declaration for @Provider annotation
 func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, packageName, packagePath, filePath string) (*Provider, error) {
+	// Store current package context for type resolution
+	s.currentPackageName = packageName
+	s.currentPackagePath = packagePath
+
 	lifecycle := parseProviderAnnotation(annotation.Value)
 
 	if lifecycle != "singleton" && lifecycle != "transient" {
@@ -60,6 +64,10 @@ func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, p
 
 // scanMiddleware scans a function declaration for @Middleware annotation
 func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation, packageName, packagePath, filePath string) (*Middleware, error) {
+	// Store current package context for type resolution
+	s.currentPackageName = packageName
+	s.currentPackagePath = packagePath
+
 	// Parse middleware definition (name, target, order)
 	def := parseMiddlewareDefinition(annotation.Value)
 

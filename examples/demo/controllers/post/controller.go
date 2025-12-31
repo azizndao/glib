@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glib/demo/controllers/models"
+	"glib/demo/services"
 	"net/http"
 	"time"
 
@@ -13,32 +15,37 @@ import (
 
 // @Controller path=/api/v1/post tags=api
 type Controller struct {
-	// Add dependencies here (auto-injected)
+	UserSerivce *services.UserSerivce
+	PostSerivce *services.PostSerivce
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
-	// TODO: implement
-	return glib.OK([]Post{})
+func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
+	return glib.OK(
+		c.PostSerivce.GetPosts(),
+	)
 }
 
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-	// TODO: implement
-	return glib.NotFound[*Post]("post not found")
+func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
+	return glib.OK(c.PostSerivce.GetPost(id))
 }
 
 // @Route method=POST path=/ tags=protected
-func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
-	// TODO: implement
-	post := &Post{ID: uuid.New()}
-	return glib.Created(post)
+func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*models.Post] {
+	return glib.Created(&models.Post{
+		ID:        c.PostSerivce.GetPosts()[len(c.PostSerivce.GetPosts())-1].ID + 1,
+		Title:     req.Title,
+		Body:      req.Body,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
 }
 
 // @Route method=PUT path=/{id} tags=protected
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) glib.Result[*Post] {
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) glib.Result[*models.Post] {
 	// TODO: implement
-	return glib.NotFound[*Post]("post not found")
+	return glib.NotFound[*models.Post]("post not found")
 }
 
 // @Route method=DELETE path=/{id} tags=protected

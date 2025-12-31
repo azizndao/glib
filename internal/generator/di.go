@@ -14,6 +14,7 @@ type ProviderData struct {
 	FunctionName string
 	Name         string
 	ArgsString   string
+	ReturnsError bool
 }
 
 // ControllerData represents data for a controller in the template
@@ -42,9 +43,27 @@ type MiddlewareData struct {
 // generateDI generates the DI container (di.gen.go)
 func (g *Generator) generateDI() (string, error) {
 	// Determine what's needed
-	needsFmt := len(g.project.Providers) > 0
+	needsFmt := false
 	needsHTTP := len(g.project.Middleware) > 0
 	needsGlibMiddleware := false
+
+	// Check if any provider returns error (needs fmt for error wrapping)
+	for _, prov := range g.project.Providers {
+		if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
+			returnCount := 0
+			for _, field := range prov.FuncDecl.Type.Results.List {
+				if len(field.Names) == 0 {
+					returnCount++
+				} else {
+					returnCount += len(field.Names)
+				}
+			}
+			if returnCount > 1 {
+				needsFmt = true
+				break
+			}
+		}
+	}
 
 	// Check if any middleware uses new-style signature
 	for _, mw := range g.project.Middleware {
@@ -66,6 +85,20 @@ func (g *Generator) generateDI() (string, error) {
 			}
 		}
 
+		// Check if provider returns error (second return value)
+		returnsError := false
+		if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
+			returnCount := 0
+			for _, field := range prov.FuncDecl.Type.Results.List {
+				if len(field.Names) == 0 {
+					returnCount++
+				} else {
+					returnCount += len(field.Names)
+				}
+			}
+			returnsError = returnCount > 1
+		}
+
 		providers = append(providers, ProviderData{
 			FieldName:    g.providerFieldName(prov),
 			TypeName:     g.typeString(prov.ReturnType),
@@ -73,6 +106,7 @@ func (g *Generator) generateDI() (string, error) {
 			FunctionName: prov.FunctionName,
 			Name:         prov.Name,
 			ArgsString:   strings.Join(args, ", "),
+			ReturnsError: returnsError,
 		})
 	}
 

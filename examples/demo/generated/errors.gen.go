@@ -104,7 +104,19 @@ func convertDetails(details errs.ErrDetails) []ErrorDetail {
 		return nil
 	}
 
-	// For now, return nil - this can be extended based on your ErrDetails implementation
-	// You might want to add type assertion logic here based on your actual details types
+	// Try to convert ValidationErrors
+	if validationErrs, ok := details.(*errs.ValidationErrors); ok {
+		result := make([]ErrorDetail, len(validationErrs.Errors))
+		for i, err := range validationErrs.Errors {
+			result[i] = ErrorDetail{
+				Field:    err.Field,
+				Messages: err.Messages,
+			}
+		}
+		return result
+	}
+
+	// For other ErrDetails types, return nil
+	// Users can extend this function to handle custom error detail types
 	return nil
 }

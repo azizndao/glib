@@ -17,6 +17,7 @@ import (
 	"glib/demo/controllers/admin"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
+	"glib/demo/controllers/models"
 	"glib/demo/controllers/post"
 	"glib/demo/controllers/session"
 )
@@ -461,9 +462,9 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 		ctx := r.Context()
 		// Parse path parameters
 		idStr := r.PathValue("id")
-		id, err := uuid.Parse(idStr)
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*post.Post](
+			writeResult(w, glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
@@ -490,7 +491,7 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 		// Parse request body
 		var req post.CreatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*post.Post](
+			writeResult(w, glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}
@@ -519,14 +520,14 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			writeResult(w, glib.BadRequest[*post.Post](
+			writeResult(w, glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)))
 			return
 		}
 		// Parse request body
 		var req post.UpdatePostRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeResult(w, glib.BadRequest[*post.Post](
+			writeResult(w, glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)))
 			return
 		}

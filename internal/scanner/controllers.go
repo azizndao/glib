@@ -56,6 +56,9 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 // scanHandlers scans controller methods for @Route annotations
 // This should be called after all controllers are found
 func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller) error {
+	// Parse imports for this file to resolve package paths
+	s.parseImports(file)
+
 	// Create a map of controller names for quick lookup
 	controllerMap := make(map[string]*Controller)
 	for _, ctrl := range controllers {
@@ -256,12 +259,17 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 		}
 
 	case *ast.SelectorExpr:
-		// Qualified type: uuid.UUID, gorm.DB
+		// Qualified type: uuid.UUID, gorm.DB, models.Post
 		if pkgIdent, ok := t.X.(*ast.Ident); ok {
 			typeInfo.PackageName = pkgIdent.Name
 			typeInfo.Name = t.Sel.Name
 			typeInfo.FullName = pkgIdent.Name + "." + t.Sel.Name
 			typeInfo.IsContext = typeInfo.PackageName == "context" && typeInfo.Name == "Context"
+
+			// Look up package path from imports
+			if importPath, ok := s.currentImports[pkgIdent.Name]; ok {
+				typeInfo.PackagePath = importPath
+			}
 		}
 
 	case *ast.InterfaceType:
@@ -309,6 +317,33 @@ func isPrimitive(name string) bool {
 		"complex128": true,
 	}
 	return primitives[name]
+}
+
+// parseImports extracts import mappings from a file
+func (s *Scanner) parseImports(file *ast.File) {
+	s.currentImports = make(map[string]string)
+
+	for _, imp := range file.Imports {
+		if imp.Path == nil {
+			continue
+		}
+
+		// Remove quotes from import path
+		importPath := strings.Trim(imp.Path.Value, `"`)
+
+		// Determine the package name
+		var pkgName string
+		if imp.Name != nil {
+			// Named import: import foo "github.com/bar/baz"
+			pkgName = imp.Name.Name
+		} else {
+			// Default import: use last segment of path
+			parts := strings.Split(importPath, "/")
+			pkgName = parts[len(parts)-1]
+		}
+
+		s.currentImports[pkgName] = importPath
+	}
 }
 
 // Helper to check if type is http.ResponseWriter or *http.Request

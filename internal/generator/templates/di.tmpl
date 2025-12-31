@@ -49,11 +49,15 @@ func initContainer(ctx context.Context) (*container, error) {
 
 	// Initialize providers
 {{- range .Providers}}
+{{- if .ReturnsError}}
 	var err error
 	container.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
+{{- else}}
+	container.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+{{- end}}
 {{- end}}
 
 	// Initialize controllers
@@ -88,20 +92,25 @@ func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Ha
 			// Wrap http.Request in glib.Request
 			req := glibmiddleware.NewRequest(r)
 			
+			// Track if next was called
+			nextCalled := false
+			
 			// Define next function
 			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+				nextCalled = true
 				// Call next handler/middleware
-				// Note: We can't capture the actual result from next handler easily
-				// So we just pass through and return empty success
 				next.ServeHTTP(w, req.HTTPRequest())
+				// Response already written by handler
 				return glib.OK[any](nil)
 			}
 			
 			// Call middleware
 			result := mw(req, nextFn)
 			
-			// Write result using writeResult helper
-			writeResult(w, result)
+			// Only write result if middleware didn't call next (early return/error)
+			if !nextCalled {
+				writeResult(w, result)
+			}
 		})
 	}
 }

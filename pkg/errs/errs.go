@@ -53,7 +53,7 @@ type Metadata map[string]any
 //
 // If err is already an *Error its code, message, and details
 // are copied over to the new error.
-func Wrap(err error, msg string, metaPairs ...interface{}) error {
+func Wrap(err error, msg string, metaPairs ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func Wrap(err error, msg string, metaPairs ...interface{}) error {
 
 // WrapCode is like Wrap but also sets the error code.
 // If code is OK it reports nil.
-func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) error {
+func WrapCode(err error, code ErrCode, msg string, metaPairs ...any) error {
 	if err == nil || code == OK {
 		return nil
 	}
@@ -196,7 +196,7 @@ func (e *Error) Unwrap() error {
 	return e.underlying
 }
 
-func mergeMeta(md Metadata, pairs []interface{}) Metadata {
+func mergeMeta(md Metadata, pairs []any) Metadata {
 	n := len(pairs)
 	if n%2 != 0 {
 		panic(fmt.Sprintf("got uneven number (%d) of metadata key-values", n))

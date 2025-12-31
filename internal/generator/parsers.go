@@ -40,6 +40,11 @@ func (g *Generator) generateParsers() (string, error) {
 				}
 			}
 
+			// Track response type package (used in error messages like glib.BadRequest[*models.Post]())
+			if sig.ResponseType != nil {
+				g.trackTypePackage(sig.ResponseType, usedPackages)
+			}
+
 			// Check if UUID is used in path params
 			for _, param := range sig.PathParams {
 				if param.Type.PackageName == "uuid" {
@@ -410,4 +415,21 @@ func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
 	}
 }
 `
+}
+
+// trackTypePackage recursively tracks packages used by a type (including nested generic types)
+func (g *Generator) trackTypePackage(typeInfo *scanner.TypeInfo, usedPackages map[string]bool) {
+	if typeInfo == nil {
+		return
+	}
+
+	// Track this type's package (skip main and empty packages)
+	if typeInfo.PackageName != "" && typeInfo.PackagePath != "" && typeInfo.PackageName != "main" {
+		usedPackages[typeInfo.PackagePath] = true
+	}
+
+	// Track generic type parameters recursively
+	for _, param := range typeInfo.TypeParams {
+		g.trackTypePackage(param, usedPackages)
+	}
 }
