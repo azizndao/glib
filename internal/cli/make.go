@@ -6,7 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/azizndao/glib/internal/cli/ui"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -80,12 +84,27 @@ func loadGlibrc() (*glibConfig, error) {
 	return &cfg, nil
 }
 
-func makeController(name string, opts *makeOptions, cfg *glibConfig) error {
-	// Parse name (could be "posts" or "admin/posts")
+// makeSpec holds the specification for creating a component
+type makeSpec struct {
+	componentType string
+	name          string
+	pkgName       string
+	outputDir     string
+	routePrefix   string
+	noExample     bool
+}
+
+// makeResult holds the result of creating a component
+type makeResult struct {
+	files []string
+	err   error
+}
+
+// prepareMakeController prepares the spec for creating a controller
+func prepareMakeController(name string, opts *makeOptions, cfg *glibConfig) makeSpec {
 	parts := strings.Split(name, "/")
 	pkgName := parts[len(parts)-1]
 
-	// Determine output path
 	outputDir := opts.path
 	if outputDir == "" {
 		if cfg.Make.Controllers != "" {
@@ -95,44 +114,23 @@ func makeController(name string, opts *makeOptions, cfg *glibConfig) error {
 		}
 	}
 
-	// Create directory
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	// Determine route prefix
 	routePrefix := opts.prefix
 	if routePrefix == "" {
 		routePrefix = "/api/v1/" + strings.ReplaceAll(name, "/", "_")
 	}
 
-	// Generate controller.go
-	controllerPath := filepath.Join(outputDir, "controller.go")
-	controllerCode := renderController(pkgName, routePrefix, !opts.noExample)
-	if err := os.WriteFile(controllerPath, []byte(controllerCode), 0o644); err != nil {
-		return fmt.Errorf("failed to write controller: %w", err)
+	return makeSpec{
+		componentType: "controller",
+		name:          name,
+		pkgName:       pkgName,
+		outputDir:     outputDir,
+		routePrefix:   routePrefix,
+		noExample:     opts.noExample,
 	}
-
-	// Generate models.go
-	modelsPath := filepath.Join(outputDir, "models.go")
-	modelsCode := renderModels(pkgName, !opts.noExample)
-	if err := os.WriteFile(modelsPath, []byte(modelsCode), 0o644); err != nil {
-		return fmt.Errorf("failed to write models: %w", err)
-	}
-
-	fmt.Printf("✅ Controller created successfully!\n\n")
-	fmt.Printf("   📁 %s\n", controllerPath)
-	fmt.Printf("   📁 %s\n", modelsPath)
-	fmt.Printf("\n📝 Next steps:\n")
-	fmt.Printf("   - Add your fields to the models\n")
-	fmt.Printf("   - Implement the TODO methods\n")
-	fmt.Printf("   - Run: glib generate\n")
-
-	return nil
 }
 
-func makeProvider(name string, opts *makeOptions, cfg *glibConfig) error {
-	// Determine output path
+// prepareMakeProvider prepares the spec for creating a provider
+func prepareMakeProvider(name string, opts *makeOptions, cfg *glibConfig) makeSpec {
 	outputDir := opts.path
 	if outputDir == "" {
 		if cfg.Make.Providers != "" {
@@ -142,30 +140,17 @@ func makeProvider(name string, opts *makeOptions, cfg *glibConfig) error {
 		}
 	}
 
-	// Create directory
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	return makeSpec{
+		componentType: "provider",
+		name:          name,
+		pkgName:       name,
+		outputDir:     outputDir,
+		noExample:     opts.noExample,
 	}
-
-	// Generate provider file
-	providerPath := filepath.Join(outputDir, name+".go")
-	providerCode := renderProvider(name, !opts.noExample)
-	if err := os.WriteFile(providerPath, []byte(providerCode), 0o644); err != nil {
-		return fmt.Errorf("failed to write provider: %w", err)
-	}
-
-	fmt.Printf("✅ Provider created successfully!\n\n")
-	fmt.Printf("   📁 %s\n", providerPath)
-	fmt.Printf("\n📝 Next steps:\n")
-	fmt.Printf("   - Implement the provider function\n")
-	fmt.Printf("   - Add dependencies as parameters\n")
-	fmt.Printf("   - Run: glib generate\n")
-
-	return nil
 }
 
-func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
-	// Determine output path
+// prepareMakeMiddleware prepares the spec for creating middleware
+func prepareMakeMiddleware(name string, opts *makeOptions, cfg *glibConfig) makeSpec {
 	outputDir := opts.path
 	if outputDir == "" {
 		if cfg.Make.Middleware != "" {
@@ -175,23 +160,104 @@ func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
 		}
 	}
 
+	return makeSpec{
+		componentType: "middleware",
+		name:          name,
+		pkgName:       name,
+		outputDir:     outputDir,
+		noExample:     opts.noExample,
+	}
+}
+
+// executeMake performs the actual file creation (business logic)
+func executeMake(spec makeSpec) makeResult {
+	files := []string{}
+
 	// Create directory
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	if err := os.MkdirAll(spec.outputDir, 0o755); err != nil {
+		return makeResult{err: fmt.Errorf("failed to create directory: %w", err)}
 	}
 
-	// Generate middleware file
-	middlewarePath := filepath.Join(outputDir, name+".go")
-	middlewareCode := renderMiddleware(name, !opts.noExample)
-	if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0o644); err != nil {
-		return fmt.Errorf("failed to write middleware: %w", err)
+	switch spec.componentType {
+	case "controller":
+		controllerPath := filepath.Join(spec.outputDir, "controller.go")
+		controllerCode := renderController(spec.pkgName, spec.routePrefix, !spec.noExample)
+		if err := os.WriteFile(controllerPath, []byte(controllerCode), 0o644); err != nil {
+			return makeResult{err: fmt.Errorf("failed to write controller: %w", err)}
+		}
+		files = append(files, controllerPath)
+
+		modelsPath := filepath.Join(spec.outputDir, "models.go")
+		modelsCode := renderModels(spec.pkgName, !spec.noExample)
+		if err := os.WriteFile(modelsPath, []byte(modelsCode), 0o644); err != nil {
+			return makeResult{err: fmt.Errorf("failed to write models: %w", err)}
+		}
+		files = append(files, modelsPath)
+
+	case "provider":
+		providerPath := filepath.Join(spec.outputDir, spec.name+".go")
+		providerCode := renderProvider(spec.name, !spec.noExample)
+		if err := os.WriteFile(providerPath, []byte(providerCode), 0o644); err != nil {
+			return makeResult{err: fmt.Errorf("failed to write provider: %w", err)}
+		}
+		files = append(files, providerPath)
+
+	case "middleware":
+		middlewarePath := filepath.Join(spec.outputDir, spec.name+".go")
+		middlewareCode := renderMiddleware(spec.name, !spec.noExample)
+		if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0o644); err != nil {
+			return makeResult{err: fmt.Errorf("failed to write middleware: %w", err)}
+		}
+		files = append(files, middlewarePath)
 	}
 
-	fmt.Printf("✅ Middleware created successfully!\n\n")
-	fmt.Printf("   📁 %s\n", middlewarePath)
-	fmt.Printf("\n📝 Next steps:\n")
-	fmt.Printf("   - Implement the middleware logic\n")
-	fmt.Printf("   - Run: glib generate\n")
+	return makeResult{files: files}
+}
+
+func makeController(name string, opts *makeOptions, cfg *glibConfig) error {
+	spec := prepareMakeController(name, opts, cfg)
+	return runMake(spec)
+}
+
+func makeProvider(name string, opts *makeOptions, cfg *glibConfig) error {
+	spec := prepareMakeProvider(name, opts, cfg)
+	return runMake(spec)
+}
+
+func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
+	spec := prepareMakeMiddleware(name, opts, cfg)
+	return runMake(spec)
+}
+
+// runMake executes the make operation with appropriate UI
+func runMake(spec makeSpec) error {
+	start := time.Now()
+	renderer := ui.NewRenderer()
+
+	// TTY mode: use Bubble Tea
+	if renderer.IsTTY() {
+		m := newMakeModel(spec, renderer, start)
+		p := tea.NewProgram(m)
+		if _, err := p.Run(); err != nil {
+			return fmt.Errorf("failed to run UI: %w", err)
+		}
+		if m.result.err != nil {
+			return m.result.err
+		}
+		return nil
+	}
+
+	// Non-TTY mode: execute and show simple output
+	result := executeMake(spec)
+	if result.err != nil {
+		return result.err
+	}
+
+	duration := time.Since(start)
+	fmt.Println(ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(spec.componentType), duration.Milliseconds())))
+	for _, file := range result.files {
+		fmt.Printf("  %s\n", file)
+	}
 
 	return nil
 }
@@ -308,4 +374,83 @@ func %s() func(http.Handler) http.Handler {
 	}
 }
 `, name, funcName)
+}
+
+// makeModel is the Bubble Tea model for make command
+type makeModel struct {
+	spec      makeSpec
+	renderer  *ui.Renderer
+	spinner   spinner.Model
+	phase     string
+	result    makeResult
+	startTime time.Time
+}
+
+type makeCompleteMsg struct {
+	result makeResult
+}
+
+func newMakeModel(spec makeSpec, renderer *ui.Renderer, startTime time.Time) *makeModel {
+	return &makeModel{
+		spec:      spec,
+		renderer:  renderer,
+		spinner:   ui.NewSpinner(),
+		phase:     "creating",
+		startTime: startTime,
+	}
+}
+
+func (m *makeModel) Init() tea.Cmd {
+	return tea.Batch(
+		m.spinner.Tick,
+		m.doMake,
+	)
+}
+
+func (m *makeModel) doMake() tea.Msg {
+	result := executeMake(m.spec)
+	return makeCompleteMsg{result: result}
+}
+
+func (m *makeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+
+	case makeCompleteMsg:
+		m.result = msg.result
+		if msg.result.err != nil {
+			m.phase = "error"
+		} else {
+			m.phase = "done"
+		}
+		return m, tea.Quit
+
+	default:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (m *makeModel) View() string {
+	if m.phase == "done" {
+		duration := time.Since(m.startTime)
+		result := ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(m.spec.componentType), duration.Milliseconds()))
+		for _, file := range m.result.files {
+			result += "\n  " + ui.Muted(file)
+		}
+		return result
+	}
+
+	if m.phase == "error" {
+		return ui.Error(fmt.Sprintf("Failed to create %s: %v", m.spec.componentType, m.result.err))
+	}
+
+	// Creating phase
+	return fmt.Sprintf("%s Creating %s %s...", m.spinner.View(), m.spec.componentType, ui.Primary(m.spec.name))
 }

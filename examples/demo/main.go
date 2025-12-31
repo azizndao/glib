@@ -26,6 +26,7 @@ func main() {
 
 	// Create server
 	addr := ":8080"
+
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,

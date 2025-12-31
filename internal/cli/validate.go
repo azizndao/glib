@@ -3,9 +3,13 @@ package cli
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/azizndao/glib/internal/cli/ui"
 	"github.com/azizndao/glib/internal/scanner"
 	"github.com/azizndao/glib/internal/validator"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +41,212 @@ Checks:
 	return cmd
 }
 
+type validatePhase string
+
+const (
+	validatePhaseScanning   validatePhase = "scanning"
+	validatePhaseValidating validatePhase = "validating"
+	validatePhaseDone       validatePhase = "done"
+	validatePhaseError      validatePhase = "error"
+)
+
+type validateModel struct {
+	spinner  spinner.Model
+	phase    validatePhase
+	project  *scanner.Project
+	errors   []string
+	warnings []string
+	duration time.Duration
+	renderer *ui.Renderer
+	verbose  bool
+}
+
+type validateScanCompleteMsg struct {
+	project  *scanner.Project
+	err      error
+	duration time.Duration
+}
+
+type validateValidationCompleteMsg struct {
+	errors   []string
+	warnings []string
+	duration time.Duration
+	err      error
+}
+
+func initialValidateModel(verbose bool) validateModel {
+	return validateModel{
+		spinner:  ui.NewSpinner(),
+		phase:    validatePhaseScanning,
+		renderer: ui.NewRenderer(),
+		verbose:  verbose,
+	}
+}
+
+func (m validateModel) Init() tea.Cmd {
+	return tea.Batch(
+		m.spinner.Tick,
+		doValidateScan(),
+	)
+}
+
+func doValidateScan() tea.Cmd {
+	return func() tea.Msg {
+		start := time.Now()
+
+		scan, err := scanner.New(".")
+		if err != nil {
+			return validateScanCompleteMsg{err: fmt.Errorf("failed to create scanner: %w", err), duration: time.Since(start)}
+		}
+
+		project, err := scan.Scan()
+		if err != nil {
+			return validateScanCompleteMsg{err: fmt.Errorf("failed to scan project: %w", err), duration: time.Since(start)}
+		}
+
+		return validateScanCompleteMsg{project: project, duration: time.Since(start)}
+	}
+}
+
+func doValidation(project *scanner.Project) tea.Cmd {
+	return func() tea.Msg {
+		start := time.Now()
+
+		v := validator.New()
+		err := v.Validate(project)
+
+		var errors []string
+		for _, verr := range v.Errors() {
+			errors = append(errors, verr.Message)
+		}
+
+		var warnings []string
+		for _, warn := range v.Warnings() {
+			warnings = append(warnings, warn.Message)
+		}
+
+		return validateValidationCompleteMsg{
+			errors:   errors,
+			warnings: warnings,
+			duration: time.Since(start),
+			err:      err,
+		}
+	}
+}
+
+func (m validateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
+	case validateScanCompleteMsg:
+		if msg.err != nil {
+			m.phase = validatePhaseError
+			m.errors = []string{msg.err.Error()}
+			return m, tea.Quit
+		}
+		m.project = msg.project
+		m.phase = validatePhaseValidating
+		return m, doValidation(msg.project)
+
+	case validateValidationCompleteMsg:
+		m.duration = msg.duration
+		m.errors = msg.errors
+		m.warnings = msg.warnings
+
+		if msg.err != nil {
+			m.phase = validatePhaseError
+		} else {
+			m.phase = validatePhaseDone
+		}
+		return m, tea.Quit
+
+	default:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (m validateModel) View() string {
+	if !m.renderer.IsTTY() {
+		return m.plainView()
+	}
+
+	switch m.phase {
+	case validatePhaseScanning:
+		return fmt.Sprintf("%s Scanning project...", m.spinner.View())
+
+	case validatePhaseValidating:
+		return fmt.Sprintf("%s Validating...", m.spinner.View())
+
+	case validatePhaseError:
+		output := "\n" + ui.Error("Validation failed") + "\n\n"
+		for i, err := range m.errors {
+			output += fmt.Sprintf("  %d. %s\n", i+1, err)
+		}
+		return output
+
+	case validatePhaseDone:
+		if len(m.errors) > 0 {
+			output := ui.Error("Validation failed") + "\n\n"
+			for i, err := range m.errors {
+				output += fmt.Sprintf("  %d. %s\n", i+1, err)
+			}
+			return output
+		}
+
+		if len(m.warnings) > 0 {
+			output := ui.Warning(fmt.Sprintf("Validation passed with %d warnings", len(m.warnings))) + "\n"
+			if m.verbose {
+				output += "\n"
+				for i, warn := range m.warnings {
+					output += fmt.Sprintf("  %d. %s\n", i+1, warn)
+				}
+			}
+			return output
+		}
+
+		return ui.Success("Validation passed") + "\n"
+	}
+
+	return ""
+}
+
+func (m validateModel) plainView() string {
+	switch m.phase {
+	case validatePhaseScanning:
+		return "Scanning project..."
+	case validatePhaseValidating:
+		return "Validating..."
+	case validatePhaseError:
+		output := "Validation failed\n"
+		for i, err := range m.errors {
+			output += fmt.Sprintf("  %d. %s\n", i+1, err)
+		}
+		return output
+	case validatePhaseDone:
+		if len(m.errors) > 0 {
+			output := "Validation failed\n"
+			for i, err := range m.errors {
+				output += fmt.Sprintf("  %d. %s\n", i+1, err)
+			}
+			return output
+		}
+
+		if len(m.warnings) > 0 {
+			return fmt.Sprintf("Validation passed with %d warnings\n", len(m.warnings))
+		}
+
+		return "Validation passed\n"
+	}
+	return ""
+}
+
 func runValidate(opts *validateOptions) error {
 	// Change to project directory
 	if opts.dir != "." {
@@ -45,63 +255,65 @@ func runValidate(opts *validateOptions) error {
 		}
 	}
 
-	fmt.Println("🔍 Scanning project...")
+	// Check TTY and run appropriate UI
+	renderer := ui.NewRenderer()
+	if !renderer.IsTTY() {
+		// Simple non-TTY output for CI/CD
+		return runValidateSimple(opts.verbose)
+	}
 
-	// Create scanner
+	// Run with Bubble Tea UI
+	m := initialValidateModel(opts.verbose)
+	p := tea.NewProgram(m)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	// Check if validation succeeded
+	final := finalModel.(validateModel)
+	if final.phase == validatePhaseError || len(final.errors) > 0 {
+		return fmt.Errorf("validation failed")
+	}
+
+	return nil
+}
+
+// runValidateSimple is fallback for non-TTY environments (CI/CD)
+func runValidateSimple(verbose bool) error {
+	fmt.Println("Scanning project...")
+
 	scan, err := scanner.New(".")
 	if err != nil {
 		return fmt.Errorf("failed to create scanner: %w", err)
 	}
 
-	// Scan project
 	project, err := scan.Scan()
 	if err != nil {
 		return fmt.Errorf("failed to scan project: %w", err)
 	}
 
-	// Count handlers
-	totalHandlers := 0
-	for _, ctrl := range project.Controllers {
-		totalHandlers += len(ctrl.Handlers)
-	}
+	fmt.Println("Validating...")
 
-	fmt.Printf("   Found %d controllers\n", len(project.Controllers))
-	fmt.Printf("   Found %d handlers\n", totalHandlers)
-	fmt.Printf("   Found %d providers\n", len(project.Providers))
-	fmt.Printf("   Found %d middleware\n", len(project.Middleware))
-
-	// Validate
-	fmt.Println("\n🔍 Validating...")
 	v := validator.New()
 	if err := v.Validate(project); err != nil {
-		fmt.Println()
-
-		// Print all errors
-		errors := v.Errors()
-		for i, verr := range errors {
-			fmt.Printf("   %d. ❌ %s\n", i+1, verr.Message)
-			if opts.verbose {
-				fmt.Printf("      Location: %s\n", verr.Location)
-			}
+		for i, verr := range v.Errors() {
+			fmt.Printf("  %d. %s\n", i+1, verr.Message)
 		}
-
-		fmt.Printf("\n❌ Validation failed with %d errors\n", len(errors))
 		return fmt.Errorf("validation failed")
 	}
 
-	// Print warnings
 	warnings := v.Warnings()
 	if len(warnings) > 0 {
-		fmt.Println()
-		for i, warn := range warnings {
-			fmt.Printf("   %d. ⚠️  %s\n", i+1, warn.Message)
-			if opts.verbose {
-				fmt.Printf("      Location: %s\n", warn.Location)
+		fmt.Printf("Validation passed with %d warnings\n", len(warnings))
+		if verbose {
+			for i, warn := range warnings {
+				fmt.Printf("  %d. %s\n", i+1, warn.Message)
 			}
 		}
-		fmt.Printf("\n⚠️  Validation passed with %d warnings\n", len(warnings))
 	} else {
-		fmt.Println("\n✅ Validation passed with no errors or warnings")
+		fmt.Println("Validation passed")
 	}
 
 	return nil

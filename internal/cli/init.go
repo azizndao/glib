@@ -5,7 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/azizndao/glib/internal/cli/ui"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -48,16 +52,31 @@ Optional:
 	return cmd
 }
 
-func initProject(dir, module string, example, minimal bool) error {
+// initSpec holds the specification for initializing a project
+type initSpec struct {
+	absDir  string
+	module  string
+	example bool
+	minimal bool
+}
+
+// initResult holds the result of initializing a project
+type initResult struct {
+	createdFiles []string
+	err          error
+}
+
+// prepareInit validates and prepares the init specification
+func prepareInit(dir, module string, example, minimal bool) (initSpec, error) {
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+		return initSpec{}, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Get absolute path
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
+		return initSpec{}, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
 	// Infer module name if not provided
@@ -68,60 +87,93 @@ func initProject(dir, module string, example, minimal bool) error {
 	// Check if directory is empty
 	entries, err := os.ReadDir(absDir)
 	if err != nil {
-		return fmt.Errorf("failed to read directory: %w", err)
+		return initSpec{}, fmt.Errorf("failed to read directory: %w", err)
 	}
 	if len(entries) > 0 {
 		// Allow if only .git directory exists
 		if len(entries) > 1 || entries[0].Name() != ".git" {
-			return fmt.Errorf("directory %s is not empty", dir)
+			return initSpec{}, fmt.Errorf("directory %s is not empty", dir)
 		}
 	}
 
-	fmt.Printf("🚀 Initializing Glib project in %s\n", absDir)
-	fmt.Printf("📦 Module: %s\n\n", module)
+	return initSpec{
+		absDir:  absDir,
+		module:  module,
+		example: example,
+		minimal: minimal,
+	}, nil
+}
 
-	// Create files
-	files := buildProjectFiles(module, example, minimal)
+// executeInit performs the actual project initialization (business logic)
+func executeInit(spec initSpec) initResult {
+	createdFiles := []string{}
+	files := buildProjectFiles(spec.module, spec.example, spec.minimal)
 
 	for path, content := range files {
-		fullPath := filepath.Join(absDir, path)
-
-		// Create parent directories
+		fullPath := filepath.Join(spec.absDir, path)
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			return fmt.Errorf("failed to create directory for %s: %w", path, err)
+			return initResult{err: fmt.Errorf("failed to create directory for %s: %w", path, err)}
 		}
-
-		// Write file
 		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			return fmt.Errorf("failed to write %s: %w", path, err)
+			return initResult{err: fmt.Errorf("failed to write %s: %w", path, err)}
 		}
-
-		fmt.Printf("   ✓ Created %s\n", path)
+		createdFiles = append(createdFiles, path)
 	}
 
 	// Initialize go.mod if it doesn't exist
-	goModPath := filepath.Join(absDir, "go.mod")
+	goModPath := filepath.Join(spec.absDir, "go.mod")
 	if _, err := os.Stat(goModPath); os.IsNotExist(err) {
-		if err := createGoMod(absDir, module); err != nil {
-			return fmt.Errorf("failed to initialize go.mod: %w", err)
+		if err := createGoMod(spec.absDir, spec.module); err != nil {
+			return initResult{err: fmt.Errorf("failed to initialize go.mod: %w", err)}
 		}
-		fmt.Printf("   ✓ Created go.mod\n")
+		createdFiles = append(createdFiles, "go.mod")
 	}
 
-	fmt.Println("\n✅ Project initialized successfully!")
-	fmt.Println("\n📝 Next steps:")
-	if dir != "." {
-		fmt.Printf("   cd %s\n", dir)
+	return initResult{createdFiles: createdFiles}
+}
+
+func initProject(dir, module string, example, minimal bool) error {
+	spec, err := prepareInit(dir, module, example, minimal)
+	if err != nil {
+		return err
 	}
-	fmt.Println("   go mod tidy")
-	if example {
-		fmt.Println("   glib generate")
-		fmt.Println("   go run .")
-	} else {
-		fmt.Println("   glib make controller health")
-		fmt.Println("   glib generate")
-		fmt.Println("   go run .")
+
+	return runInit(spec)
+}
+
+// runInit executes the init operation with appropriate UI
+func runInit(spec initSpec) error {
+	start := time.Now()
+	renderer := ui.NewRenderer()
+
+	// TTY mode: use Bubble Tea
+	if renderer.IsTTY() {
+		m := newInitModel(spec, renderer, start)
+		p := tea.NewProgram(m)
+		if _, err := p.Run(); err != nil {
+			return fmt.Errorf("failed to run UI: %w", err)
+		}
+		if m.result.err != nil {
+			return m.result.err
+		}
+		return nil
 	}
+
+	// Non-TTY mode: execute and show simple output
+	fmt.Printf("Initializing Glib project in %s\n", spec.absDir)
+	fmt.Printf("Module: %s\n", spec.module)
+
+	result := executeInit(spec)
+	if result.err != nil {
+		return result.err
+	}
+
+	for _, path := range result.createdFiles {
+		fmt.Printf("Created %s\n", path)
+	}
+
+	duration := time.Since(start)
+	fmt.Println(ui.Success(fmt.Sprintf("Project initialized (%dms)", duration.Milliseconds())))
 
 	return nil
 }
@@ -249,4 +301,82 @@ func renderHealthController(module string) string {
 		panic(err) // Should never happen with valid templates
 	}
 	return result
+}
+
+// initModel is the Bubble Tea model for init command
+type initModel struct {
+	spec      initSpec
+	renderer  *ui.Renderer
+	spinner   spinner.Model
+	phase     string
+	result    initResult
+	startTime time.Time
+}
+
+type initCompleteMsg struct {
+	result initResult
+}
+
+func newInitModel(spec initSpec, renderer *ui.Renderer, startTime time.Time) *initModel {
+	return &initModel{
+		spec:      spec,
+		renderer:  renderer,
+		spinner:   ui.NewSpinner(),
+		phase:     "creating",
+		startTime: startTime,
+	}
+}
+
+func (m *initModel) Init() tea.Cmd {
+	return tea.Batch(
+		m.spinner.Tick,
+		m.doInit,
+	)
+}
+
+func (m *initModel) doInit() tea.Msg {
+	result := executeInit(m.spec)
+	return initCompleteMsg{result: result}
+}
+
+func (m *initModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+
+	case initCompleteMsg:
+		m.result = msg.result
+		if msg.result.err != nil {
+			m.phase = "error"
+		} else {
+			m.phase = "done"
+		}
+		return m, tea.Quit
+
+	default:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (m *initModel) View() string {
+	if m.phase == "done" {
+		duration := time.Since(m.startTime)
+		result := ui.Success(fmt.Sprintf("Project initialized (%dms)", duration.Milliseconds()))
+		result += "\n  " + ui.Muted(fmt.Sprintf("Module: %s", m.spec.module))
+		result += "\n  " + ui.Muted(fmt.Sprintf("Files: %d", len(m.result.createdFiles)))
+		return result
+	}
+
+	if m.phase == "error" {
+		return ui.Error(fmt.Sprintf("Failed to initialize project: %v", m.result.err))
+	}
+
+	// Creating phase
+	return fmt.Sprintf("%s Initializing project %s...", m.spinner.View(), ui.Primary(m.spec.module))
 }
