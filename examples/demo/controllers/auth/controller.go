@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"glib/demo/services"
 
 	"github.com/azizndao/glib"
 	"github.com/google/uuid"
@@ -9,36 +10,26 @@ import (
 
 // @Controller path=/api/v1/auth tags=public
 type Controller struct {
-	// Add dependencies here (auto-injected)
-}
-
-// @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]Auth] {
-	// TODO: implement
-	return glib.OK([]Auth{})
+	UserSerivce *services.UserSerivce
 }
 
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Auth] {
-	// TODO: implement
+func (c *Controller) GetSession(ctx context.Context, id uuid.UUID) glib.Result[*Auth] {
 	return glib.OK(&Auth{ID: id})
 }
 
-// @Route method=POST path=/
-func (c *Controller) Create(ctx context.Context, req CreateAuthRequest) glib.Result[*Auth] {
-	// TODO: implement
+// @Route method=POST path=/register
+func (c *Controller) Register(ctx context.Context, req CreateAuthRequest) glib.Result[*Auth] {
 	auth := &Auth{ID: uuid.New()}
 	return glib.Created(auth)
 }
 
-// @Route method=PUT path=/{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdateAuthRequest) glib.Result[*Auth] {
-	// TODO: implement
-	return glib.OK(&Auth{ID: id})
+// @Route method=PUT path=/me
+func (c *Controller) Update(ctx context.Context, req UpdateAuthRequest) glib.Result[*Auth] {
+	return glib.NotFound[*Auth]("auth not found")
 }
 
-// @Route method=DELETE path=/{id}
+// @Route method=DELETE path=/logout
 func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-	// TODO: implement
 	return glib.NoContent[any]()
 }

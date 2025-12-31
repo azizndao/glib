@@ -40,7 +40,9 @@ func initContainer(ctx context.Context) (*container, error) {
 	container.postSerivce = services.NewPostSerivce(container.userSerivce)
 
 	// Initialize controllers
-	container.authController = &auth.Controller{}
+	container.authController = &auth.Controller{
+		UserSerivce: container.userSerivce,
+	}
 	container.commentController = &comment.Controller{}
 	container.postController = &post.Controller{
 		UserSerivce: container.userSerivce,

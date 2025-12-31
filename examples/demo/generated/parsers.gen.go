@@ -16,32 +16,13 @@ import (
 
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
-	"glib/demo/controllers/models"
 	"glib/demo/controllers/post"
+	"glib/demo/models"
 )
 
-// handleAuthControllerIndex wraps Controller.Index for HTTP request handling.
+// handleAuthControllerGetSession wraps Controller.GetSession for HTTP request handling.
 // It handles parameter parsing, validation, and response serialization.
-func handleAuthControllerIndex(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		// Call handler
-		result := container.authController.Index(ctx)
-
-		// Write result
-		writeResult(w, result)
-	})
-
-	handler = container.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-// handleAuthControllerShow wraps Controller.Show for HTTP request handling.
-// It handles parameter parsing, validation, and response serialization.
-func handleAuthControllerShow(container *container) http.HandlerFunc {
+func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -55,7 +36,7 @@ func handleAuthControllerShow(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.Show(ctx, id)
+		result := container.authController.GetSession(ctx, id)
 
 		// Write result
 		writeResult(w, result)
@@ -66,9 +47,9 @@ func handleAuthControllerShow(container *container) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerCreate wraps Controller.Create for HTTP request handling.
+// handleAuthControllerRegister wraps Controller.Register for HTTP request handling.
 // It handles parameter parsing, validation, and response serialization.
-func handleAuthControllerCreate(container *container) http.HandlerFunc {
+func handleAuthControllerRegister(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -81,7 +62,7 @@ func handleAuthControllerCreate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.Create(ctx, req)
+		result := container.authController.Register(ctx, req)
 
 		// Write result
 		writeResult(w, result)
@@ -98,14 +79,6 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameters
-		idStr := r.PathValue("id")
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			writeResult(w, glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
-			return
-		}
 		// Parse request body
 		var req auth.UpdateAuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -115,7 +88,7 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.Update(ctx, id, req)
+		result := container.authController.Update(ctx, req)
 
 		// Write result
 		writeResult(w, result)

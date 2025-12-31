@@ -1,7 +1,7 @@
 package services
 
 import (
-	"glib/demo/controllers/models"
+	"glib/demo/models"
 	"time"
 )
 

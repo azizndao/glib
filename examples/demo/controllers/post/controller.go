@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"glib/demo/controllers/models"
+	"glib/demo/models"
 	"glib/demo/services"
 	"net/http"
 	"time"
