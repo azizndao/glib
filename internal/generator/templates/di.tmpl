@@ -136,6 +136,7 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 
 {{- end}}
 {{- if $hasCriticalTransients}}
+
 	// Phase 1: Critical Transient Provider Factories (used by singletons)
 {{- range .CriticalTransients}}
 	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
@@ -152,10 +153,10 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 
 {{- end}}
 {{- if $hasSingletons}}
+
 	// Phase 2: Singleton Providers (in dependency order)
 {{- range .Singletons}}
 {{- if .ReturnsError}}
-
 	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
@@ -167,9 +168,9 @@ func (c *container) initProviders(ctx context.Context{{if .ConfigNeedsParameter}
 {{- end}}
 {{- end}}
 {{- if and (or $hasCriticalTransients $hasSingletons $hasConfigs) $hasNonCriticalTransients}}
-
 {{- end}}
 {{- if $hasNonCriticalTransients}}
+
 	// Phase 3: Transient Provider Factories (used only by controllers)
 {{- range .NonCriticalTransients}}
 	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {

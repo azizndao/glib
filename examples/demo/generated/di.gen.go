@@ -88,12 +88,13 @@ func (c *container) initProviders(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
 	}
+
 	// Phase 1: Critical Transient Provider Factories (used by singletons)
 	c.providers.auditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.providers.userSerivce)
 	}
-	// Phase 2: Singleton Providers (in dependency order)
 
+	// Phase 2: Singleton Providers (in dependency order)
 	c.providers.database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
@@ -106,6 +107,7 @@ func (c *container) initProviders(ctx context.Context) error {
 	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
 
 	c.providers.postSerivce = services.NewPostSerivce(c.providers.database, c.providers.auditorFactory())
+
 	// Phase 3: Transient Provider Factories (used only by controllers)
 	c.providers.loggerFactory = func() *services.Logger {
 		return services.NewLogger()
