@@ -6,40 +6,42 @@ import (
 	"net/http"
 )
 
-// registerRoutes registers all HTTP routes
-func registerRoutes(mux *http.ServeMux, c *container) error {
-	mux.HandleFunc("GET /api/v1/admin/", handleAdminControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/admin/{id}", handleAdminControllerShow(c))
-	mux.HandleFunc("POST /api/v1/admin/", handleAdminControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/admin/{id}", handleAdminControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/admin/{id}", handleAdminControllerDelete(c))
-	mux.HandleFunc("GET /api/v1/auth/", handleAuthControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/auth/{id}", handleAuthControllerShow(c))
-	mux.HandleFunc("POST /api/v1/auth/", handleAuthControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/auth/{id}", handleAuthControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/auth/{id}", handleAuthControllerDelete(c))
-	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(c))
-	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/comment/{id}", handleCommentControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/comment/{id}", handleCommentControllerDelete(c))
-	mux.HandleFunc("GET /api/v1/post/", handlePostControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/post/{id}", handlePostControllerShow(c))
-	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(c))
-	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(c))
-	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(c))
-	mux.HandleFunc("GET /api/v1/session/", handleSessionControllerIndex(c))
-	mux.HandleFunc("GET /api/v1/session/{id}", handleSessionControllerShow(c))
-	mux.HandleFunc("POST /api/v1/session/", handleSessionControllerCreate(c))
-	mux.HandleFunc("PUT /api/v1/session/{id}", handleSessionControllerUpdate(c))
-	mux.HandleFunc("DELETE /api/v1/session/{id}", handleSessionControllerDelete(c))
+// registerRoutes registers all HTTP routes with their corresponding handlers.
+// Routes are grouped by controller and registered with the provided ServeMux.
+func registerRoutes(mux *http.ServeMux, container *container) error {
+	mux.HandleFunc("GET /api/v1/admin/", handleAdminControllerIndex(container))
+	mux.HandleFunc("GET /api/v1/admin/{id}", handleAdminControllerShow(container))
+	mux.HandleFunc("POST /api/v1/admin/", handleAdminControllerCreate(container))
+	mux.HandleFunc("PUT /api/v1/admin/{id}", handleAdminControllerUpdate(container))
+	mux.HandleFunc("DELETE /api/v1/admin/{id}", handleAdminControllerDelete(container))
+	mux.HandleFunc("GET /api/v1/auth/", handleAuthControllerIndex(container))
+	mux.HandleFunc("GET /api/v1/auth/{id}", handleAuthControllerShow(container))
+	mux.HandleFunc("POST /api/v1/auth/", handleAuthControllerCreate(container))
+	mux.HandleFunc("PUT /api/v1/auth/{id}", handleAuthControllerUpdate(container))
+	mux.HandleFunc("DELETE /api/v1/auth/{id}", handleAuthControllerDelete(container))
+	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(container))
+	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(container))
+	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(container))
+	mux.HandleFunc("PUT /api/v1/comment/{id}", handleCommentControllerUpdate(container))
+	mux.HandleFunc("DELETE /api/v1/comment/{id}", handleCommentControllerDelete(container))
+	mux.HandleFunc("GET /api/v1/post/", handlePostControllerIndex(container))
+	mux.HandleFunc("GET /api/v1/post/{id}", handlePostControllerShow(container))
+	mux.HandleFunc("POST /api/v1/post/", handlePostControllerCreate(container))
+	mux.HandleFunc("PUT /api/v1/post/{id}", handlePostControllerUpdate(container))
+	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(container))
+	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(container))
+	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(container))
+	mux.HandleFunc("GET /api/v1/session/", handleSessionControllerIndex(container))
+	mux.HandleFunc("GET /api/v1/session/{id}", handleSessionControllerShow(container))
+	mux.HandleFunc("POST /api/v1/session/", handleSessionControllerCreate(container))
+	mux.HandleFunc("PUT /api/v1/session/{id}", handleSessionControllerUpdate(container))
+	mux.HandleFunc("DELETE /api/v1/session/{id}", handleSessionControllerDelete(container))
 	return nil
 }
 
-// applyMiddleware applies global middleware
-func applyMiddleware(handler http.Handler, c *container) http.Handler {
+// applyMiddleware applies global middleware to the handler chain.
+// Global middleware is applied to all routes in the application.
+func applyMiddleware(handler http.Handler, container *container) http.Handler {
 	// Apply global middleware here if needed
 	return handler
 }

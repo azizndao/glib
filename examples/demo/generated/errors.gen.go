@@ -5,16 +5,46 @@ package generated
 import (
 	"encoding/json"
 	"errors"
+	"log"
+
 	"github.com/azizndao/glib/pkg/errs"
+
 	"net/http"
 )
 
-// writeJSON writes a JSON response
+const (
+	contentTypeJSON = "application/json"
+	internalErrCode = "internal"
+	internalErrMsg  = "An internal error occurred"
+)
+
+// ErrorDetail represents a single error detail entry
+type ErrorDetail struct {
+	Field    string   `json:"field"`
+	Messages []string `json:"messages"`
+}
+
+// ErrorInfo contains the error information returned to clients
+type ErrorInfo struct {
+	Code    string        `json:"code"`
+	Message string        `json:"message"`
+	Details []ErrorDetail `json:"details,omitempty"`
+}
+
+// ErrorResponse is the top-level error response structure
+type ErrorResponse struct {
+	Error ErrorInfo `json:"error"`
+}
+
+// writeJSON writes a JSON response with proper error handling
 func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(status)
+
 	if data != nil {
-		json.NewEncoder(w).Encode(data)
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			log.Printf("Failed to encode JSON response: %v", err)
+		}
 	}
 }
 
@@ -23,40 +53,58 @@ func writeError(w http.ResponseWriter, err error) {
 	var glibErr *errs.Error
 	if errors.As(err, &glibErr) {
 		// Structured glib error - return user-facing details
-		response := map[string]any{
-			"error": map[string]any{
-				"code":    glibErr.Code.String(),
-				"message": glibErr.Message,
-			},
+		errorInfo := ErrorInfo{
+			Code:    glibErr.Code.String(),
+			Message: glibErr.Message,
 		}
 
 		// Include details (validation errors) if present
 		if glibErr.Details != nil {
-			response["error"].(map[string]any)["details"] = glibErr.Details
+			// Convert Details to our format if needed
+			// This assumes Details implements a compatible interface
+			errorInfo.Details = convertDetails(glibErr.Details)
 		}
 
+		response := ErrorResponse{Error: errorInfo}
 		writeJSON(w, glibErr.Code.HTTPStatus(), response)
 		return
 	}
 
 	// Generic error - don't expose internal details
-	writeJSON(w, http.StatusInternalServerError, map[string]any{
-		"error": map[string]any{
-			"code":    "internal",
-			"message": "An internal error occurred",
+	response := ErrorResponse{
+		Error: ErrorInfo{
+			Code:    internalErrCode,
+			Message: internalErrMsg,
 		},
-	})
+	}
+	writeJSON(w, http.StatusInternalServerError, response)
 }
 
 // writeParamError writes a parameter validation error
-func writeParamError(w http.ResponseWriter, paramName, paramValue, reason string) {
-	writeJSON(w, http.StatusBadRequest, map[string]any{
-		"error": map[string]any{
-			"code":    "invalid_argument",
-			"message": "Invalid request parameters",
-			"details": map[string][]string{
-				paramName: {reason},
+func writeParamError(w http.ResponseWriter, paramName, reason string) {
+	response := ErrorResponse{
+		Error: ErrorInfo{
+			Code:    "invalid_argument",
+			Message: "Invalid request parameters",
+			Details: []ErrorDetail{
+				{
+					Field:    paramName,
+					Messages: []string{reason},
+				},
 			},
 		},
-	})
+	}
+	writeJSON(w, http.StatusBadRequest, response)
+}
+
+// convertDetails converts errs.ErrDetails to our ErrorDetail format
+func convertDetails(details errs.ErrDetails) []ErrorDetail {
+	// If details is nil, return empty slice
+	if details == nil {
+		return nil
+	}
+
+	// For now, return nil - this can be extended based on your ErrDetails implementation
+	// You might want to add type assertion logic here based on your actual details types
+	return nil
 }

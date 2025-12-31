@@ -6,39 +6,44 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/pkg/errs"
 	"github.com/google/uuid"
+
 	"glib/demo/controllers/admin"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
 	"glib/demo/controllers/session"
-	"net/http"
-	"strconv"
 )
 
-// handleAdminControllerIndex wraps Controller.Index
-func handleAdminControllerIndex(c *container) http.HandlerFunc {
+// handleAdminControllerIndex wraps Controller.Index for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAdminControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		// Call handler
-		result := c.adminController.Index(ctx)
+		result := container.adminController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAdminControllerShow wraps Controller.Show
-func handleAdminControllerShow(c *container) http.HandlerFunc {
+// handleAdminControllerShow wraps Controller.Show for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAdminControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -52,20 +57,21 @@ func handleAdminControllerShow(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.adminController.Show(ctx, id)
+		result := container.adminController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAdminControllerCreate wraps Controller.Create
-func handleAdminControllerCreate(c *container) http.HandlerFunc {
+// handleAdminControllerCreate wraps Controller.Create for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAdminControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -78,20 +84,21 @@ func handleAdminControllerCreate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.adminController.Create(ctx, req)
+		result := container.adminController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAdminControllerUpdate wraps Controller.Update
-func handleAdminControllerUpdate(c *container) http.HandlerFunc {
+// handleAdminControllerUpdate wraps Controller.Update for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAdminControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -112,20 +119,21 @@ func handleAdminControllerUpdate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.adminController.Update(ctx, id, req)
+		result := container.adminController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAdminControllerDelete wraps Controller.Delete
-func handleAdminControllerDelete(c *container) http.HandlerFunc {
+// handleAdminControllerDelete wraps Controller.Delete for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAdminControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -139,38 +147,40 @@ func handleAdminControllerDelete(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.adminController.Delete(ctx, id)
+		result := container.adminController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerIndex wraps Controller.Index
-func handleAuthControllerIndex(c *container) http.HandlerFunc {
+// handleAuthControllerIndex wraps Controller.Index for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAuthControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		// Call handler
-		result := c.authController.Index(ctx)
+		result := container.authController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.loggerMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerShow wraps Controller.Show
-func handleAuthControllerShow(c *container) http.HandlerFunc {
+// handleAuthControllerShow wraps Controller.Show for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAuthControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -184,19 +194,20 @@ func handleAuthControllerShow(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.authController.Show(ctx, id)
+		result := container.authController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.loggerMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerCreate wraps Controller.Create
-func handleAuthControllerCreate(c *container) http.HandlerFunc {
+// handleAuthControllerCreate wraps Controller.Create for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAuthControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -209,19 +220,20 @@ func handleAuthControllerCreate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.authController.Create(ctx, req)
+		result := container.authController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.loggerMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerUpdate wraps Controller.Update
-func handleAuthControllerUpdate(c *container) http.HandlerFunc {
+// handleAuthControllerUpdate wraps Controller.Update for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -242,19 +254,20 @@ func handleAuthControllerUpdate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.authController.Update(ctx, id, req)
+		result := container.authController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.loggerMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleAuthControllerDelete wraps Controller.Delete
-func handleAuthControllerDelete(c *container) http.HandlerFunc {
+// handleAuthControllerDelete wraps Controller.Delete for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleAuthControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -268,38 +281,40 @@ func handleAuthControllerDelete(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.authController.Delete(ctx, id)
+		result := container.authController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.loggerMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerIndex wraps Controller.Index
-func handleCommentControllerIndex(c *container) http.HandlerFunc {
+// handleCommentControllerIndex wraps Controller.Index for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleCommentControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		// Call handler
-		result := c.commentController.Index(ctx)
+		result := container.commentController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerShow wraps Controller.Show
-func handleCommentControllerShow(c *container) http.HandlerFunc {
+// handleCommentControllerShow wraps Controller.Show for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleCommentControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -313,20 +328,21 @@ func handleCommentControllerShow(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.commentController.Show(ctx, id)
+		result := container.commentController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerCreate wraps Controller.Create
-func handleCommentControllerCreate(c *container) http.HandlerFunc {
+// handleCommentControllerCreate wraps Controller.Create for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleCommentControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -339,21 +355,22 @@ func handleCommentControllerCreate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.commentController.Create(ctx, req)
+		result := container.commentController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerUpdate wraps Controller.Update
-func handleCommentControllerUpdate(c *container) http.HandlerFunc {
+// handleCommentControllerUpdate wraps Controller.Update for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -374,21 +391,22 @@ func handleCommentControllerUpdate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.commentController.Update(ctx, id, req)
+		result := container.commentController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleCommentControllerDelete wraps Controller.Delete
-func handleCommentControllerDelete(c *container) http.HandlerFunc {
+// handleCommentControllerDelete wraps Controller.Delete for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleCommentControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -402,40 +420,42 @@ func handleCommentControllerDelete(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.commentController.Delete(ctx, id)
+		result := container.commentController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerIndex wraps Controller.Index
-func handlePostControllerIndex(c *container) http.HandlerFunc {
+// handlePostControllerIndex wraps Controller.Index for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		// Call handler
-		result := c.postController.Index(ctx)
+		result := container.postController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerShow wraps Controller.Show
-func handlePostControllerShow(c *container) http.HandlerFunc {
+// handlePostControllerShow wraps Controller.Show for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -449,20 +469,21 @@ func handlePostControllerShow(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.postController.Show(ctx, id)
+		result := container.postController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerCreate wraps Controller.Create
-func handlePostControllerCreate(c *container) http.HandlerFunc {
+// handlePostControllerCreate wraps Controller.Create for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -475,21 +496,22 @@ func handlePostControllerCreate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.postController.Create(ctx, req)
+		result := container.postController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerUpdate wraps Controller.Update
-func handlePostControllerUpdate(c *container) http.HandlerFunc {
+// handlePostControllerUpdate wraps Controller.Update for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -510,21 +532,22 @@ func handlePostControllerUpdate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.postController.Update(ctx, id, req)
+		result := container.postController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerDelete wraps Controller.Delete
-func handlePostControllerDelete(c *container) http.HandlerFunc {
+// handlePostControllerDelete wraps Controller.Delete for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -538,68 +561,72 @@ func handlePostControllerDelete(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.postController.Delete(ctx, id)
+		result := container.postController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.authMiddleware(handler)
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.authMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerExport wraps Controller.Export
-func handlePostControllerExport(c *container) http.HandlerFunc {
+// handlePostControllerExport wraps Controller.Export for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerExport(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Raw handler - direct passthrough
-		c.postController.Export(w, r)
+		container.postController.Export(w, r)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handlePostControllerStream wraps Controller.Stream
-func handlePostControllerStream(c *container) http.HandlerFunc {
+// handlePostControllerStream wraps Controller.Stream for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handlePostControllerStream(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Raw handler - direct passthrough
-		c.postController.Stream(w, r)
+		container.postController.Stream(w, r)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleSessionControllerIndex wraps Controller.Index
-func handleSessionControllerIndex(c *container) http.HandlerFunc {
+// handleSessionControllerIndex wraps Controller.Index for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleSessionControllerIndex(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		// Call handler
-		result := c.sessionController.Index(ctx)
+		result := container.sessionController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleSessionControllerShow wraps Controller.Show
-func handleSessionControllerShow(c *container) http.HandlerFunc {
+// handleSessionControllerShow wraps Controller.Show for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleSessionControllerShow(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -613,20 +640,21 @@ func handleSessionControllerShow(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.sessionController.Show(ctx, id)
+		result := container.sessionController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleSessionControllerCreate wraps Controller.Create
-func handleSessionControllerCreate(c *container) http.HandlerFunc {
+// handleSessionControllerCreate wraps Controller.Create for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleSessionControllerCreate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -639,20 +667,21 @@ func handleSessionControllerCreate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.sessionController.Create(ctx, req)
+		result := container.sessionController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleSessionControllerUpdate wraps Controller.Update
-func handleSessionControllerUpdate(c *container) http.HandlerFunc {
+// handleSessionControllerUpdate wraps Controller.Update for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleSessionControllerUpdate(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -673,20 +702,21 @@ func handleSessionControllerUpdate(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.sessionController.Update(ctx, id, req)
+		result := container.sessionController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-// handleSessionControllerDelete wraps Controller.Delete
-func handleSessionControllerDelete(c *container) http.HandlerFunc {
+// handleSessionControllerDelete wraps Controller.Delete for HTTP request handling.
+// It handles parameter parsing, validation, and response serialization.
+func handleSessionControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -700,14 +730,14 @@ func handleSessionControllerDelete(c *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := c.sessionController.Delete(ctx, id)
+		result := container.sessionController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = c.ratelimitMiddleware(handler)
-	handler = c.loggerMiddleware(handler)
+	handler = container.ratelimitMiddleware(handler)
+	handler = container.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -735,21 +765,32 @@ func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
 
 		// Check if it's an errs.Error for structured error response
 		var errsErr *errs.Error
+		var response ErrorResponse
+
 		if errors.As(err, &errsErr) {
-			json.NewEncoder(w).Encode(map[string]any{
-				"error": map[string]any{
-					"code":    errsErr.Code.String(),
-					"message": errsErr.Message,
-				},
-			})
+			errorInfo := ErrorInfo{
+				Code:    errsErr.Code.String(),
+				Message: errsErr.Message,
+			}
+
+			// Include details if present
+			if errsErr.Details != nil {
+				errorInfo.Details = convertDetails(errsErr.Details)
+			}
+
+			response = ErrorResponse{Error: errorInfo}
 		} else {
 			// Fallback for standard errors
-			json.NewEncoder(w).Encode(map[string]any{
-				"error": map[string]any{
-					"code":    http.StatusText(statusCode),
-					"message": err.Error(),
+			response = ErrorResponse{
+				Error: ErrorInfo{
+					Code:    http.StatusText(statusCode),
+					Message: err.Error(),
 				},
-			})
+			}
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Failed to encode error response: %v", err)
 		}
 		return
 	}
@@ -770,7 +811,6 @@ func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(result.Data); err != nil {
-		// Already wrote status, can't change it
-		// TODO: Add logging support
+		log.Printf("Failed to encode success response: %v", err)
 	}
 }

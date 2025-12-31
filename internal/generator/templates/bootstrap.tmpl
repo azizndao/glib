@@ -7,7 +7,13 @@ import (
 	"net/http"
 )
 
-// Bootstrap initializes the application and returns the HTTP handler
+// Bootstrap initializes the application and returns a configured HTTP handler.
+// It performs the following steps:
+//  1. Initializes the dependency injection container with all controllers and providers
+//  2. Creates and configures the HTTP router with all registered routes
+//  3. Applies global middleware to the handler chain
+//
+// Returns an error if initialization fails at any step.
 func Bootstrap(ctx context.Context) (http.Handler, error) {
 	// Initialize DI container
 	container, err := initContainer(ctx)

@@ -6,16 +6,18 @@ import (
 	"net/http"
 )
 
-// registerRoutes registers all HTTP routes
-func registerRoutes(mux *http.ServeMux, c *container) error {
+// registerRoutes registers all HTTP routes with their corresponding handlers.
+// Routes are grouped by controller and registered with the provided ServeMux.
+func registerRoutes(mux *http.ServeMux, container *container) error {
 {{- range .Routes}}
-	mux.HandleFunc("{{.Pattern}}", {{.HandlerName}}(c))
+	mux.HandleFunc("{{.Pattern}}", {{.HandlerName}}(container))
 {{- end}}
 	return nil
 }
 
-// applyMiddleware applies global middleware
-func applyMiddleware(handler http.Handler, c *container) http.Handler {
+// applyMiddleware applies global middleware to the handler chain.
+// Global middleware is applied to all routes in the application.
+func applyMiddleware(handler http.Handler, container *container) http.Handler {
 	// Apply global middleware here if needed
 	return handler
 }

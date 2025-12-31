@@ -15,7 +15,9 @@ import (
 	"net/http"
 )
 
-// container holds all dependencies
+// container holds all application dependencies.
+// It is initialized once at startup and provides access to controllers,
+// providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx                 context.Context
 	adminController     *admin.Controller
@@ -25,32 +27,35 @@ type container struct {
 	sessionController   *session.Controller
 	loggerMiddleware    func(http.Handler) http.Handler
 	authMiddleware      func(http.Handler) http.Handler
-	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style
+	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style middleware
 }
 
-// initContainer initializes the DI container
+// initContainer initializes the dependency injection container.
+// It creates and wires all providers, controllers, and middleware.
+// Returns an error if any provider initialization fails.
 func initContainer(ctx context.Context) (*container, error) {
-	c := &container{ctx: ctx}
+	container := &container{ctx: ctx}
 
 	// Initialize providers
 
 	// Initialize controllers
-	c.adminController = &admin.Controller{}
-	c.authController = &auth.Controller{}
-	c.commentController = &comment.Controller{}
-	c.postController = &post.Controller{}
-	c.sessionController = &session.Controller{}
+	container.adminController = &admin.Controller{}
+	container.authController = &auth.Controller{}
+	container.commentController = &comment.Controller{}
+	container.postController = &post.Controller{}
+	container.sessionController = &session.Controller{}
 
 	// Initialize middleware
-	c.loggerMiddleware = middleware.Logger()
-	c.authMiddleware = middleware.Auth()
+	container.loggerMiddleware = middleware.Logger()
+	container.authMiddleware = middleware.Auth()
 	// Wrap new-style middleware to http.Handler adapter
-	c.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
+	container.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 
-	return c, nil
+	return container, nil
 }
 
-// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware
+// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware.
+// It converts between the glib-style middleware signature and standard http.Handler.
 func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

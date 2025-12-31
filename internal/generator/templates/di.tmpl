@@ -7,19 +7,23 @@ import (
 {{- if .NeedsFmt}}
 	"fmt"
 {{- end}}
+{{- if .NeedsHTTP}}
+	"net/http"
+{{- end}}
+
 {{- if .NeedsGlibMiddleware}}
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 {{- end}}
+
 {{- range .Imports}}
 	"{{.}}"
 {{- end}}
-{{- if .NeedsHTTP}}
-	"net/http"
-{{- end}}
 )
 
-// container holds all dependencies
+// container holds all application dependencies.
+// It is initialized once at startup and provides access to controllers,
+// providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx context.Context
 {{- range .Providers}}
@@ -30,21 +34,23 @@ type container struct {
 {{- end}}
 {{- range .Middleware}}
 {{- if eq .Signature "new"}}
-	{{.FieldName}} func(http.Handler) http.Handler // Wrapped new-style
+	{{.FieldName}} func(http.Handler) http.Handler // Wrapped new-style middleware
 {{- else}}
 	{{.FieldName}} func(http.Handler) http.Handler
 {{- end}}
 {{- end}}
 }
 
-// initContainer initializes the DI container
+// initContainer initializes the dependency injection container.
+// It creates and wires all providers, controllers, and middleware.
+// Returns an error if any provider initialization fails.
 func initContainer(ctx context.Context) (*container, error) {
-	c := &container{ctx: ctx}
+	container := &container{ctx: ctx}
 
 	// Initialize providers
 {{- range .Providers}}
 	var err error
-	c.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	container.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
@@ -52,9 +58,9 @@ func initContainer(ctx context.Context) (*container, error) {
 
 	// Initialize controllers
 {{- range .Controllers}}
-	c.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
+	container.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
 {{- range .Fields}}
-		{{.Name}}: c.{{.ProviderField}},
+		{{.Name}}: container.{{.ProviderField}},
 {{- end}}
 	}
 {{- end}}
@@ -63,18 +69,19 @@ func initContainer(ctx context.Context) (*container, error) {
 {{- range .Middleware}}
 {{- if eq .Signature "new"}}
 	// Wrap new-style middleware to http.Handler adapter
-	c.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
+	container.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
 {{- else}}
-	c.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	container.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 {{- end}}
 {{- end}}
 
-	return c, nil
+	return container, nil
 }
 
 {{- if .NeedsGlibMiddleware}}
 
-// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware
+// wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware.
+// It converts between the glib-style middleware signature and standard http.Handler.
 func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
