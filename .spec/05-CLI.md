@@ -177,7 +177,7 @@ glib generate --dir ./services/api
    Found 5 controllers
    Found 3 providers
    Found 2 middleware
-   Found 1 config
+   Found 17 handlers
 
 ✅ Validation passed
 
@@ -186,7 +186,6 @@ glib generate --dir ./services/api
    generated/di.gen.go
    generated/routes.gen.go
    generated/parsers.gen.go
-   generated/errors.gen.go
 
 ✅ Generation complete (234ms)
 ```
@@ -1040,7 +1039,6 @@ glib generate --verbose
      • 2 controllers (5 handlers)
      • 1 provider
      • 1 middleware
-     • 1 config
 
 ✅ Validation
    [OK] Controller: PostsController
@@ -1055,7 +1053,6 @@ glib generate --verbose
    [GEN] generated/di.gen.go (2.4 KB)
    [GEN] generated/routes.gen.go (3.1 KB)
    [GEN] generated/parsers.gen.go (4.5 KB)
-   [GEN] generated/errors.gen.go (1.8 KB)
 
 ✅ Generation complete (234ms)
 ```

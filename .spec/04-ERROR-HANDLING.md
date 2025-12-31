@@ -31,18 +31,18 @@ Glib uses **Encore.dev-style error handling** with structured errors that automa
 4. **User-friendly messages** - Separate internal/external messages
 5. **Stack traces** - Debug information in development
 
-### Error Flow (Pattern 10)
+### Error Flow (Result[T] Pattern)
 
 ```
 Handler Returns glib.Result[T]
     ↓
-Generated Wrapper Checks Result.Error()
+Result.Write(w) Method Called
     ↓
-If Error: Extract HTTP Status
+Check Result.Error()
     ↓
-Check Error Type (errs.Error vs standard error)
+If Error: Extract HTTP Status & Write JSON
     ↓
-Format JSON Response with Details
+If Success: Write Data as JSON
     ↓
 Send to Client
 ```
@@ -378,32 +378,30 @@ err := errs.B().
 return glib.Fail[*Post](err)
 ```
 
-### Generated convertDetails() Function
+### Error Detail Conversion
 
-The generator creates a `convertDetails()` function that converts `errs.ErrDetails` to the JSON response format:
+The framework's `Result[T].Write()` method converts `errs.ErrDetails` to the JSON response format:
 
 ```go
-// generated/errors.gen.go
+// pkg/errs/details.go
 
-func convertDetails(details errs.ErrDetails) []ErrorDetail {
-    if details == nil {
-        return nil
+// ValidationErrors contains field-level validation errors
+type ValidationErrors struct {
+    Errors []ValidationError
+}
+
+type ValidationError struct {
+    Field    string
+    Messages []string
+}
+
+// Convert to JSON format
+func (v *ValidationErrors) ToJSON() map[string][]string {
+    result := make(map[string][]string)
+    for _, err := range v.Errors {
+        result[err.Field] = err.Messages
     }
-    
-    // Handle ValidationErrors
-    if validationErrs, ok := details.(*errs.ValidationErrors); ok {
-        result := make([]ErrorDetail, len(validationErrs.Errors))
-        for i, err := range validationErrs.Errors {
-            result[i] = ErrorDetail{
-                Field:    err.Field,
-                Messages: err.Messages,
-            }
-        }
-        return result
-    }
-    
-    // Extend for custom error detail types
-    return nil
+    return result
 }
 ```
 
@@ -411,111 +409,70 @@ func convertDetails(details errs.ErrDetails) []ErrorDetail {
 
 ## Generated Error Handling
 
-### Error Response Types
+Error handling is now built into the `Result[T]` type via the `Write(w http.ResponseWriter)` method.
 
-The generator creates structured types for error responses:
+### Result[T].Write() Method
 
-```go
-// generated/errors.gen.go
-
-type ErrorDetail struct {
-    Field    string   `json:"field"`
-    Messages []string `json:"messages"`
-}
-
-type ErrorInfo struct {
-    Code    string        `json:"code"`
-    Message string        `json:"message"`
-    Details []ErrorDetail `json:"details,omitempty"`
-}
-
-type ErrorResponse struct {
-    Error ErrorInfo `json:"error"`
-}
-```
-
-### writeError() Function
-
-Generated error handler in `generated/errors.gen.go`:
+Located in `writer.go`:
 
 ```go
-func writeError(w http.ResponseWriter, err error) {
-    var glibErr *errs.Error
-    if errors.As(err, &glibErr) {
-        // Structured glib error
-        errorInfo := ErrorInfo{
-            Code:    glibErr.Code.String(),
-            Message: glibErr.Message,
-        }
-
-        // Include validation details if present
-        if glibErr.Details != nil {
-            errorInfo.Details = convertDetails(glibErr.Details)
-        }
-
-        response := ErrorResponse{Error: errorInfo}
-        writeJSON(w, glibErr.Code.HTTPStatus(), response)
-        return
-    }
-
-    // Generic error - don't expose internals
-    response := ErrorResponse{
-        Error: ErrorInfo{
-            Code:    "internal",
-            Message: "An internal error occurred",
-        },
-    }
-    writeJSON(w, http.StatusInternalServerError, response)
-}
-```
-
-### Handler Wrapper Integration
-
-**Pattern 10 wrapper:**
-
-```go
-func wrapPostsController_Create(container *container, ctrl *PostsController) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Parse request
-        var req CreatePostRequest
-        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-            writeResult(w, glib.BadRequest[*Post]("invalid JSON"))
-            return
-        }
-        
-        // Call handler
-        result := ctrl.Create(r.Context(), req)
-        
-        // Write result (handles both success and error)
-        writeResult(w, result)
-    })
-}
-
-func writeResult[T any](w http.ResponseWriter, result glib.Result[T]) {
+// Write writes the Result to an http.ResponseWriter
+func (r Result[T]) Write(w http.ResponseWriter) {
     // Set custom headers
-    for key, values := range result.Headers {
+    for key, values := range r.Headers {
         for _, value := range values {
             w.Header().Add(key, value)
         }
     }
     
     // Handle error response
-    if err := result.Error(); err != nil {
-        writeError(w, err)
+    if r.err != nil {
+        writeErrorJSON(w, r.StatusCode, r.err)
         return
     }
     
-    // Handle success response
-    if result.StatusCode == http.StatusNoContent {
-        w.WriteHeader(result.StatusCode)
+    // Handle no-content response
+    if r.StatusCode == http.StatusNoContent {
+        w.WriteHeader(r.StatusCode)
         return
     }
     
+    // Write success response
     w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(result.StatusCode)
-    if err := json.NewEncoder(w).Encode(result.Data); err != nil {
+    w.WriteHeader(r.StatusCode)
+    if err := json.NewEncoder(w).Encode(r.Data); err != nil {
         log.Printf("failed to encode response: %v", err)
     }
+}
+```
+
+### Handler Wrapper Integration
+
+**Result[T] pattern wrapper:**
+
+```go
+func handlePostsControllerCreate(container *container) http.HandlerFunc {
+    handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        ctx := r.Context()
+        
+        // Parse request
+        var req CreatePostRequest
+        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+            glib.BadRequest[*Post]("invalid JSON").Write(w)
+            return
+        }
+        
+        // Call handler
+        result := container.controllers.postsController.Create(ctx, req)
+        
+        // Write result using Result.Write() method
+        result.Write(w)
+    }))
+    
+    // Apply middleware if needed
+    // handler = container.middleware.authMiddleware(handler)
+    
+    return handler.ServeHTTP
 }
 ```
 

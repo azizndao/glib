@@ -18,7 +18,7 @@ import (
 )
 
 func handleAuthControllerGetSession(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -32,7 +32,7 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 
 		result := container.controllers.authController.GetSession(ctx, id)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.loggerMiddleware(handler)
 
@@ -40,7 +40,7 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 }
 
 func handleAuthControllerRegister(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -53,7 +53,7 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 
 		result := container.controllers.authController.Register(ctx, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.loggerMiddleware(handler)
 
@@ -61,7 +61,7 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 }
 
 func handleAuthControllerUpdate(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -74,7 +74,7 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 
 		result := container.controllers.authController.Update(ctx, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.loggerMiddleware(handler)
 
@@ -82,13 +82,13 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 }
 
 func handleAuthControllerDelete(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		result := container.controllers.authController.Delete(ctx)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.loggerMiddleware(handler)
 
@@ -96,13 +96,13 @@ func handleAuthControllerDelete(container *container) http.HandlerFunc {
 }
 
 func handleCommentControllerIndex(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		result := container.controllers.commentController.Index(ctx)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -111,7 +111,7 @@ func handleCommentControllerIndex(container *container) http.HandlerFunc {
 }
 
 func handleCommentControllerShow(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -125,7 +125,7 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Show(ctx, id)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -134,7 +134,7 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 }
 
 func handleCommentControllerCreate(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -147,7 +147,7 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Create(ctx, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -157,7 +157,7 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 }
 
 func handleCommentControllerUpdate(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -178,7 +178,7 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Update(ctx, id, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -188,7 +188,7 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 }
 
 func handleCommentControllerDelete(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -202,7 +202,7 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Delete(ctx, id)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -212,13 +212,13 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 }
 
 func handlePostControllerIndex(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
 		result := container.controllers.postController.Index(ctx)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -227,7 +227,7 @@ func handlePostControllerIndex(container *container) http.HandlerFunc {
 }
 
 func handlePostControllerShow(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -241,7 +241,7 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Show(ctx, id)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
@@ -250,7 +250,7 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 }
 
 func handlePostControllerCreate(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse request body
@@ -263,7 +263,7 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Create(ctx, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -273,7 +273,7 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 }
 
 func handlePostControllerUpdate(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -294,7 +294,7 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Update(ctx, id, req)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -304,7 +304,7 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 }
 
 func handlePostControllerDelete(container *container) http.HandlerFunc {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
@@ -318,7 +318,7 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Delete(ctx, id)
 		result.Write(w)
-	})
+	}))
 
 	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.ratelimitMiddleware(handler)

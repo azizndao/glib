@@ -7,32 +7,30 @@ Complete guide to all annotations supported by Glib code generator.
 ## Table of Contents
 
 1. [@Controller](#controller) - Define HTTP controllers
-2. [@Route](#route) - Define HTTP endpoints  
+2. [@Route](#route) - Define HTTP endpoints
 3. [@Provider](#provider) - Define DI providers
 4. [@Middleware](#middleware) - Define middleware
-5. [Request Struct Tags](#request-struct-tags) - Parse HTTP requests
-6. [Config Schema](#config-schema) - Type-safe configuration
+5. [Handler Patterns](#handler-patterns) - Supported method signatures
 
 ---
 
 ## @Controller
 
-Marks a struct as an HTTP controller with optional prefix and middleware.
+Marks a struct as an HTTP controller with base path and optional tags for middleware targeting.
 
 ### Syntax
 
 ```go
-// @Controller <path-prefix>
-// @Middleware <middleware1>,<middleware2>,... (optional)
+// @Controller path=<path-prefix> tags=<tag1,tag2>
 type ControllerName struct {
-    // Dependencies - auto-wired by type
+    // Dependencies - auto-wired by type from providers
 }
 ```
 
 ### Parameters
 
-- **path-prefix** (required): Base path for all routes in this controller
-- **@Middleware** (optional): Comma-separated middleware names applied to ALL routes
+- **path** (required): Base path for all routes in this controller (must start with `/`)
+- **tags** (optional): Comma-separated tags for middleware targeting (e.g., `tags=api,protected`)
 
 ### Auto-Wiring
 
@@ -40,84 +38,73 @@ All struct fields are automatically injected by type from registered providers. 
 
 ### Examples
 
-#### Simple Controller (No Prefix, No Middleware)
+#### Simple Controller with Path
 
 ```go
-// @Controller /
-type HomeController struct {}
-
-// @Route GET /
-func (c *HomeController) Index(ctx context.Context) glib.Result[*HomeResponse] {
-    return glib.OK(&HomeResponse{Message: "Welcome"})
-}
-```
-
-#### API Controller with Prefix
-
-```go
-// @Controller /api/v1/posts
+// @Controller path=/api/v1/posts
 type PostsController struct {
-    DB *gorm.DB  // Auto-injected from provider
+    PostService *services.PostService  // Auto-injected from provider
 }
 
 // Full path: GET /api/v1/posts
-// @Route GET /
+// @Route method=GET path=/
 func (c *PostsController) Index(ctx context.Context) glib.Result[[]Post] {
-    var posts []Post
-    if err := c.DB.Find(&posts).Error; err != nil {
-        return glib.Fail[[]Post](err)
-    }
+    posts := c.PostService.GetPosts()
     return glib.OK(posts)
 }
 
 // Full path: GET /api/v1/posts/{id}
-// @Route GET /{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    var post Post
-    if err := c.DB.First(&post, id).Error; err != nil {
-        return glib.NotFound[*Post]("post not found")
-    }
-    return glib.OK(&post)
+// @Route method=GET path=/{id}
+func (c *PostsController) Show(ctx context.Context, id int) glib.Result[*Post] {
+    post := c.PostService.GetPost(id)
+    return glib.OK(post)
 }
 ```
 
-#### Controller with Prefix and Middleware
+#### Controller with Tags (for Middleware Targeting)
 
 ```go
-// @Controller /api/v1/admin
-// @Middleware auth,admin
+// @Controller path=/api/v1/admin tags=protected,admin
 type AdminController struct {
-    DB     *gorm.DB
-    Logger *slog.Logger
+    UserService *services.UserService
+    Logger      *services.Logger
 }
 
-// Middleware: [auth, admin] (from controller)
-// @Route GET /users
+// All routes in this controller can be targeted by middleware with target=protected or target=admin
+// @Route method=GET path=/users
 func (c *AdminController) ListUsers(ctx context.Context) glib.Result[[]User] {
-    var users []User
-    if err := c.DB.Find(&users).Error; err != nil {
-        return glib.Fail[[]User](err)
-    }
+    users := c.UserService.GetAll()
     return glib.OK(users)
 }
-}
 
-// Middleware: [auth, admin, ratelimit] (controller + route)
-// @Route DELETE /users/{id}
-// @Middleware ratelimit
+// @Route method=DELETE path=/users/{id}
 func (c *AdminController) DeleteUser(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    if err := c.DB.Delete(&User{}, id).Error; err != nil {
-        return glib.Fail[any](err)
-    }
+    c.UserService.Delete(id)
     return glib.NoContent[any]()
 }
 ```
 
+#### Multiple Controllers with Different Tags
+
+```go
+// Public API - no special tags
+// @Controller path=/api/v1/posts tags=api
+type PostsController struct { /*...*/ }
+
+// Protected API - requires authentication
+// @Controller path=/api/v1/auth tags=protected
+type AuthController struct { /*...*/ }
+
+// Admin API - requires admin role
+// @Controller path=/api/v1/admin tags=protected,admin
+type AdminController struct { /*...*/ }
+```
+
 ### Rules
 
-1. **Prefix must start with `/`** (e.g., `/api`, `/api/v1/posts`)
-2. **Middleware names must match `@Middleware` declarations**
-3. **All struct fields auto-injected** (no manual wiring)
+1. **Path must start with `/`** (e.g., `/api`, `/api/v1/posts`)
+2. **Tags are used for middleware targeting** (middleware with `target=api` will apply to routes tagged with `api`)
+3. **All struct fields auto-injected by type** (no manual wiring)
 4. **Controller can have zero or more routes**
 
 ---
@@ -129,75 +116,90 @@ Defines an HTTP endpoint on a controller method.
 ### Syntax
 
 ```go
-// @Route <METHOD> <path>
-// @Middleware <middleware1>,<middleware2>,... (optional)
+// @Route method=<METHOD> path=<path> tags=<tag1,tag2> with=<middleware>
 func (c *ControllerName) MethodName(...) ... { }
 ```
 
 ### Parameters
 
-- **METHOD** (required): HTTP method (GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD)
+- **method** (required): HTTP method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`)
 - **path** (required): Path relative to controller prefix
-- **@Middleware** (optional): Additional middleware (appends to controller middleware)
+- **tags** (optional): Tags for middleware targeting (in addition to controller tags)
+- **with** (optional): Explicit middleware override:
+  - `with=middleware1,middleware2` - Use only these middleware (overrides auto-targeting)
+  - `with=none` - No middleware at all (not even controller-level)
 
 ### Path Parameters
 
-Use `:name` or `:name:type` for path parameters:
+Path parameters are extracted from the URL pattern:
 
 ```go
-/{id}                  // String parameter (default)
-/{id}             // Integer parameter
-/{id}            // UUID parameter
-/:slug:string        // Explicit string
-/{path...}               // Wildcard (matches rest of path)
+/{id}           // Captured as string by default
+/{id}           // Converted to int
+/{id}           // Converted to uuid.UUID
+/{slug}         // String parameter
 ```
 
-**Supported types:** `string`, `int`, `int64`, `uuid`
+**Supported types:** `string`, `int`, `int64`, `uint64`, `float64`, `bool`, `uuid.UUID`
 
-### Middleware Behavior
+The generator automatically generates parsing code based on your method signature.
 
-By default, route middleware **appends** to controller middleware:
+### Middleware Targeting
+
+Middleware is applied automatically based on tags:
 
 ```go
-// @Controller /api/posts
-// @Middleware auth
+// @Controller path=/api/posts tags=api
 type PostsController struct {}
 
-// Middleware chain: [auth]
-// @Route GET /
+// Middleware with target=all applies to ALL routes
+// Middleware with target=api applies to routes with tags=api
+// @Route method=GET path=/
 func (c *PostsController) Index(...) {}
 
-// Middleware chain: [auth, ratelimit]
-// @Route POST /
-// @Middleware ratelimit
-func (c *PostsController) Store(...) {}
+// Additional protected tag - middleware with target=protected also applies
+// @Route method=POST path=/ tags=protected
+func (c *PostsController) Create(...) {}
 
-// Middleware chain: [] (cleared)
-// @Route GET /public
-// @Middleware none
-func (c *PostsController) Public(...) {}
+// No middleware at all (even controller-level)
+// @Route method=GET path=/health with=none
+func (c *PostsController) Health(...) {}
+
+// Explicit middleware override (only logger, ignores auto-targeting)
+// @Route method=GET path=/export with=logger
+func (c *PostsController) Export(...) {}
 ```
-
-Use `@Middleware none` to clear all controller middleware.
 
 ### Examples
 
 #### Simple GET Endpoint
 
 ```go
-// @Route GET /
-func (c *PostsController) Index(ctx context.Context) ([]Post, error) {
-    var posts []Post
-    c.DB.Find(&posts)
-    return posts, nil
+// @Route method=GET path=/
+func (c *PostsController) Index(ctx context.Context) glib.Result[[]Post] {
+    posts := c.PostService.GetAll()
+    return glib.OK(posts)
 }
 ```
 
 #### Route with Path Parameter
 
 ```go
-// @Route GET /{postID}/comments/{commentID}
-func (c *Ctrl) Show(ctx context.Context, postID uuid.UUID, commentID uuid.UUID) (*Comment, error)
+// @Route method=GET path=/{id}
+func (c *PostsController) Show(ctx context.Context, id int) glib.Result[*Post] {
+    post := c.PostService.GetPost(id)
+    if post == nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    return glib.OK(post)
+}
+```
+
+#### Route with Multiple Path Parameters
+
+```go
+// @Route method=GET path=/{postID}/comments/{commentID}
+func (c *Ctrl) GetComment(ctx context.Context, postID uuid.UUID, commentID uuid.UUID) glib.Result[*Comment]
 // postID matched by name, commentID matched by name (order doesn't matter)
 
 // @Route GET /{postID}/comments/{commentID}
@@ -224,8 +226,8 @@ func (c *PostsController) Store(ctx context.Context, req CreatePostRequest) (*Po
 ```go
 // @Route GET /posts/{postID}/comments/{commentID}
 func (c *CommentsController) Show(
-    ctx context.Context, 
-    postID uuid.UUID, 
+    ctx context.Context,
+    postID uuid.UUID,
     commentID uuid.UUID,
 ) (*Comment, error) {
     var comment Comment
@@ -290,14 +292,14 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
         cfg.Database.User,
         cfg.Database.Password,
     )
-    
+
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
         Logger: logger.Default.LogMode(logger.Info),
     })
     if err != nil {
         return nil, fmt.Errorf("failed to connect to database: %w", err)
     }
-    
+
     return db, nil
 }
 ```
@@ -312,12 +314,12 @@ func NewCache(cfg *Config) (*redis.Client, error) {
         Password: cfg.Cache.Password,
         DB:       0,
     })
-    
+
     // Test connection
     if err := client.Ping(context.Background()).Err(); err != nil {
         return nil, fmt.Errorf("failed to connect to redis: %w", err)
     }
-    
+
     return client, nil
 }
 ```
@@ -358,17 +360,17 @@ func (s *PostService) GetPost(id uuid.UUID) (*Post, error) {
         json.Unmarshal([]byte(val), &post)
         return &post, nil
     }
-    
+
     // Fetch from database
     var post Post
     if err := s.db.First(&post, id).Error; err != nil {
         return nil, err
     }
-    
+
     // Store in cache
     data, _ := json.Marshal(post)
     s.cache.Set(context.Background(), key, data, 10*time.Minute)
-    
+
     return &post, nil
 }
 ```
@@ -382,12 +384,12 @@ func NewDatabaseConnections(cfg *Config) (*gorm.DB, *sql.DB, error) {
     if err != nil {
         return nil, nil, err
     }
-    
+
     sqlDB, err := gormDB.DB()
     if err != nil {
         return nil, nil, err
     }
-    
+
     return gormDB, sqlDB, nil
 }
 
@@ -406,108 +408,208 @@ func NewDatabaseConnections(cfg *Config) (*gorm.DB, *sql.DB, error) {
 
 ## @Middleware
 
-Defines reusable middleware that can be applied to routes.
+Defines reusable middleware that can be applied to routes automatically or explicitly.
 
 ### Syntax
 
 ```go
-// @Middleware <name>
-func FunctionName() func(http.Handler) http.Handler
+// @Middleware name=<name> target=<target> order=<order>
+func FunctionName(dependencies...) func(http.Handler) http.Handler
+// OR (new-style glib middleware)
+func FunctionName(dependencies...) middleware.Middleware
 ```
 
 ### Parameters
 
-- **name** (required): Middleware identifier used in `@Controller` and `@Route`
+- **name** (required): Middleware identifier (e.g., `name=auth`, `name=logger`)
+- **target** (optional): Routes to apply this middleware to:
+  - `target=all` - Apply to ALL routes (default if not specified)
+  - `target=api` - Apply to routes/controllers with `tags=api`
+  - `target=protected` - Apply to routes/controllers with `tags=protected`
+  - `target=api,protected` - Apply to routes with either tag
+- **order** (optional): Execution order (lower numbers run first, default=0)
 
-### Signature
+### Auto-Targeting Rules
 
-Must return `func(http.Handler) http.Handler` - standard Go middleware pattern.
+Middleware is automatically applied to routes based on tags:
 
-### Examples
+1. **target=all**: Applied to every single route
+2. **target=<tag>**: Applied to routes/controllers with matching tags
+3. Routes can override with `with=none` to disable all middleware
+4. Routes can override with `with=middleware1,middleware2` to use specific middleware only
 
-#### Authentication Middleware
+### Execution Order
+
+Middleware runs in this order:
+
+1. Sort by `order` (ascending: 1, 2, 3, ...)
+2. Within same order, sort by file path
+3. Within same file, sort by line number
+
+Example:
 
 ```go
-// @Middleware auth
-func AuthMiddleware() func(http.Handler) http.Handler {
+// @Middleware name=logger target=all order=1
+// @Middleware name=ratelimit target=api order=5
+// @Middleware name=auth target=protected order=10
+```
+
+For a route with `tags=api,protected`:
+
+- Order: logger (1) → ratelimit (5) → auth (10) → handler
+
+### Two Middleware Styles
+
+#### Old-Style: Standard Go Middleware
+
+```go
+// @Middleware name=logger target=all order=1
+func Logger() func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            token := r.Header.Get("Authorization")
-            if token == "" {
-                http.Error(w, `{"error":"Missing authorization header"}`, http.StatusUnauthorized)
-                return
-            }
-            
-            // Validate token
-            claims, err := validateJWT(token)
-            if err != nil {
-                http.Error(w, `{"error":"Invalid token"}`, http.StatusUnauthorized)
-                return
-            }
-            
-            // Add user to context
-            ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-            next.ServeHTTP(w, r.WithContext(ctx))
+            start := time.Now()
+            log.Printf("[%s] %s - START", r.Method, r.URL.Path)
+
+            next.ServeHTTP(w, r)
+
+            log.Printf("[%s] %s - DONE (%v)", r.Method, r.URL.Path, time.Since(start))
         })
     }
 }
 ```
 
-#### Rate Limiting Middleware
+#### New-Style: Glib Middleware
 
 ```go
-// @Middleware ratelimit
-func RateLimitMiddleware() func(http.Handler) http.Handler {
-    limiter := rate.NewLimiter(10, 20) // 10 req/sec, burst 20
-    
+// @Middleware name=ratelimit target=api order=5
+func RateLimit() middleware.Middleware {
+    requests := make(map[string][]time.Time)
+    limit := 100 // requests per minute
+
+    return func(req middleware.Request, next middleware.Next) glib.Result[any] {
+        ip := req.HTTPRequest().RemoteAddr
+        now := time.Now()
+
+        // Clean old requests
+        if reqs, ok := requests[ip]; ok {
+            var recent []time.Time
+            for _, t := range reqs {
+                if now.Sub(t) < time.Minute {
+                    recent = append(recent, t)
+                }
+            }
+            requests[ip] = recent
+        }
+
+        // Check limit
+        if len(requests[ip]) >= limit {
+            return middleware.Error(
+                fmt.Errorf("rate limit exceeded"),
+                http.StatusTooManyRequests,
+            )
+        }
+
+        // Record request
+        requests[ip] = append(requests[ip], now)
+
+        // Continue to next middleware/handler
+        return next(req)
+    }
+}
+```
+
+### Examples
+
+#### Authentication Middleware (Protected Routes Only)
+
+```go
+// @Middleware name=auth target=protected order=10
+func Auth() func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            if !limiter.Allow() {
-                http.Error(w, `{"error":"Too many requests"}`, http.StatusTooManyRequests)
+            token := r.Header.Get("Authorization")
+            if token == "" {
+                http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
                 return
             }
+
+            // Token validation would go here
             next.ServeHTTP(w, r)
         })
     }
 }
 ```
 
-#### CORS Middleware
+#### Global Logger (All Routes)
 
 ```go
-// @Middleware cors
-func CORSMiddleware() func(http.Handler) http.Handler {
+// @Middleware name=logger target=all order=1
+func Logger() func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            start := time.Now()
+
+            log.Printf("→ %s %s", r.Method, r.URL.Path)
+            next.ServeHTTP(w, r)
+            log.Printf("← %s %s (%v)", r.Method, r.URL.Path, time.Since(start))
+        })
+    }
+}
+```
+
+#### Rate Limiter (API Routes Only)
+
+```go
+// @Middleware name=ratelimit target=api order=5
+func RateLimit() middleware.Middleware {
+    limiter := rate.NewLimiter(10, 20) // 10 req/sec, burst 20
+
+    return func(req middleware.Request, next middleware.Next) glib.Result[any] {
+        if !limiter.Allow() {
+            return middleware.Error(
+                fmt.Errorf("too many requests"),
+                http.StatusTooManyRequests,
+            )
+        }
+        return next(req)
+    }
+}
+```
+
+#### CORS (All Routes, Run First)
+
+```go
+// @Middleware name=cors target=all order=0
+func CORS() func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             w.Header().Set("Access-Control-Allow-Origin", "*")
             w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
             w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
-            
+
             if r.Method == "OPTIONS" {
                 w.WriteHeader(http.StatusOK)
                 return
             }
-            
+
             next.ServeHTTP(w, r)
         })
     }
 }
 ```
 
-#### Logging Middleware with Dependencies
+#### Middleware with Dependencies
 
 ```go
-// @Middleware logger
-func LoggerMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+// @Middleware name=logger target=all order=1
+func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             start := time.Now()
-            
-            // Wrap response writer to capture status
+
             wrapped := &responseWriter{ResponseWriter: w, statusCode: 200}
-            
             next.ServeHTTP(wrapped, r)
-            
+
             logger.Info("request",
                 "method", r.Method,
                 "path", r.URL.Path,
@@ -517,323 +619,196 @@ func LoggerMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
         })
     }
 }
-
-type responseWriter struct {
-    http.ResponseWriter
-    statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-    rw.statusCode = code
-    rw.ResponseWriter.WriteHeader(code)
-}
 ```
 
-#### Admin Authorization Middleware
+### Complete Example: Middleware Targeting
 
 ```go
-// @Middleware admin
-func AdminMiddleware() func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            userID := r.Context().Value("user_id")
-            if userID == nil {
-                http.Error(w, `{"error":"Unauthorized"}`, http.StatusUnauthorized)
-                return
-            }
-            
-            // Check if user is admin (query database, check claims, etc.)
-            isAdmin := checkIfUserIsAdmin(userID)
-            if !isAdmin {
-                http.Error(w, `{"error":"Forbidden - Admin access required"}`, http.StatusForbidden)
-                return
-            }
-            
-            next.ServeHTTP(w, r)
-        })
-    }
-}
+// middleware/middleware.go
+package middleware
+
+// Runs first for ALL routes
+// @Middleware name=logger target=all order=1
+func Logger() func(http.Handler) http.Handler { /*...*/ }
+
+// Runs for API routes only
+// @Middleware name=ratelimit target=api order=5
+func RateLimit() middleware.Middleware { /*...*/ }
+
+// Runs for protected routes only
+// @Middleware name=auth target=protected order=10
+func Auth() func(http.Handler) http.Handler { /*...*/ }
+
+// controllers/post/controller.go
+// All routes inherit tags=api
+// @Controller path=/api/v1/posts tags=api
+type PostsController struct {}
+
+// Middleware: [logger, ratelimit] (target=all + target=api)
+// @Route method=GET path=/
+func (c *PostsController) Index(...) {}
+
+// Middleware: [logger, ratelimit, auth] (adds tags=protected)
+// @Route method=POST path=/ tags=protected
+func (c *PostsController) Create(...) {}
+
+// Middleware: [] (explicitly disabled)
+// @Route method=GET path=/health with=none
+func (c *PostsController) Health(...) {}
+
+// Middleware: [logger] (explicit override, only logger runs)
+// @Route method=GET path=/export with=logger
+func (c *PostsController) Export(...) {}
 ```
 
 ### Rules
 
-1. **Must return standard Go middleware signature**
-2. **Can have dependencies injected** (like controllers)
-3. **Name must be unique across application**
-4. **Middleware applied in order specified**
+1. **Name must be unique** across all middleware
+2. **Target determines auto-application** based on route/controller tags
+3. **Order determines execution sequence** (lower = earlier)
+4. **Dependencies auto-injected** from providers
+5. **Two signatures supported**: Standard Go middleware or glib.Middleware
+6. **Generator detects signature automatically** and wraps appropriately
 
 ---
 
-## Request Struct Tags
+## Handler Patterns
 
-Define how fields are parsed from HTTP requests.
+Glib supports two main handler patterns based on your method signature.
 
-### Supported Tags
+### Pattern 1: Result[T] Handlers (Recommended)
 
-| Tag | Description | Example |
-|-----|-------------|---------|
-| `param:"name"` | URL path parameter | `ID uuid.UUID \`param:"id"\`` |
-| `query:"name"` | Query string parameter | `Page int \`query:"page"\`` |
-| `header:"Name"` | HTTP header | `Auth string \`header:"Authorization"\`` |
-| `json:"name"` | Request body field | `Title string \`json:"title"\`` |
-| `default:"value"` | Default value | `Page int \`query:"page" default:"1"\`` |
-| `validate:"rules"` | Validation rules | `Email string \`validate:"required,email"\`` |
-
-### Tag Precedence
-
-1. `param` - highest priority
-2. `header`
-3. `query`
-4. `json` - default for fields without other tags
-
-### Examples
-
-#### Simple Request (Query Parameters)
+Type-safe handlers that return `glib.Result[T]` for automatic error handling and response serialization.
 
 ```go
-type ListPostsRequest struct {
-    Page     int    `query:"page" default:"1" validate:"min=1"`
-    PageSize int    `query:"page_size" default:"20" validate:"min=1,max=100"`
-    Sort     string `query:"sort" default:"created_at" validate:"oneof=created_at title"`
-    Order    string `query:"order" default:"desc" validate:"oneof=asc desc"`
-    Search   string `query:"search"`
+// @Route method=GET path=/
+func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
+    posts := c.Service.GetAll()
+    return glib.OK(posts)  // Auto-serialized to JSON
 }
 
-// Usage: GET /posts?page=2&page_size=50&sort=title&order=asc&search=golang
-```
-
-#### Create Request (Body + Headers)
-
-```go
-type CreatePostRequest struct {
-    // Headers
-    Authorization string    `header:"Authorization" validate:"required"`
-    ContentType   string    `header:"Content-Type" validate:"required"`
-    
-    // Body (JSON)
-    Title    string   `json:"title" validate:"required,min=3,max=200"`
-    Content  string   `json:"content" validate:"required,min=10"`
-    Tags     []string `json:"tags" validate:"dive,min=2"`
-    Draft    bool     `json:"draft" default:"false"`
+// @Route method=GET path=/{id}
+func (c *Controller) Show(ctx context.Context, id int) glib.Result[*Post] {
+    post := c.Service.GetPost(id)
+    if post == nil {
+        return glib.NotFound[*Post]("post not found")
+    }
+    return glib.OK(post)
 }
 
-// Usage: POST /posts
-// Headers: Authorization: Bearer xxx, Content-Type: application/json
-// Body: {"title":"My Post","content":"Post content...","tags":["go","web"]}
-```
-
-#### Update Request (Path + Query + Body)
-
-```go
-type UpdatePostRequest struct {
-    // Path parameter (matched from route /{id})
-    ID uuid.UUID `param:"id" validate:"required"`
-    
-    // Query parameter
-    Reason string `query:"reason"`
-    
-    // Body
-    Title   string `json:"title" validate:"required,min=3"`
-    Content string `json:"content" validate:"required,min=10"`
+// @Route method=POST path=/
+func (c *Controller) Create(ctx context.Context, req CreateRequest) glib.Result[*Post] {
+    post := c.Service.Create(req)
+    return glib.Created(post)  // Returns 201 Created
 }
 
-// Usage: PUT /posts/123e4567-e89b-12d3-a456-426614174000?reason=typo
-// Body: {"title":"Updated Title","content":"Updated content..."}
-```
-
-#### Complex Request (All Sources)
-
-```go
-type ComplexRequest struct {
-    // Path parameters
-    PostID    uuid.UUID `param:"postId" validate:"required"`
-    CommentID uuid.UUID `param:"commentId" validate:"required"`
-    
-    // Query parameters
-    Include string `query:"include" default:"author"`
-    Format  string `query:"format" default:"json" validate:"oneof=json xml"`
-    
-    // Headers
-    Authorization string `header:"Authorization" validate:"required"`
-    IfMatch       string `header:"If-Match"`
-    UserAgent     string `header:"User-Agent"`
-    
-    // Body
-    Content  string   `json:"content" validate:"required,min=1,max=5000"`
-    Mentions []string `json:"mentions" validate:"dive,uuid"`
+// @Route method=DELETE path=/{id}
+func (c *Controller) Delete(ctx context.Context, id int) glib.Result[any] {
+    c.Service.Delete(id)
+    return glib.NoContent[any]()  // Returns 204 No Content
 }
 ```
 
-### Validation Rules
+**Generated code handles:**
 
-Uses [go-playground/validator](https://github.com/go-playground/validator). Common rules:
+- Path parameter parsing (with type conversion)
+- Request body parsing (JSON decode)
+- Response serialization (JSON encode)
+- Error handling (via `Result.Write(w)`)
+- Middleware wrapping
 
-- `required` - Field must be present
-- `email` - Valid email format
-- `min=n` - Minimum value/length
-- `max=n` - Maximum value/length
-- `oneof=a b c` - Must be one of values
-- `uuid` - Valid UUID
-- `url` - Valid URL
-- `dive` - Validate slice/array elements
+### Pattern 2: Raw HTTP Handlers
 
-**Validation happens before handler is called. Returns 400 Bad Request if validation fails.**
-
----
-
-## Config Schema
-
-Define type-safe configuration by creating a `Config` struct.
-
-### Location
-
-Can be **anywhere** in your project - scanner auto-discovers `type Config struct`.
-
-Recommended location: `config/config.go`
-
-### Supported Tags
-
-| Tag | Description | Example |
-|-----|-------------|---------|
-| `env:"NAME"` | Environment variable | `Port int \`env:"PORT"\`` |
-| `default:"value"` | Default value | `Port int \`env:"PORT" default:"8080"\`` |
-| `required:"true"` | Must be set | `DBHost string \`env:"DB_HOST" required:"true"\`` |
-| `validate:"rules"` | Validation rules | `Env string \`env:"ENV" validate:"oneof=dev prod"\`` |
-
-### Example
+Direct access to `http.ResponseWriter` and `*http.Request` for custom response handling.
 
 ```go
-package config
+// @Route method=GET path=/export
+func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
+    // Custom response - CSV export
+    w.Header().Set("Content-Type", "text/csv")
+    w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
+    w.WriteHeader(http.StatusOK)
 
-type Config struct {
-    App struct {
-        Name        string `env:"APP_NAME" default:"myapp"`
-        Environment string `env:"APP_ENV" default:"development" validate:"oneof=development staging production"`
-        Port        int    `env:"APP_PORT" default:"8080" validate:"min=1,max=65535"`
-        Host        string `env:"APP_HOST" default:"localhost"`
-        Debug       bool   `env:"APP_DEBUG" default:"false"`
+    fmt.Fprintln(w, "id,title,created_at")
+    // Write CSV data...
+}
+
+// @Route method=GET path=/stream
+func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
+    // Server-Sent Events
+    w.Header().Set("Content-Type", "text/event-stream")
+    w.Header().Set("Cache-Control", "no-cache")
+
+    flusher, ok := w.(http.Flusher)
+    if !ok {
+        http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+        return
     }
-    
-    Database struct {
-        Driver   string `env:"DB_DRIVER" default:"postgres" validate:"oneof=postgres mysql sqlite"`
-        Host     string `env:"DB_HOST" required:"true"`
-        Port     int    `env:"DB_PORT" default:"5432"`
-        Name     string `env:"DB_NAME" required:"true"`
-        User     string `env:"DB_USER" required:"true"`
-        Password string `env:"DB_PASSWORD" required:"true"`
-        SSLMode  string `env:"DB_SSL_MODE" default:"disable"`
-        MaxConns int    `env:"DB_MAX_CONNS" default:"10" validate:"min=1,max=100"`
+
+    for {
+        select {
+        case <-r.Context().Done():
+            return
+        case <-time.After(1 * time.Second):
+            fmt.Fprintf(w, "data: %s\n\n", time.Now().Format(time.RFC3339))
+            flusher.Flush()
+        }
     }
-    
-    Cache struct {
-        Driver   string `env:"CACHE_DRIVER" default:"redis" validate:"oneof=redis memory"`
-        Host     string `env:"CACHE_HOST" default:"localhost"`
-        Port     int    `env:"CACHE_PORT" default:"6379"`
-        Password string `env:"CACHE_PASSWORD"`
-        DB       int    `env:"CACHE_DB" default:"0"`
-    }
-    
-    Storage struct {
-        Driver    string `env:"STORAGE_DRIVER" default:"local" validate:"oneof=local s3"`
-        LocalPath string `env:"STORAGE_LOCAL_PATH" default:"./storage"`
-        S3Bucket  string `env:"STORAGE_S3_BUCKET"`
-        S3Region  string `env:"STORAGE_S3_REGION"`
-    }
-    
-    JWT struct {
-        Secret     string        `env:"JWT_SECRET" required:"true"`
-        Expiration time.Duration `env:"JWT_EXPIRATION" default:"24h"`
-    }
+}
+
+// @Route method=GET path=/health with=none
+func (c *Controller) Health(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("OK"))
 }
 ```
 
-### Generated Code
+**Use raw HTTP handlers for:**
 
-Code generator creates `generated/config_gen.go`:
+- File downloads/uploads
+- Streaming responses (SSE, WebSockets)
+- Custom content types (CSV, XML, binary)
+- Fine-grained response control
+- Health check endpoints
 
-```go
-// LoadConfig loads and validates application configuration
-func LoadConfig() (*config.Config, error) {
-    // Load .env file if exists (ignore error if not found)
-    _ = godotenv.Load()
-    
-    cfg := &config.Config{}
-    
-    // Parse environment variables
-    if err := env.Parse(cfg); err != nil {
-        return nil, fmt.Errorf("failed to parse config: %w", err)
-    }
-    
-    // Validate configuration
-    validate := validator.New()
-    if err := validate.Struct(cfg); err != nil {
-        return nil, fmt.Errorf("config validation failed: %w", err)
-    }
-    
-    return cfg, nil
-}
-```
+### Comparison
 
-### Usage in Providers
+| Feature         | Result[T] Pattern   | Raw HTTP Pattern     |
+| --------------- | ------------------- | -------------------- |
+| Type safety     | ✅ Full type safety | ❌ Manual handling   |
+| Auto JSON       | ✅ Automatic        | ❌ Manual            |
+| Error handling  | ✅ Built-in         | ❌ Manual            |
+| Path params     | ✅ Auto-parsed      | ❌ Manual extraction |
+| Request body    | ✅ Auto-parsed      | ❌ Manual decode     |
+| Middleware      | ✅ Supported        | ✅ Supported         |
+| Streaming       | ❌ Not suitable     | ✅ Full control      |
+| Custom headers  | ❌ Limited          | ✅ Full control      |
+| Code generation | More code           | Minimal code         |
 
-```go
-// @Provider singleton
-func NewDatabase(cfg *Config) (*gorm.DB, error) {
-    // Type-safe access!
-    dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s",
-        cfg.Database.Host,    // Type: string
-        cfg.Database.Port,    // Type: int
-        cfg.Database.Name,    // Type: string
-        cfg.Database.User,    // Type: string
-        cfg.Database.Password // Type: string
-    )
-    return gorm.Open(postgres.Open(dsn), &gorm.Config{})
-}
-```
+### Choosing a Pattern
 
-### .env File Example
+**Use Result[T] for:**
 
-```env
-# App
-APP_NAME=myblog
-APP_ENV=development
-APP_PORT=8080
-APP_HOST=0.0.0.0
+- Standard CRUD operations
+- JSON APIs
+- Type-safe error handling
+- Less boilerplate code
 
-# Database
-DB_DRIVER=postgres
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=myblog
-DB_USER=postgres
-DB_PASSWORD=secret
-DB_SSL_MODE=disable
+**Use Raw HTTP for:**
 
-# Cache
-CACHE_DRIVER=redis
-CACHE_HOST=localhost
-CACHE_PORT=6379
-
-# Storage
-STORAGE_DRIVER=local
-STORAGE_LOCAL_PATH=./storage
-
-# JWT
-JWT_SECRET=my-super-secret-key
-JWT_EXPIRATION=24h
-```
+- File operations
+- Streaming responses
+- Custom content types
+- Performance-critical paths
+- Health checks
 
 ---
 
 ## Summary
 
-| Annotation | Purpose | Scope |
-|------------|---------|-------|
-| `@Controller` | Define HTTP controller | Struct |
-| `@Route` | Define HTTP endpoint | Method |
-| `@Provider` | Define DI provider | Function |
-| `@Middleware` | Define middleware | Function |
-| Request Tags | Parse HTTP request | Struct Field |
-| Config Tags | Load configuration | Struct Field |
+### Annotation Quick Reference
 
-All annotations are **discovered automatically** - no manual registration needed!
+```go
+// Controllers
+// @Controller path=</path> tags=<tag1,tag2>
+```

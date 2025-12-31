@@ -71,13 +71,12 @@ import (
     "github.com/azizndao/glib/pkg/errs"
 )
 
-// @Controller /api/v1/posts
-// @Middleware auth,ratelimit
+// @Controller path=/api/v1/posts tags=api
 type PostsController struct {
     DB *gorm.DB  // Auto-injected
 }
 
-// @Route GET /
+// @Route method=GET path=/
 func (c *PostsController) Index(ctx context.Context) glib.Result[[]*Post] {
     var posts []*Post
     err := c.DB.Find(&posts).Error
@@ -87,7 +86,7 @@ func (c *PostsController) Index(ctx context.Context) glib.Result[[]*Post] {
     return glib.OK(posts)
 }
 
-// @Route GET /{id}
+// @Route method=GET path=/{id}
 func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
     err := c.DB.First(&post, id).Error
@@ -100,7 +99,7 @@ func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*P
     return glib.OK(&post)
 }
 
-// @Route POST /
+// @Route method=POST path=/
 func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
     post := &Post{
         Title:   req.Title,
@@ -113,7 +112,7 @@ func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) gli
     return glib.Created(post)
 }
 
-// @Route DELETE /{id}
+// @Route method=DELETE path=/{id}
 func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
     result := c.DB.Delete(&Post{}, id)
     if result.Error != nil {
@@ -216,11 +215,10 @@ func main() {
 
 ### @Controller
 
-Defines a controller with a route prefix.
+Defines a controller with a route prefix and optional tags.
 
 ```go
-// @Controller /api/v1/posts
-// @Middleware auth,ratelimit
+// @Controller path=/api/v1/posts tags=api,protected
 type PostsController struct {
     // Dependencies are auto-injected by type
 }
@@ -228,12 +226,11 @@ type PostsController struct {
 
 ### @Route
 
-Defines a route handler.
+Defines a route handler with optional tags and middleware.
 
 ```go
-// @Route GET /{id}
-// @Middleware cache
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+// @Route method=GET path=/{id} tags=protected with=cache
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     // ...
 }
 ```
@@ -263,10 +260,10 @@ Lifecycles:
 
 ### @Middleware
 
-Defines a middleware function.
+Defines a middleware function with targeting and ordering.
 
 ```go
-// @Middleware auth
+// @Middleware name=auth target=protected order=10
 func AuthMiddleware() func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -277,11 +274,17 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 }
 ```
 
+**Attributes:**
+
+- `name` - Middleware identifier (required)
+- `target` - Tag to target (`all`, `api`, `protected`, etc.)
+- `order` - Execution order (lower = earlier, default 0)
+
 ## Handler Patterns
 
-Glib supports 2 handler patterns:
+Glib supports **2 handler patterns**:
 
-### Pattern 10: Type-Safe Result[T] (Recommended)
+### Result[T] Pattern (Recommended)
 
 ```go
 func (c *Controller) Handle(ctx context.Context, params...) glib.Result[T]
@@ -290,12 +293,14 @@ func (c *Controller) Handle(ctx context.Context, params...) glib.Result[T]
 **Use for:** Most API endpoints - CRUD operations, queries, commands
 
 **Features:**
+
 - Explicit HTTP status control
 - Type-safe generic responses
 - Fluent API for common responses
 - Automatic error handling
 
 **Available Result Helpers:**
+
 ```go
 // Success responses
 glib.OK[T](data)           // 200 OK
@@ -328,14 +333,15 @@ result.WithHeaders(headers)
 ```
 
 **Examples:**
+
 ```go
-// @Route GET /posts
+// @Route method=GET path=/posts
 func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
     posts := c.Service.GetAll()
     return glib.OK(posts)
 }
 
-// @Route GET /posts/{id}
+// @Route method=GET path=/posts/{id}
 func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     post, err := c.Service.GetByID(id)
     if err != nil {
@@ -344,7 +350,7 @@ func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] 
     return glib.OK(post)
 }
 
-// @Route POST /posts
+// @Route method=POST path=/posts
 func (c *Controller) Create(ctx context.Context, req CreateRequest) glib.Result[*Post] {
     post, err := c.Service.Create(req)
     if err != nil {
@@ -353,7 +359,7 @@ func (c *Controller) Create(ctx context.Context, req CreateRequest) glib.Result[
     return glib.Created(post)
 }
 
-// @Route DELETE /posts/{id}
+// @Route method=DELETE path=/posts/{id}
 func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
     if err := c.Service.Delete(id); err != nil {
         return glib.Fail[any](err)
@@ -362,7 +368,7 @@ func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] 
 }
 ```
 
-### Pattern 11: Raw HTTP (Advanced)
+### Raw HTTP Pattern (Advanced)
 
 ```go
 func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
@@ -371,13 +377,15 @@ func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
 **Use for:** Streaming, SSE, file uploads, websockets, custom protocols
 
 **Features:**
+
 - Full control over response
 - No automatic parsing/marshalling
 - Direct access to HTTP primitives
 
 **Examples:**
+
 ```go
-// @Route GET /export
+// @Route method=GET path=/export
 func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/csv")
     w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
@@ -385,7 +393,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     // Write CSV data...
 }
 
-// @Route GET /stream
+// @Route method=GET path=/stream
 func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
     flusher := w.(http.Flusher)
@@ -417,7 +425,7 @@ func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] 
         if errors.Is(err, gorm.ErrRecordNotFound) {
             return glib.NotFound[*Post]("post not found")
         }
-        
+
         // Wrap database error with structured error
         return glib.Fail[*Post](
             errs.B().
@@ -458,22 +466,23 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
         Msg("Validation failed").
         Details(validationErrs).
         Err()
-    
+
     return glib.Fail[*Post](err)
 }
 ```
 
 **Generated JSON Response:**
+
 ```json
 {
-  "error": {
-    "code": "invalid_argument",
-    "message": "Validation failed",
-    "details": {
-      "email": ["must be a valid email"],
-      "password": ["must be at least 8 characters"]
+    "error": {
+        "code": "invalid_argument",
+        "message": "Validation failed",
+        "details": {
+            "email": ["must be a valid email"],
+            "password": ["must be at least 8 characters"]
+        }
     }
-  }
 }
 ```
 
@@ -533,8 +542,7 @@ Generates:
 - `generated/glib.gen.go` - Bootstrap function
 - `generated/di.gen.go` - Dependency injection container
 - `generated/routes.gen.go` - Route registration
-- `generated/parsers.gen.go` - Request/response handlers
-- `generated/errors.gen.go` - Error serialization
+- `generated/parsers.gen.go` - Handler wrappers
 
 ### `glib validate`
 
@@ -596,8 +604,7 @@ my-app/
 │   ├── glib.gen.go
 │   ├── di.gen.go
 │   ├── routes.gen.go
-│   ├── parsers.gen.go
-│   └── errors.gen.go
+│   └── parsers.gen.go
 ├── main.go              # Your entry point
 ├── .glibrc              # Glib configuration
 ├── .air.toml            # Air configuration (auto-generated)
@@ -642,10 +649,10 @@ The generated code is optimized and type-safe:
 
 ### Handler Patterns
 
-Glib uses two patterns:
+Glib uses **2 handler patterns**:
 
-- **Pattern 10**: `func(ctx, params...) glib.Result[T]` - Type-safe with explicit status control
-- **Pattern 11**: `func(w, r)` - Raw HTTP for advanced use cases (streaming, SSE, etc.)
+- **Result[T]**: `func(ctx, params...) glib.Result[T]` - Type-safe with explicit status control (~95% of endpoints)
+- **Raw HTTP**: `func(w, r)` - Full control for streaming, SSE, file uploads (~5% of endpoints)
 
 ## Requirements
 

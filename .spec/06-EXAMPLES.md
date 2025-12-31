@@ -21,12 +21,12 @@ This document provides **complete, production-ready examples** demonstrating dif
 
 ### Examples Included
 
-| Example | Structure | Features | Complexity |
-|---------|-----------|----------|------------|
-| **Simple Blog** | Flat | CRUD, SQLite, no auth | Beginner |
-| **E-Commerce** | Feature-based | Auth, payments, multi-model | Intermediate |
-| **Microservice** | Layered | gRPC, events, observability | Advanced |
-| **Chat API** | Feature-based | WebSockets, real-time, Redis | Advanced |
+| Example          | Structure     | Features                     | Complexity   |
+| ---------------- | ------------- | ---------------------------- | ------------ |
+| **Simple Blog**  | Flat          | CRUD, SQLite, no auth        | Beginner     |
+| **E-Commerce**   | Feature-based | Auth, payments, multi-model  | Intermediate |
+| **Microservice** | Layered       | gRPC, events, observability  | Advanced     |
+| **Chat API**     | Feature-based | WebSockets, real-time, Redis | Advanced     |
 
 ---
 
@@ -79,11 +79,11 @@ type Config struct {
 
 func LoadConfig() *Config {
     cfg := &Config{}
-    
+
     cfg.App.Port, _ = strconv.Atoi(getEnv("APP_PORT", "8080"))
     cfg.App.Env = getEnv("APP_ENV", "development")
     cfg.Database.Path = getEnv("DB_PATH", "database.db")
-    
+
     return cfg
 }
 
@@ -102,7 +102,7 @@ package main
 
 import (
     "fmt"
-    
+
     "gorm.io/driver/sqlite"
     "gorm.io/gorm"
 )
@@ -113,12 +113,12 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
     if err != nil {
         return nil, fmt.Errorf("failed to connect to database: %w", err)
     }
-    
+
     // Auto-migrate models
     if err := db.AutoMigrate(&Post{}, &Comment{}); err != nil {
         return nil, fmt.Errorf("migration failed: %w", err)
     }
-    
+
     return db, nil
 }
 ```
@@ -131,7 +131,7 @@ package main
 import (
     "context"
     "time"
-    
+
     "github.com/google/uuid"
     "github.com/goyave/glib/v2/errs"
     "gorm.io/gorm"
@@ -170,56 +170,56 @@ type UpdatePostRequest struct {
 
 // Controller
 
-// @Controller /api/posts
+// @Controller path=/api/posts
 type PostsController struct {
     DB *gorm.DB
 }
 
-// @Route GET /
-func (c *PostsController) Index(ctx context.Context) ([]Post, error) {
+// @Route method=GET path=/
+func (c *PostsController) Index(ctx context.Context) glib.Result[[]Post] {
     var posts []Post
     if err := c.DB.Where("published = ?", true).Find(&posts).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch posts").Cause(err).Err()
+        return glib.Fail[[]Post](errs.B().Code(errs.Internal).Msg("failed to fetch posts").Cause(err).Err())
     }
-    return posts, nil
+    return glib.OK(posts)
 }
 
-// @Route GET /{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+// @Route method=GET path=/{id}
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
     err := c.DB.Preload("Comments").Where("id = ?", id).First(&post).Error
     if err == gorm.ErrRecordNotFound {
-        return nil, errs.B().Code(errs.NotFound).Msg("post not found").Err()
+        return glib.NotFound[*Post]("post not found")
     }
     if err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err())
     }
-    return &post, nil
+    return glib.OK(&post)
 }
 
-// @Route POST /
-func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) (*Post, error) {
+// @Route method=POST path=/
+func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
     post := &Post{
         Title:   req.Title,
         Content: req.Content,
     }
     
     if err := c.DB.Create(post).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to create post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to create post").Cause(err).Err())
     }
     
-    return post, nil
+    return glib.Created(post)
 }
 
-// @Route PUT /{id}
-func (c *PostsController) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) (*Post, error) {
+// @Route method=PUT path=/{id}
+func (c *PostsController) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) glib.Result[*Post] {
     var post Post
     err := c.DB.Where("id = ?", id).First(&post).Error
     if err == gorm.ErrRecordNotFound {
-        return nil, errs.B().Code(errs.NotFound).Msg("post not found").Err()
+        return glib.NotFound[*Post]("post not found")
     }
     if err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err())
     }
     
     if req.Title != nil {
@@ -230,41 +230,41 @@ func (c *PostsController) Update(ctx context.Context, id uuid.UUID, req UpdatePo
     }
     
     if err := c.DB.Save(&post).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to update post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to update post").Cause(err).Err())
     }
     
-    return &post, nil
+    return glib.OK(&post)
 }
 
-// @Route DELETE /{id}
-func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) error {
+// @Route method=DELETE path=/{id}
+func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
     result := c.DB.Delete(&Post{}, "id = ?", id)
     if result.Error != nil {
-        return errs.B().Code(errs.Internal).Msg("failed to delete post").Cause(result.Error).Err()
+        return glib.Fail[any](errs.B().Code(errs.Internal).Msg("failed to delete post").Cause(result.Error).Err())
     }
     if result.RowsAffected == 0 {
-        return errs.B().Code(errs.NotFound).Msg("post not found").Err()
+        return glib.NotFound[any]("post not found")
     }
-    return nil
+    return glib.NoContent[any]()
 }
 
-// @Route POST /{id}/publish
-func (c *PostsController) Publish(ctx context.Context, id uuid.UUID) (*Post, error) {
+// @Route method=POST path=/{id}/publish
+func (c *PostsController) Publish(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
     var post Post
     err := c.DB.Where("id = ?", id).First(&post).Error
     if err == gorm.ErrRecordNotFound {
-        return nil, errs.B().Code(errs.NotFound).Msg("post not found").Err()
+        return glib.NotFound[*Post]("post not found")
     }
     if err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err())
     }
     
     post.Published = true
     if err := c.DB.Save(&post).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to publish post").Cause(err).Err()
+        return glib.Fail[*Post](errs.B().Code(errs.Internal).Msg("failed to publish post").Cause(err).Err())
     }
     
-    return &post, nil
+    return glib.OK(&post)
 }
 ```
 
@@ -276,7 +276,7 @@ package main
 import (
     "context"
     "time"
-    
+
     "github.com/google/uuid"
     "github.com/goyave/glib/v2/errs"
     "gorm.io/gorm"
@@ -308,30 +308,30 @@ type CreateCommentRequest struct {
 
 // Controller
 
-// @Controller /api/posts
+// @Controller path=/api/posts
 type CommentsController struct {
     DB *gorm.DB
 }
 
-// @Route GET /{postID}/comments
-func (c *CommentsController) Index(ctx context.Context, postID uuid.UUID) ([]Comment, error) {
+// @Route method=GET path=/{postID}/comments
+func (c *CommentsController) Index(ctx context.Context, postID uuid.UUID) glib.Result[[]Comment] {
     var comments []Comment
     if err := c.DB.Where("post_id = ?", postID).Find(&comments).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch comments").Cause(err).Err()
+        return glib.Fail[[]Comment](errs.B().Code(errs.Internal).Msg("failed to fetch comments").Cause(err).Err())
     }
-    return comments, nil
+    return glib.OK(comments)
 }
 
-// @Route POST /{postID}/comments
-func (c *CommentsController) Create(ctx context.Context, postID uuid.UUID, req CreateCommentRequest) (*Comment, error) {
+// @Route method=POST path=/{postID}/comments
+func (c *CommentsController) Create(ctx context.Context, postID uuid.UUID, req CreateCommentRequest) glib.Result[*Comment] {
     // Check if post exists
     var post Post
     err := c.DB.Where("id = ?", postID).First(&post).Error
     if err == gorm.ErrRecordNotFound {
-        return nil, errs.B().Code(errs.NotFound).Msg("post not found").Err()
+        return glib.NotFound[*Comment]("post not found")
     }
     if err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err()
+        return glib.Fail[*Comment](errs.B().Code(errs.Internal).Msg("failed to fetch post").Cause(err).Err())
     }
     
     comment := &Comment{
@@ -341,22 +341,22 @@ func (c *CommentsController) Create(ctx context.Context, postID uuid.UUID, req C
     }
     
     if err := c.DB.Create(comment).Error; err != nil {
-        return nil, errs.B().Code(errs.Internal).Msg("failed to create comment").Cause(err).Err()
+        return glib.Fail[*Comment](errs.B().Code(errs.Internal).Msg("failed to create comment").Cause(err).Err())
     }
     
-    return comment, nil
+    return glib.Created(comment)
 }
 
-// @Route DELETE /{postID}/comments/{commentID}
-func (c *CommentsController) Delete(ctx context.Context, postID, commentID uuid.UUID) error {
+// @Route method=DELETE path=/{postID}/comments/{commentID}
+func (c *CommentsController) Delete(ctx context.Context, postID, commentID uuid.UUID) glib.Result[any] {
     result := c.DB.Delete(&Comment{}, "id = ? AND post_id = ?", commentID, postID)
     if result.Error != nil {
-        return errs.B().Code(errs.Internal).Msg("failed to delete comment").Cause(result.Error).Err()
+        return glib.Fail[any](errs.B().Code(errs.Internal).Msg("failed to delete comment").Cause(result.Error).Err())
     }
     if result.RowsAffected == 0 {
-        return errs.B().Code(errs.NotFound).Msg("comment not found").Err()
+        return glib.NotFound[any]("comment not found")
     }
-    return nil
+    return glib.NoContent[any]()
 }
 ```
 
@@ -370,23 +370,23 @@ import (
     "log"
     "net/http"
     "fmt"
-    
+
     "blog-api/generated"
 )
 
 func main() {
     ctx := context.Background()
-    
+
     cfg := LoadConfig()
-    
+
     handler, err := generated.Bootstrap(ctx)
     if err != nil {
         log.Fatalf("bootstrap failed: %v", err)
     }
-    
+
     addr := fmt.Sprintf(":%d", cfg.App.Port)
     log.Printf("Server starting on %s", addr)
-    
+
     if err := http.ListenAndServe(addr, handler); err != nil {
         log.Fatalf("server failed: %v", err)
     }
@@ -520,24 +520,24 @@ type Config struct {
 
 func LoadConfig() *Config {
     cfg := &Config{}
-    
+
     cfg.App.Port, _ = strconv.Atoi(getEnv("APP_PORT", "8080"))
     cfg.App.Env = getEnv("APP_ENV", "development")
     cfg.App.Secret = getEnv("APP_SECRET", "change-me-in-production")
-    
+
     cfg.Database.Host = getEnv("DB_HOST", "localhost")
     cfg.Database.Port, _ = strconv.Atoi(getEnv("DB_PORT", "5432"))
     cfg.Database.Name = getEnv("DB_NAME", "ecommerce")
     cfg.Database.User = getEnv("DB_USER", "postgres")
     cfg.Database.Password = getEnv("DB_PASSWORD", "")
-    
+
     cfg.Redis.Host = getEnv("REDIS_HOST", "localhost")
     cfg.Redis.Port, _ = strconv.Atoi(getEnv("REDIS_PORT", "6379"))
     cfg.Redis.Password = getEnv("REDIS_PASSWORD", "")
-    
+
     cfg.Stripe.SecretKey = getEnv("STRIPE_SECRET_KEY", "")
     cfg.Stripe.WebhookSecret = getEnv("STRIPE_WEBHOOK_SECRET", "")
-    
+
     return cfg
 }
 
@@ -556,7 +556,7 @@ package providers
 
 import (
     "fmt"
-    
+
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
     "gorm.io/gorm/logger"
@@ -572,14 +572,14 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
         cfg.Database.User,
         cfg.Database.Password,
     )
-    
+
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
         Logger: logger.Default.LogMode(logger.Info),
     })
     if err != nil {
         return nil, fmt.Errorf("failed to connect to database: %w", err)
     }
-    
+
     // Auto-migrate all models
     if err := db.AutoMigrate(
         &users.User{},
@@ -589,7 +589,7 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
     ); err != nil {
         return nil, fmt.Errorf("migration failed: %w", err)
     }
-    
+
     return db, nil
 }
 ```
@@ -601,7 +601,7 @@ package providers
 
 import (
     "fmt"
-    
+
     "github.com/redis/go-redis/v9"
 )
 
@@ -612,7 +612,7 @@ func NewCache(cfg *Config) (*redis.Client, error) {
         Password: cfg.Redis.Password,
         DB:       0,
     })
-    
+
     return client, nil
 }
 ```
@@ -626,7 +626,7 @@ import (
     "context"
     "net/http"
     "strings"
-    
+
     "github.com/golang-jwt/jwt/v5"
     "github.com/goyave/glib/v2/errs"
 )
@@ -635,7 +635,7 @@ type contextKey string
 
 const UserContextKey contextKey = "user"
 
-// @Middleware auth
+// @Middleware name=auth
 func Auth(cfg *Config) func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -644,34 +644,34 @@ func Auth(cfg *Config) func(http.Handler) http.Handler {
                 handleError(w, errs.B().Code(errs.Unauthenticated).Msg("missing authorization header").Err())
                 return
             }
-            
+
             tokenString := strings.TrimPrefix(authHeader, "Bearer ")
             if tokenString == authHeader {
                 handleError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid authorization format").Err())
                 return
             }
-            
+
             token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
                 if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
                     return nil, errs.B().Code(errs.Unauthenticated).Msg("invalid signing method").Err()
                 }
                 return []byte(cfg.App.Secret), nil
             })
-            
+
             if err != nil || !token.Valid {
                 handleError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid token").Err())
                 return
             }
-            
+
             claims, ok := token.Claims.(jwt.MapClaims)
             if !ok {
                 handleError(w, errs.B().Code(errs.Unauthenticated).Msg("invalid claims").Err())
                 return
             }
-            
+
             userID := claims["sub"].(string)
             ctx := context.WithValue(r.Context(), UserContextKey, userID)
-            
+
             next.ServeHTTP(w, r.WithContext(ctx))
         })
     }
@@ -691,7 +691,7 @@ package auth
 import (
     "context"
     "time"
-    
+
     "github.com/golang-jwt/jwt/v5"
     "github.com/goyave/glib/v2/errs"
     "golang.org/x/crypto/bcrypt"
@@ -720,50 +720,50 @@ type AuthResponse struct {
 
 // Controller
 
-// @Controller /api/auth
+// @Controller path=/api/auth
 type AuthController struct {
     DB  *gorm.DB
     Cfg *Config
 }
 
-// @Route POST /register
-func (c *AuthController) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
+// @Route method=POST path=/register
+func (c *AuthController) Register(ctx context.Context, req RegisterRequest) glib.Result[*AuthResponse] {
     // Check if user exists
     var exists users.User
     if err := c.DB.Where("email = ?", req.Email).First(&exists).Error; err == nil {
         return nil, errs.B().Code(errs.AlreadyExists).Msg("email already registered").Err()
     }
-    
+
     // Hash password
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
     if err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("failed to hash password").Cause(err).Err()
     }
-    
+
     // Create user
     user := &users.User{
         Email:    req.Email,
         Password: string(hashedPassword),
         Name:     req.Name,
     }
-    
+
     if err := c.DB.Create(user).Error; err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("failed to create user").Cause(err).Err()
     }
-    
+
     // Generate token
     token, err := c.generateToken(user.ID.String())
     if err != nil {
         return nil, err
     }
-    
+
     return &AuthResponse{
         Token: token,
         User:  user,
     }, nil
 }
 
-// @Route POST /login
+// @Route method=POST path=/login
 func (c *AuthController) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
     var user users.User
     err := c.DB.Where("email = ?", req.Email).First(&user).Error
@@ -773,18 +773,18 @@ func (c *AuthController) Login(ctx context.Context, req LoginRequest) (*AuthResp
     if err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("database error").Cause(err).Err()
     }
-    
+
     // Verify password
     if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
         return nil, errs.B().Code(errs.Unauthenticated).Msg("invalid credentials").Err()
     }
-    
+
     // Generate token
     token, err := c.generateToken(user.ID.String())
     if err != nil {
         return nil, err
     }
-    
+
     return &AuthResponse{
         Token: token,
         User:  &user,
@@ -797,13 +797,13 @@ func (c *AuthController) generateToken(userID string) (string, error) {
         "exp": time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
         "iat": time.Now().Unix(),
     }
-    
+
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     tokenString, err := token.SignedString([]byte(c.Cfg.App.Secret))
     if err != nil {
         return "", errs.B().Code(errs.Internal).Msg("failed to generate token").Cause(err).Err()
     }
-    
+
     return tokenString, nil
 }
 ```
@@ -818,7 +818,7 @@ import (
     "encoding/json"
     "fmt"
     "time"
-    
+
     "github.com/google/uuid"
     "github.com/goyave/glib/v2/errs"
     "github.com/redis/go-redis/v9"
@@ -857,13 +857,13 @@ type CreateProductRequest struct {
 
 // Controller
 
-// @Controller /api/products
+// @Controller path=/api/products
 type ProductsController struct {
     DB    *gorm.DB
     Cache *redis.Client
 }
 
-// @Route GET /
+// @Route method=GET path=/
 func (c *ProductsController) Index(ctx context.Context) ([]Product, error) {
     // Try cache first
     cacheKey := "products:all"
@@ -874,22 +874,22 @@ func (c *ProductsController) Index(ctx context.Context) ([]Product, error) {
             return products, nil
         }
     }
-    
+
     // Fetch from database
     var products []Product
     if err := c.DB.Find(&products).Error; err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("failed to fetch products").Cause(err).Err()
     }
-    
+
     // Cache for 5 minutes
     if data, err := json.Marshal(products); err == nil {
         c.Cache.Set(ctx, cacheKey, data, 5*time.Minute)
     }
-    
+
     return products, nil
 }
 
-// @Route GET /{id}
+// @Route method=GET path=/{id}
 func (c *ProductsController) Show(ctx context.Context, id uuid.UUID) (*Product, error) {
     cacheKey := fmt.Sprintf("products:%s", id.String())
     cached, err := c.Cache.Get(ctx, cacheKey).Result()
@@ -899,7 +899,7 @@ func (c *ProductsController) Show(ctx context.Context, id uuid.UUID) (*Product, 
             return &product, nil
         }
     }
-    
+
     var product Product
     err = c.DB.Where("id = ?", id).First(&product).Error
     if err == gorm.ErrRecordNotFound {
@@ -908,16 +908,16 @@ func (c *ProductsController) Show(ctx context.Context, id uuid.UUID) (*Product, 
     if err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("failed to fetch product").Cause(err).Err()
     }
-    
+
     if data, err := json.Marshal(product); err == nil {
         c.Cache.Set(ctx, cacheKey, data, 5*time.Minute)
     }
-    
+
     return &product, nil
 }
 
-// @Route POST /
-// @Middleware auth
+// @Route method=POST path=/
+// @Middleware name=auth
 func (c *ProductsController) Create(ctx context.Context, req CreateProductRequest) (*Product, error) {
     product := &Product{
         Name:        req.Name,
@@ -926,14 +926,14 @@ func (c *ProductsController) Create(ctx context.Context, req CreateProductReques
         Stock:       req.Stock,
         ImageURL:    req.ImageURL,
     }
-    
+
     if err := c.DB.Create(product).Error; err != nil {
         return nil, errs.B().Code(errs.Internal).Msg("failed to create product").Cause(err).Err()
     }
-    
+
     // Invalidate cache
     c.Cache.Del(ctx, "products:all")
-    
+
     return product, nil
 }
 ```
@@ -1024,7 +1024,7 @@ package events
 import (
     "context"
     "encoding/json"
-    
+
     "github.com/rabbitmq/amqp091-go"
 )
 
@@ -1038,12 +1038,12 @@ func NewPublisher(cfg *Config) (*Publisher, error) {
     if err != nil {
         return nil, err
     }
-    
+
     channel, err := conn.Channel()
     if err != nil {
         return nil, err
     }
-    
+
     return &Publisher{channel: channel}, nil
 }
 
@@ -1052,7 +1052,7 @@ func (p *Publisher) Publish(ctx context.Context, event string, data interface{})
     if err != nil {
         return err
     }
-    
+
     return p.channel.PublishWithContext(
         ctx,
         "events",
@@ -1074,7 +1074,7 @@ package services
 
 import (
     "context"
-    
+
     "github.com/google/uuid"
     "user-service/internal/events"
     "user-service/internal/repositories"
@@ -1098,13 +1098,13 @@ func (s *UserService) Create(ctx context.Context, user *models.User) error {
     if err := s.repo.Create(ctx, user); err != nil {
         return err
     }
-    
+
     // Publish event
     s.publisher.Publish(ctx, "user.created", map[string]interface{}{
         "user_id": user.ID,
         "email":   user.Email,
     })
-    
+
     return nil
 }
 ```
@@ -1154,7 +1154,7 @@ package chat
 import (
     "context"
     "encoding/json"
-    
+
     "github.com/redis/go-redis/v9"
 )
 
@@ -1175,10 +1175,10 @@ func NewHub(cache *redis.Client) *Hub {
         unregister: make(chan *Client),
         redis:      cache,
     }
-    
+
     go hub.run()
     go hub.subscribePubSub()
-    
+
     return hub
 }
 
@@ -1187,13 +1187,13 @@ func (h *Hub) run() {
         select {
         case client := <-h.register:
             h.clients[client.id] = client
-            
+
         case client := <-h.unregister:
             if _, ok := h.clients[client.id]; ok {
                 delete(h.clients, client.id)
                 close(client.send)
             }
-            
+
         case message := <-h.broadcast:
             // Send to local clients
             for _, client := range h.clients {
@@ -1206,7 +1206,7 @@ func (h *Hub) run() {
                     }
                 }
             }
-            
+
             // Publish to Redis for other instances
             data, _ := json.Marshal(message)
             h.redis.Publish(context.Background(), "chat:messages", data)
@@ -1217,13 +1217,13 @@ func (h *Hub) run() {
 func (h *Hub) subscribePubSub() {
     pubsub := h.redis.Subscribe(context.Background(), "chat:messages")
     defer pubsub.Close()
-    
+
     for msg := range pubsub.Channel() {
         var message Message
         if err := json.Unmarshal([]byte(msg.Payload), &message); err != nil {
             continue
         }
-        
+
         // Send to local clients (avoid re-publishing)
         for _, client := range h.clients {
             if client.roomID == message.RoomID {
@@ -1244,7 +1244,7 @@ package chat
 
 import (
     "net/http"
-    
+
     "github.com/gorilla/websocket"
     "github.com/goyave/glib/v2/errs"
 )
@@ -1253,23 +1253,23 @@ var upgrader = websocket.Upgrader{
     CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// @Controller /api/chat
-// @Middleware auth
+// @Controller path=/api/chat
+// @Middleware name=auth
 type ChatController struct {
     Hub *Hub
 }
 
-// @Route GET /ws
+// @Route method=GET path=/ws
 func (c *ChatController) WebSocket(w http.ResponseWriter, r *http.Request) {
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
         handleError(w, errs.B().Code(errs.Internal).Msg("failed to upgrade connection").Cause(err).Err())
         return
     }
-    
+
     userID := auth.GetUserID(r.Context())
     roomID := r.URL.Query().Get("room")
-    
+
     client := &Client{
         hub:    c.Hub,
         conn:   conn,
@@ -1277,9 +1277,9 @@ func (c *ChatController) WebSocket(w http.ResponseWriter, r *http.Request) {
         id:     userID,
         roomID: roomID,
     }
-    
+
     c.Hub.register <- client
-    
+
     go client.writePump()
     go client.readPump()
 }
@@ -1291,15 +1291,15 @@ func (c *ChatController) WebSocket(w http.ResponseWriter, r *http.Request) {
 
 ### Examples Comparison
 
-| Feature | Blog | E-Commerce | Microservice | Chat |
-|---------|------|------------|--------------|------|
-| **Structure** | Flat | Feature-based | Layered | Feature-based |
-| **Database** | SQLite | PostgreSQL | PostgreSQL | PostgreSQL + Redis |
-| **Auth** | ❌ | JWT | JWT + gRPC | JWT |
-| **Caching** | ❌ | Redis | Redis | Redis Pub/Sub |
-| **Real-time** | ❌ | ❌ | Events | WebSockets |
-| **API Style** | REST | REST | REST + gRPC | REST + WS |
-| **Complexity** | Low | Medium | High | High |
+| Feature        | Blog   | E-Commerce    | Microservice | Chat               |
+| -------------- | ------ | ------------- | ------------ | ------------------ |
+| **Structure**  | Flat   | Feature-based | Layered      | Feature-based      |
+| **Database**   | SQLite | PostgreSQL    | PostgreSQL   | PostgreSQL + Redis |
+| **Auth**       | ❌     | JWT           | JWT + gRPC   | JWT                |
+| **Caching**    | ❌     | Redis         | Redis        | Redis Pub/Sub      |
+| **Real-time**  | ❌     | ❌            | Events       | WebSockets         |
+| **API Style**  | REST   | REST          | REST + gRPC  | REST + WS          |
+| **Complexity** | Low    | Medium        | High         | High               |
 
 ### Key Takeaways
 

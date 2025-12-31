@@ -174,7 +174,7 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 
 	// For Result[T] handlers, we need the wrapper for parsing/serialization
 	if len(middlewareChain) > 0 {
-		b.WriteString("\tvar handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n")
+		b.WriteString("\thandler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n")
 	} else {
 		b.WriteString("\treturn func(w http.ResponseWriter, r *http.Request) {\n")
 	}
@@ -187,7 +187,7 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 	b.WriteString(body)
 
 	if len(middlewareChain) > 0 {
-		b.WriteString("\t})\n\n")
+		b.WriteString("\t}))\n\n")
 
 		// Apply middleware chain in reverse order (innermost first)
 		for i := len(middlewareChain) - 1; i >= 0; i-- {

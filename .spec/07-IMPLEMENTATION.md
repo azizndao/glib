@@ -818,12 +818,10 @@ func New(outputDir string) (*Generator, error) {
 
 func (g *Generator) Generate(model *scanner.ApplicationModel) error {
     files := map[string]string{
-        "glib.gen.go":       "bootstrap.tmpl",
-        "di.gen.go":         "di.tmpl",
-        "routes.gen.go":     "routes.tmpl",
-        "parsers.gen.go":    "parsers.tmpl",
-        "errors.gen.go":     "errors.tmpl",
-        "middleware.gen.go": "middleware.tmpl",
+        "glib.gen.go":    "bootstrap.tmpl",
+        "di.gen.go":      "di.tmpl",
+        "routes.gen.go":  "routes.tmpl",
+        "parsers.gen.go": "parsers.tmpl",
     }
     
     for filename, tmplName := range files {

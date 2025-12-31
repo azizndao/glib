@@ -76,9 +76,3 @@ func (g *Generator) generateFile(filename string, gen func() (string, error)) er
 
 	return nil
 }
-
-// renderTemplate is a helper for template-based generation
-func (g *Generator) renderTemplate(tmpl string, data any) (string, error) {
-	// TODO: Use text/template if needed, for now we'll use string building
-	return tmpl, nil
-}

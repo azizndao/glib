@@ -4,12 +4,12 @@ Complete example demonstrating Glib's annotation-based code generation for build
 
 ## Features Demonstrated
 
-- **Pattern 10 Handlers**: Type-safe `Result[T]` responses
-- **Pattern 11 Handlers**: Raw HTTP for file exports and SSE
+- **Result[T] Handlers**: Type-safe responses with explicit status control
+- **Raw HTTP Handlers**: Full control for file exports and SSE
 - **Dependency Injection**: Auto-wired services with topological sorting
 - **ValidationErrors**: Structured field-level validation errors
 - **Cross-Package Types**: Handler responses from `models/` package
-- **Middleware**: Authentication and logging middleware
+- **Middleware**: Tag-based middleware targeting system
 - **Hot Reload**: Development mode with automatic code regeneration
 
 ## Quick Start
@@ -77,12 +77,12 @@ curl -X PUT http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-4466554400
 curl -X DELETE http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-446655440000
 ```
 
-**Export posts as CSV (Pattern 11 - Raw HTTP):**
+**Export posts as CSV (Raw HTTP):**
 ```bash
 curl http://localhost:8091/api/v1/post/export
 ```
 
-**Stream posts via SSE (Pattern 11 - Raw HTTP):**
+**Stream posts via SSE (Raw HTTP):**
 ```bash
 curl http://localhost:8091/api/v1/post/stream
 ```
@@ -127,8 +127,7 @@ demo/
 │   ├── glib.gen.go         # Bootstrap function
 │   ├── di.gen.go           # DI container (topologically sorted)
 │   ├── routes.gen.go       # Route registration
-│   ├── parsers.gen.go      # Handler wrappers (with imports)
-│   └── errors.gen.go       # Error handling (with ValidationErrors)
+│   └── parsers.gen.go      # Handler wrappers
 ├── config.go               # Configuration loading
 ├── main.go                 # Application entry point
 ├── .glibrc                 # Glib configuration
@@ -137,17 +136,17 @@ demo/
 
 ## Handler Examples
 
-### Pattern 10: Type-Safe Result[T]
+### Result[T] Pattern (Type-Safe)
 
-Most handlers use Pattern 10 for type-safe responses:
+Most handlers use the Result[T] pattern for type-safe responses:
 
 ```go
-// @Route GET /
+// @Route method=GET path=/
 func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
     return glib.OK(c.PostService.GetPosts())
 }
 
-// @Route GET /{id}
+// @Route method=GET path=/{id}
 func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
     post := c.PostService.GetPost(id)
     if post == nil {
@@ -156,7 +155,7 @@ func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post]
     return glib.OK(post)
 }
 
-// @Route POST /
+// @Route method=POST path=/
 func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*models.Post] {
     // Validation example
     if len(req.Title) < 3 {
@@ -175,7 +174,7 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
     return glib.Created(post)
 }
 
-// @Route DELETE /{id}
+// @Route method=DELETE path=/{id}
 func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
     if err := c.PostService.Delete(id); err != nil {
         return glib.Fail[any](err)
@@ -192,12 +191,12 @@ func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] 
 - `glib.BadRequest[T](msg)` - 400 Bad Request
 - `glib.Fail[T](err)` - Auto-extract status from errs.Error
 
-### Pattern 11: Raw HTTP for Advanced Use Cases
+### Raw HTTP Pattern (Advanced)
 
-Use Pattern 11 when you need full control:
+Use the Raw HTTP pattern when you need full control:
 
 ```go
-// @Route GET /export
+// @Route method=GET path=/export
 func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/csv")
     w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
@@ -209,7 +208,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-// @Route GET /stream
+// @Route method=GET path=/stream
 func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
     w.Header().Set("Cache-Control", "no-cache")
@@ -447,12 +446,12 @@ The generator automatically resolves cross-package imports. If you see import er
 
 ## Key Takeaways
 
-1. **Use Pattern 10 for APIs** - Type-safe Result[T] for most endpoints
-2. **Use Pattern 11 for streaming** - Raw HTTP when you need full control
-3. **Providers are auto-sorted** - Dependencies initialized in correct order
+1. **Use Result[T] for APIs** - Type-safe responses for most endpoints (~95%)
+2. **Use Raw HTTP for streaming** - Full control when needed (~5%)
+3. **Providers are auto-sorted** - Dependencies initialized in correct order via topological sort
 4. **ValidationErrors for field errors** - Structured validation responses
 5. **Cross-package types work** - Generator resolves imports automatically
-6. **All generated code is in `generated/`** - Never edit these files
+6. **Generated code is in `generated/`** - Never edit these files (4 files: glib.gen.go, di.gen.go, routes.gen.go, parsers.gen.go)
 
 ## Next Steps
 
