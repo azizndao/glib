@@ -40,15 +40,142 @@
 {{- end}}
 {{- end}}
 
+{{- if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams}}
+		// Parse query parameters and headers into struct
+		var reqParams {{typeRef .Handler.Signature.ParamsStructType}}
+{{- end}}
+
+{{- if .Handler.Signature.QueryParams}}
+		// Parse query parameters
+{{- range .Handler.Signature.QueryParams}}
+{{- if .Type.IsSlice}}
+		// Slice parameter: {{.ParamName}}
+		if values := r.URL.Query()["{{.ParamName}}"]; len(values) > 0 {
+			reqParams.{{.FieldName}} = values
+		}
+{{- else if .IsOptional}}
+		// Optional parameter: {{.ParamName}}
+		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
+{{- if eq .Type.Name "string"}}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			{{.ParamName}}Val, err := strconv.Atoi({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "int64"}}
+			{{.ParamName}}Val, err := strconv.ParseInt({{.ParamName}}Str, 10, 64)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "bool"}}
+			{{.ParamName}}Val, err := strconv.ParseBool({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be true or false")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "float64"}}
+			{{.ParamName}}Val, err := strconv.ParseFloat({{.ParamName}}Str, 64)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a number")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.ParamName}}Val, err := uuid.Parse({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a valid UUID")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+{{- end}}
+		}
+{{- else}}
+		// Required parameter: {{.ParamName}}
+		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
+{{- if eq .Type.Name "string"}}
+			reqParams.{{.FieldName}} = {{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			{{.ParamName}}Val, err := strconv.Atoi({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = {{.ParamName}}Val
+{{- else if eq .Type.Name "int64"}}
+			{{.ParamName}}Val, err := strconv.ParseInt({{.ParamName}}Str, 10, 64)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = {{.ParamName}}Val
+{{- else if eq .Type.Name "bool"}}
+			{{.ParamName}}Val, err := strconv.ParseBool({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be true or false")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = {{.ParamName}}Val
+{{- else if eq .Type.Name "float64"}}
+			{{.ParamName}}Val, err := strconv.ParseFloat({{.ParamName}}Str, 64)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a number")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = {{.ParamName}}Val
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.ParamName}}Val, err := uuid.Parse({{.ParamName}}Str)
+			if err != nil {
+				glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
+					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a valid UUID")).Write(w)
+				return
+			}
+			reqParams.{{.FieldName}} = {{.ParamName}}Val
+{{- end}}
+		}
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.HeaderParams}}
+		// Parse headers
+{{- range .Handler.Signature.HeaderParams}}
+{{- if .IsOptional}}
+		// Optional header: {{.HeaderName}}
+		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
+			reqParams.{{.FieldName}} = &{{.FieldName}}Val
+		}
+{{- else}}
+		// Required header: {{.HeaderName}}
+		reqParams.{{.FieldName}} = r.Header.Get("{{.HeaderName}}")
+{{- end}}
+{{- end}}
+{{- end}}
+
 {{- if .Handler.Signature.RequestType}}
 		// Parse request body
 		var req {{typeRef .Handler.Signature.RequestType}}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			glib.BadRequest[{{typeRef .Handler.Signature.ResponseType}}](
+			glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 {{- end}}
 
-	result := container.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
+		result := container.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams}}, reqParams{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
 		result.Write(w)
+

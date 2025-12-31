@@ -1,0 +1,249 @@
+### Glib Demo API Testing
+
+
+### Base URL
+
+@apiBase = {{baseUrl}}/api/v1
+@baseUrl = http://localhost:8080
+
+
+### 
+
+# POSTS API
+
+
+### 
+
+
+### Get all posts
+
+GET {{apiBase}}/post/ HTTP/1.1
+
+
+### Get specific post by ID (replace with actual UUID from response above)
+
+GET {{apiBase}}/post/f7c9b0a0-f8a1-4f3c-b1d4-a6f1b9e5e2d2 HTTP/1.1
+
+
+### Search posts with query parameters
+
+GET {{apiBase}}/post/search?page=1&limit=10&q=glib&tag=golang HTTP/1.1
+
+
+### Create a new post
+
+POST {{apiBase}}/post/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "author_id": "d1a2d0c0-f8a1-4f3c-b1d4-a6f1b9e5e2d2",
+  "body": "This is a test post created via HTTP client to demonstrate the CRUD operations in Glib framework.",
+  "published": true,
+  "slug": "testing-glib-framework",
+  "tags": "golang,testing,demo",
+  "title": "Testing Glib Framework"
+}
+
+
+### Update a post (replace with actual UUID)
+
+PUT {{apiBase}}/post/00000000-0000-0000-0000-000000000000 HTTP/1.1
+Content-Type: application/json
+
+{
+  "body": "This post has been updated via HTTP client.",
+  "published": false,
+  "title": "Updated Post Title"
+}
+
+
+### Delete a post (replace with actual UUID)
+
+DELETE {{apiBase}}/post/00000000-0000-0000-0000-000000000000 HTTP/1.1
+
+
+### Export posts as CSV (Raw HTTP handler)
+
+GET {{apiBase}}/post/export HTTP/1.1
+
+
+### Stream posts via SSE (Raw HTTP handler - will stream 3 events)
+
+GET {{apiBase}}/post/stream HTTP/1.1
+
+
+### Health check (no middleware)
+
+GET {{apiBase}}/post/health HTTP/1.1
+
+
+### 
+
+# COMMENTS API
+
+
+### 
+
+
+### Get all comments
+
+GET {{apiBase}}/comment/ HTTP/1.1
+
+
+### Get specific comment by ID (replace with actual UUID)
+
+GET {{apiBase}}/comment/00000000-0000-0000-0000-000000000000 HTTP/1.1
+
+
+### Create a new comment
+
+POST {{apiBase}}/comment/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "content": "Great post! This is a test comment.",
+  "post_id": "00000000-0000-0000-0000-000000000000",
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}
+
+
+### Update a comment (replace with actual UUID)
+
+PUT {{apiBase}}/comment/00000000-0000-0000-0000-000000000000 HTTP/1.1
+Content-Type: application/json
+
+{
+  "content": "Updated comment content"
+}
+
+
+### Delete a comment (replace with actual UUID)
+
+DELETE {{apiBase}}/comment/00000000-0000-0000-0000-000000000000 HTTP/1.1
+
+
+### 
+
+# AUTH API
+
+
+### 
+
+
+### Register a new user
+
+POST {{apiBase}}/auth/register HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "first_name": "Test",
+  "last_name": "User",
+  "password": "password123",
+  "username": "testuser"
+}
+
+
+### Login
+
+POST {{apiBase}}/auth/login HTTP/1.1
+Content-Type: application/json
+
+{
+  "password": "password123",
+  "username": "testuser"
+}
+
+
+### Get current user profile
+
+GET {{apiBase}}/auth/me HTTP/1.1
+Authorization: Bearer your-token-here
+
+
+### Logout
+
+POST {{apiBase}}/auth/logout HTTP/1.1
+Authorization: Bearer your-token-here
+
+
+### 
+
+# ERROR HANDLING EXAMPLES
+
+
+### 
+
+
+### 404 - Not Found (invalid post ID)
+
+GET {{apiBase}}/post/99999999-9999-9999-9999-999999999999 HTTP/1.1
+
+
+### 400 - Bad Request (missing required fields)
+
+POST {{apiBase}}/post/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "title": "Missing body field"
+}
+
+
+### 400 - Bad Request (invalid UUID format)
+
+GET {{apiBase}}/post/invalid-uuid HTTP/1.1
+
+
+### 
+
+# MIDDLEWARE TESTING
+
+
+### 
+
+
+### Test with Authorization header (protected route)
+
+POST {{apiBase}}/post/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer test-token
+
+{
+  "author_id": "00000000-0000-0000-0000-000000000000",
+  "body": "This tests the auth middleware",
+  "title": "Protected Post"
+}
+
+
+### Test rate limiting (send multiple times quickly)
+
+GET {{apiBase}}/comment/ HTTP/1.1
+
+
+### 
+
+# ADDITIONAL EXAMPLES
+
+
+### 
+
+
+### Get posts with pagination
+
+GET {{apiBase}}/post/search?page=1&limit=5 HTTP/1.1
+
+
+### Get posts with multiple tags
+
+GET {{apiBase}}/post/search?tag=golang&tag=web HTTP/1.1
+
+
+### Get posts with search query
+
+GET {{apiBase}}/post/search?q=kubernetes HTTP/1.1
+
+
+### Full text search with filters
+
+GET {{apiBase}}/post/search?q=glib&tag=golang&page=1&limit=10 HTTP/1.1

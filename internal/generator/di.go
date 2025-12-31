@@ -237,34 +237,48 @@ func (g *Generator) collectImports() []string {
 	seen := make(map[string]bool)
 	var imports []string
 
+	// Helper to add an import if valid
+	addImport := func(path string) {
+		if path == "" || path == g.pkgName || path == "main" || seen[path] {
+			return
+		}
+		seen[path] = true
+		imports = append(imports, path)
+	}
+
+	// Helper to recursively collect imports from a type
+	var collectTypeImports func(*scanner.TypeInfo)
+	collectTypeImports = func(typeInfo *scanner.TypeInfo) {
+		if typeInfo == nil {
+			return
+		}
+		addImport(typeInfo.PackagePath)
+		for _, param := range typeInfo.TypeParams {
+			collectTypeImports(param)
+		}
+	}
+
 	// Add imports from controllers
 	for _, ctrl := range g.project.Controllers {
-		// Skip if it's the generated package or main package (to avoid circular imports)
-		if ctrl.PackagePath == g.pkgName || ctrl.PackageName == "main" || seen[ctrl.PackagePath] {
-			continue
-		}
-		seen[ctrl.PackagePath] = true
-		imports = append(imports, ctrl.PackagePath)
+		addImport(ctrl.PackagePath)
 	}
 
 	// Add imports from providers
 	for _, prov := range g.project.Providers {
-		// Skip if it's the generated package or main package
-		if prov.PackagePath == g.pkgName || prov.PackageName == "main" || seen[prov.PackagePath] {
-			continue
+		addImport(prov.PackagePath)
+
+		// Add imports from provider return type
+		collectTypeImports(prov.ReturnType)
+
+		// Add imports from provider dependencies
+		for _, dep := range prov.Dependencies {
+			collectTypeImports(dep.Type)
 		}
-		seen[prov.PackagePath] = true
-		imports = append(imports, prov.PackagePath)
 	}
 
 	// Add imports from middleware
 	for _, mw := range g.project.Middleware {
-		// Skip if it's the generated package or main package
-		if mw.PackagePath == g.pkgName || mw.PackageName == "main" || seen[mw.PackagePath] {
-			continue
-		}
-		seen[mw.PackagePath] = true
-		imports = append(imports, mw.PackagePath)
+		addImport(mw.PackagePath)
 	}
 
 	return imports

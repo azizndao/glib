@@ -1,0 +1,69 @@
+### Post Controller Tests
+@baseUrl = http://localhost:8080
+@apiBase = {{baseUrl}}/api/v1/post
+
+### Get all posts
+GET {{apiBase}}/
+
+### Get specific post by ID
+# Replace with actual UUID from GET all posts response
+GET {{apiBase}}/00000000-0000-0000-0000-000000000000
+
+### Search posts with filters
+GET {{apiBase}}/search?page=1&limit=10
+
+### Search posts with query
+GET {{apiBase}}/search?q=glib
+
+### Search posts with tags
+GET {{apiBase}}/search?tag=golang&tag=web
+
+### Search posts with multiple filters
+GET {{apiBase}}/search?q=kubernetes&tag=golang&page=1&limit=5
+
+### Create a new post
+POST {{apiBase}}/
+Content-Type: application/json
+
+{
+  "title": "My New Blog Post",
+  "body": "This is the content of my blog post about Go programming and Glib framework.",
+  "slug": "my-new-blog-post",
+  "published": true,
+  "author_id": "00000000-0000-0000-0000-000000000000",
+  "tags": "golang,blogging,glib"
+}
+
+### Update a post
+# Replace with actual UUID
+PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "title": "Updated Post Title",
+  "body": "This is the updated content.",
+  "published": false
+}
+
+### Partial update (only title)
+# Replace with actual UUID
+PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "title": "Only Title Changed"
+}
+
+### Delete a post
+# Replace with actual UUID
+DELETE {{apiBase}}/00000000-0000-0000-0000-000000000000
+
+### Export posts as CSV
+GET {{apiBase}}/export
+
+### Stream posts via Server-Sent Events (SSE)
+# This will stream 3 events, 1 second apart
+GET {{apiBase}}/stream
+
+### Health check endpoint (no middleware)
+GET {{apiBase}}/health

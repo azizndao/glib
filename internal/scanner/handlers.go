@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 )
 
 // parseHandlerSignature analyzes a handler function signature and determines its pattern
@@ -109,9 +110,11 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		sig.ResponseType = returnType.TypeParams[0]
 	}
 
-	// Parse remaining parameters (path params and request body)
+	// Parse remaining parameters (path params, query params, headers, and request body)
 	paramNames := s.extractParamNames(funcDecl)
 	sig.PathParams = []*PathParam{}
+	sig.QueryParams = []*QueryParam{}
+	sig.HeaderParams = []*HeaderParam{}
 
 	for i := 1; i < len(params); i++ {
 		if i >= len(paramNames) {
@@ -121,16 +124,46 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		paramName := paramNames[i]
 		paramType := params[i]
 
-		// Determine if this is a path param or request body
-		// Path params are identified by common names or position
-		if isPathParamName(paramName) {
+		// First, check if this is a struct with query/header tags
+		// Only check if it's not a pointer and not from external package (same package or no package)
+		if !paramType.IsPointer && !paramType.IsSlice && !paramType.IsPrimitive &&
+			(paramType.PackageName == "" || paramType.PackageName == s.currentPackageName) {
+
+			// Try to parse struct tags
+			queryParams, headerParams, hasJSONTags := s.parseStructTags(paramType.Name)
+
+			if len(queryParams) > 0 {
+				// This struct has query parameters
+				sig.QueryParams = append(sig.QueryParams, queryParams...)
+			}
+
+			if len(headerParams) > 0 {
+				// This struct has header parameters
+				sig.HeaderParams = append(sig.HeaderParams, headerParams...)
+			}
+
+			// If struct has query/header tags, store the struct type
+			if len(queryParams) > 0 || len(headerParams) > 0 {
+				sig.ParamsStructType = paramType
+				continue
+			}
+
+			// If struct has JSON tags (and no query/header tags), treat as request body
+			if hasJSONTags {
+				sig.RequestType = paramType
+			}
+		}
+
+		// Check if this is a path param (primitive type with path-like name)
+		if isPathParamName(paramName) && (paramType.IsPrimitive || paramType.PackageName == "uuid") {
 			sig.PathParams = append(sig.PathParams, &PathParam{
 				Name:     paramName,
 				Type:     paramType,
 				Position: i,
 			})
-		} else {
-			// Last non-path-param parameter is the request body
+		} else if sig.RequestType == nil {
+			// If no struct tags and not a path param, treat as request body
+			// (backward compatible: structs without tags are JSON bodies)
 			sig.RequestType = paramType
 		}
 	}
@@ -213,4 +246,95 @@ func isPathParamName(name string) bool {
 	return pathParamNames[name] ||
 		len(name) >= 2 && name[len(name)-2:] == "Id" ||
 		len(name) >= 3 && name[len(name)-3:] == "Key"
+}
+
+// parseStructTags analyzes a struct type for query/header/json tags
+// Returns query params, header params, and whether it has JSON tags (body)
+func (s *Scanner) parseStructTags(typeName string) (queryParams []*QueryParam, headerParams []*HeaderParam, hasJSONTags bool) {
+	// Look up TypeSpec in current file
+	typeSpec, ok := s.typeSpecs[typeName]
+	if !ok {
+		return nil, nil, false
+	}
+
+	// Must be a struct type
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok {
+		return nil, nil, false
+	}
+
+	// Iterate through struct fields
+	for _, field := range structType.Fields.List {
+		if field.Tag == nil {
+			continue
+		}
+
+		// Parse struct tag
+		tagValue := field.Tag.Value
+		// Remove backticks
+		if len(tagValue) >= 2 && tagValue[0] == '`' && tagValue[len(tagValue)-1] == '`' {
+			tagValue = tagValue[1 : len(tagValue)-1]
+		}
+
+		// Get field name
+		if len(field.Names) == 0 {
+			continue
+		}
+		fieldName := field.Names[0].Name
+
+		// Parse field type
+		fieldType := s.parseType(field.Type)
+
+		// Check for query tag
+		if queryTag := parseStructTag(tagValue, "query"); queryTag != "" {
+			queryParams = append(queryParams, &QueryParam{
+				FieldName:  fieldName,
+				ParamName:  queryTag,
+				Type:       fieldType,
+				IsOptional: fieldType.IsPointer,
+			})
+		}
+
+		// Check for header tag
+		if headerTag := parseStructTag(tagValue, "header"); headerTag != "" {
+			headerParams = append(headerParams, &HeaderParam{
+				FieldName:  fieldName,
+				HeaderName: headerTag,
+				Type:       fieldType,
+				IsOptional: fieldType.IsPointer,
+			})
+		}
+
+		// Check for json tag
+		if jsonTag := parseStructTag(tagValue, "json"); jsonTag != "" {
+			hasJSONTags = true
+		}
+	}
+
+	return queryParams, headerParams, hasJSONTags
+}
+
+// parseStructTag extracts a specific tag value from struct tag string
+// Example: `query:"page" json:"title"` with key="query" returns "page"
+func parseStructTag(tagString, key string) string {
+	// Simple parser for struct tags
+	// Format: `key:"value" key2:"value2"`
+
+	// Find key in tag string
+	keyPrefix := key + `:"`
+	startIdx := strings.Index(tagString, keyPrefix)
+	if startIdx == -1 {
+		return ""
+	}
+
+	// Find value start
+	valueStart := startIdx + len(keyPrefix)
+
+	// Find closing quote
+	endIdx := strings.Index(tagString[valueStart:], `"`)
+	if endIdx == -1 {
+		return ""
+	}
+
+	return tagString[valueStart : valueStart+endIdx]
 }

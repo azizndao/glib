@@ -48,14 +48,17 @@ type Handler struct {
 
 // HandlerSignature represents a parsed handler signature
 type HandlerSignature struct {
-	Pattern      string       // "result" or "raw_http" - handler pattern type
-	Receiver     *Field       // Controller receiver
-	PathParams   []*PathParam // Path parameters (e.g., id uuid.UUID)
-	RequestType  *TypeInfo    // Request body type (if any)
-	ResponseType *TypeInfo    // Response type (if any)
-	ReturnsError bool         // Whether it returns error
-	HasContext   bool         // Whether it has context.Context param
-	HasRawHTTP   bool         // Whether it uses http.ResponseWriter/Request
+	Pattern          string         // "result" or "raw_http" - handler pattern type
+	Receiver         *Field         // Controller receiver
+	PathParams       []*PathParam   // Path parameters (e.g., id uuid.UUID)
+	QueryParams      []*QueryParam  // Query parameters (e.g., page int from ?page=1)
+	HeaderParams     []*HeaderParam // Header parameters (e.g., Authorization string)
+	ParamsStructType *TypeInfo      // Struct type containing query/header tags (e.g., SearchPostsRequest)
+	RequestType      *TypeInfo      // Request body type (if any)
+	ResponseType     *TypeInfo      // Response type (if any)
+	ReturnsError     bool           // Whether it returns error
+	HasContext       bool           // Whether it has context.Context param
+	HasRawHTTP       bool           // Whether it uses http.ResponseWriter/Request
 }
 
 // PathParam represents a path parameter in handler signature
@@ -63,6 +66,22 @@ type PathParam struct {
 	Name     string    // e.g., "id"
 	Type     *TypeInfo // e.g., uuid.UUID
 	Position int       // Parameter position in function signature
+}
+
+// QueryParam represents a query parameter from struct tag
+type QueryParam struct {
+	FieldName  string    // Struct field name (e.g., "Page")
+	ParamName  string    // Query param name from tag (e.g., "page")
+	Type       *TypeInfo // Type (e.g., int, string, []string)
+	IsOptional bool      // Is pointer type? (e.g., *int)
+}
+
+// HeaderParam represents a header parameter from struct tag
+type HeaderParam struct {
+	FieldName  string    // Struct field name (e.g., "Authorization")
+	HeaderName string    // HTTP header name from tag (e.g., "Authorization")
+	Type       *TypeInfo // Type (usually string or *string)
+	IsOptional bool      // Is pointer type?
 }
 
 // Provider represents a function annotated with @Provider

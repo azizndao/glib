@@ -1,0 +1,33 @@
+### Comment Controller Tests
+@baseUrl = http://localhost:8080
+@apiBase = {{baseUrl}}/api/v1/comment
+
+### Get all comments
+GET {{apiBase}}/
+
+### Get specific comment by ID
+# Replace with actual UUID from GET all comments response
+GET {{apiBase}}/00000000-0000-0000-0000-000000000000
+
+### Create a new comment
+POST {{apiBase}}/
+Content-Type: application/json
+
+{
+  "content": "This is a test comment! Great article.",
+  "post_id": "00000000-0000-0000-0000-000000000000",
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}
+
+### Update a comment
+# Replace with actual UUID
+PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "content": "Updated comment content with new information."
+}
+
+### Delete a comment
+# Replace with actual UUID
+DELETE {{apiBase}}/00000000-0000-0000-0000-000000000000

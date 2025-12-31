@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/azizndao/glib"
 	"github.com/google/uuid"
@@ -17,7 +16,103 @@ import (
 	"glib/demo/models"
 )
 
-func handleAuthControllerGetSession(container *container) http.HandlerFunc {
+func handleAuthControllerRegister(container *container) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body
+		var req auth.RegisterRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			glib.BadRequest[*auth.UserResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := container.controllers.authController.Register(ctx, req)
+		result.Write(w)
+
+	}))
+
+	handler = container.middleware.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerLogin(container *container) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body
+		var req auth.LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			glib.BadRequest[*auth.LoginResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := container.controllers.authController.Login(ctx, req)
+		result.Write(w)
+
+	}))
+
+	handler = container.middleware.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerGetMe(container *container) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		result := container.controllers.authController.GetMe(ctx)
+		result.Write(w)
+
+	}))
+
+	handler = container.middleware.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerUpdateProfile(container *container) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body
+		var req auth.UpdateProfileRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			glib.BadRequest[*auth.UserResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := container.controllers.authController.UpdateProfile(ctx, req)
+		result.Write(w)
+
+	}))
+
+	handler = container.middleware.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerLogout(container *container) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		result := container.controllers.authController.Logout(ctx)
+		result.Write(w)
+
+	}))
+
+	handler = container.middleware.loggerMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerGetUser(container *container) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -25,69 +120,14 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			glib.BadRequest[*auth.Auth](
+			glib.BadRequest[*auth.UserResponse](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.authController.GetSession(ctx, id)
+		result := container.controllers.authController.GetUser(ctx, id)
 		result.Write(w)
-	}))
 
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerRegister(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body
-		var req auth.CreateAuthRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		result := container.controllers.authController.Register(ctx, req)
-		result.Write(w)
-	}))
-
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerUpdate(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body
-		var req auth.UpdateAuthRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			glib.BadRequest[*auth.Auth](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		result := container.controllers.authController.Update(ctx, req)
-		result.Write(w)
-	}))
-
-	handler = container.middleware.loggerMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerDelete(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		result := container.controllers.authController.Delete(ctx)
-		result.Write(w)
 	}))
 
 	handler = container.middleware.loggerMiddleware(handler)
@@ -102,6 +142,7 @@ func handleCommentControllerIndex(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Index(ctx)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -118,13 +159,14 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			glib.BadRequest[*comment.Comment](
+			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
 		result := container.controllers.commentController.Show(ctx, id)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -140,13 +182,14 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 		// Parse request body
 		var req comment.CreateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			glib.BadRequest[*comment.Comment](
+			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
 		result := container.controllers.commentController.Create(ctx, req)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
@@ -164,20 +207,21 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 		idStr := r.PathValue("id")
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			glib.BadRequest[*comment.Comment](
+			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 		// Parse request body
 		var req comment.UpdateCommentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			glib.BadRequest[*comment.Comment](
+			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
 		result := container.controllers.commentController.Update(ctx, id, req)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
@@ -202,6 +246,7 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 
 		result := container.controllers.commentController.Delete(ctx, id)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
@@ -218,6 +263,7 @@ func handlePostControllerIndex(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Index(ctx)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -232,7 +278,7 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 		ctx := r.Context()
 		// Parse path parameters
 		idStr := r.PathValue("id")
-		id, err := strconv.Atoi(idStr)
+		id, err := uuid.Parse(idStr)
 		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
@@ -241,6 +287,7 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Show(ctx, id)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.ratelimitMiddleware(handler)
@@ -263,6 +310,7 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Create(ctx, req)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
@@ -294,6 +342,7 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Update(ctx, id, req)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)
@@ -318,6 +367,7 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 
 		result := container.controllers.postController.Delete(ctx, id)
 		result.Write(w)
+
 	}))
 
 	handler = container.middleware.authMiddleware(handler)

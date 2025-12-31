@@ -4,6 +4,7 @@ package generated
 
 import (
 	"context"
+	"fmt"
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 	"glib/demo/controllers/auth"
@@ -11,6 +12,7 @@ import (
 	"glib/demo/controllers/post"
 	"glib/demo/middleware"
 	"glib/demo/services"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -27,8 +29,10 @@ type container struct {
 // providerContainer holds all singleton and transient providers.
 type providerContainer struct {
 	// Singleton Providers
-	userSerivce *services.UserSerivce
-	postSerivce *services.PostSerivce
+	database       *gorm.DB
+	userSerivce    *services.UserSerivce
+	commentService *services.CommentService
+	postSerivce    *services.PostSerivce
 
 	// Transient Provider Factories
 	auditorFactory func() *services.Auditor
@@ -73,8 +77,14 @@ func initContainer(ctx context.Context) (*container, error) {
 // initProviders initializes all singleton and transient providers.
 func (c *container) initProviders(ctx context.Context) error {
 	// Singleton Providers
-	c.providers.userSerivce = services.NewUserSerivce()
-	c.providers.postSerivce = services.NewPostSerivce(c.providers.userSerivce)
+	var err error
+	c.providers.database, err = services.NewDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
+	}
+	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
+	c.providers.commentService = services.NewCommentService(c.providers.database)
+	c.providers.postSerivce = services.NewPostSerivce(c.providers.database)
 
 	// Transient Provider Factories
 	c.providers.auditorFactory = func() *services.Auditor {
@@ -94,7 +104,8 @@ func (c *container) initControllers() error {
 		Auditor:     c.providers.auditorFactory(),
 	}
 	c.controllers.commentController = &comment.Controller{
-		Logger: c.providers.loggerFactory(),
+		Logger:         c.providers.loggerFactory(),
+		CommentService: c.providers.commentService,
 	}
 	c.controllers.postController = &post.Controller{
 		UserSerivce: c.providers.userSerivce,

@@ -9,10 +9,12 @@ import (
 // registerRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are grouped by controller and registered with the provided ServeMux.
 func registerRoutes(mux *http.ServeMux, container *container) error {
-	mux.HandleFunc("GET /api/v1/auth/{id}", handleAuthControllerGetSession(container))
 	mux.HandleFunc("POST /api/v1/auth/register", handleAuthControllerRegister(container))
-	mux.HandleFunc("PUT /api/v1/auth/me", handleAuthControllerUpdate(container))
-	mux.HandleFunc("DELETE /api/v1/auth/logout", handleAuthControllerDelete(container))
+	mux.HandleFunc("POST /api/v1/auth/login", handleAuthControllerLogin(container))
+	mux.HandleFunc("GET /api/v1/auth/me", handleAuthControllerGetMe(container))
+	mux.HandleFunc("PUT /api/v1/auth/me", handleAuthControllerUpdateProfile(container))
+	mux.HandleFunc("DELETE /api/v1/auth/logout", handleAuthControllerLogout(container))
+	mux.HandleFunc("GET /api/v1/auth/users/{id}", handleAuthControllerGetUser(container))
 	mux.HandleFunc("GET /api/v1/comment/", handleCommentControllerIndex(container))
 	mux.HandleFunc("GET /api/v1/comment/{id}", handleCommentControllerShow(container))
 	mux.HandleFunc("POST /api/v1/comment/", handleCommentControllerCreate(container))

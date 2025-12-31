@@ -1,0 +1,47 @@
+### Auth Controller Tests
+@baseUrl = http://localhost:8080
+@apiBase = {{baseUrl}}/api/v1/auth
+@userId = a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d
+
+### Register a new user
+POST {{apiBase}}/register
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "username": "newuser123",
+  "password": "SecurePassword123!",
+  "first_name": "John",
+  "last_name": "Doe",
+  "bio": "Hello, I'm a new user!"
+}
+
+### Login with credentials
+POST {{apiBase}}/login
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "password": "password123"
+}
+
+### Get current user profile
+GET {{apiBase}}/me
+Accept: application/json
+
+### Update current user profile
+PUT {{apiBase}}/me
+Content-Type: application/json
+
+{
+  "first_name": "Johnny",
+  "last_name": "Doe",
+  "bio": "Updated bio information"
+}
+
+### Get specific user by ID
+GET {{apiBase}}/users/{{userId}}
+Accept: application/json
+
+### Logout
+DELETE {{apiBase}}/logout

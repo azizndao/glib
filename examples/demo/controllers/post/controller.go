@@ -23,36 +23,75 @@ type Controller struct {
 // @Route method=GET path=/
 func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
 	c.Logger.Info("Fetching all posts")
-	return glib.OK(
-		c.PostSerivce.GetPosts(),
-	)
+	posts, err := c.PostSerivce.GetPosts()
+	if err != nil {
+		return glib.Fail[[]models.Post](err)
+	}
+	return glib.OK(posts)
 }
 
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
-	return glib.OK(c.PostSerivce.GetPost(id))
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*models.Post] {
+	post, err := c.PostSerivce.GetPost(id)
+	if err != nil {
+		return glib.Fail[*models.Post](err)
+	}
+	return glib.OK(post)
 }
 
 // @Route method=POST path=/ tags=protected
 func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*models.Post] {
-	return glib.Created(&models.Post{
-		ID:        c.PostSerivce.GetPosts()[len(c.PostSerivce.GetPosts())-1].ID + 1,
+	post := &models.Post{
 		Title:     req.Title,
 		Body:      req.Body,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	})
+		Slug:      req.Slug,
+		Published: req.Published,
+		AuthorID:  req.AuthorID,
+		Tags:      req.Tags,
+	}
+
+	if err := c.PostSerivce.CreatePost(post); err != nil {
+		return glib.Fail[*models.Post](err)
+	}
+
+	return glib.Created(post)
 }
 
 // @Route method=PUT path=/{id} tags=protected
 func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) glib.Result[*models.Post] {
-	// TODO: implement
-	return glib.NotFound[*models.Post]("post not found")
+	post, err := c.PostSerivce.GetPost(id)
+	if err != nil {
+		return glib.Fail[*models.Post](err)
+	}
+
+	if req.Title != "" {
+		post.Title = req.Title
+	}
+	if req.Body != "" {
+		post.Body = req.Body
+	}
+	if req.Slug != "" {
+		post.Slug = req.Slug
+	}
+	if req.Published != nil {
+		post.Published = *req.Published
+	}
+	if req.Tags != "" {
+		post.Tags = req.Tags
+	}
+
+	if err := c.PostSerivce.UpdatePost(post); err != nil {
+		return glib.Fail[*models.Post](err)
+	}
+
+	return glib.OK(post)
 }
 
 // @Route method=DELETE path=/{id} tags=protected
 func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-	// TODO: implement
+	if err := c.PostSerivce.DeletePost(id); err != nil {
+		return glib.Fail[any](err)
+	}
 	return glib.NoContent[any]()
 }
 
@@ -66,10 +105,10 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Write CSV header
-	fmt.Fprintln(w, "id,title,created_at")
+	_, _ = fmt.Fprintln(w, "id,title,created_at")
 
 	// Write sample data (in real app, fetch from DB)
-	fmt.Fprintf(w, "%s,Sample Post,%s\n", uuid.New(), time.Now().Format(time.RFC3339))
+	_, _ = fmt.Fprintf(w, "%s,Sample Post,%s\n", uuid.New(), time.Now().Format(time.RFC3339))
 }
 
 // @Route method=GET path=/stream
@@ -97,7 +136,7 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
 				"time":    time.Now().Format(time.RFC3339),
 			}
 			jsonData, _ := json.Marshal(data)
-			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
 		}
 	}
@@ -107,5 +146,5 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
 // Health is a simple health check endpoint with no middleware
 func (c *Controller) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }

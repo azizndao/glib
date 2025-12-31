@@ -55,6 +55,27 @@ func (g *Generator) generateParsers() (string, error) {
 					needsStrconv = true
 				}
 			}
+
+			// Check if query params are used (need strconv for type conversion)
+			if len(sig.QueryParams) > 0 {
+				needsStrconv = true
+				// Check for UUID in query params
+				for _, qp := range sig.QueryParams {
+					if qp.Type.PackageName == "uuid" {
+						needsUUID = true
+					}
+					// Track package dependencies for query param types
+					g.trackTypePackage(qp.Type, usedPackages)
+				}
+			}
+
+			// Check if header params are used
+			if len(sig.HeaderParams) > 0 {
+				// Track package dependencies for header param types
+				for _, hp := range sig.HeaderParams {
+					g.trackTypePackage(hp.Type, usedPackages)
+				}
+			}
 		}
 	}
 

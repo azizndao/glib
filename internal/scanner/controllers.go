@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strings"
 )
 
@@ -55,9 +56,16 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 
 // scanHandlers scans controller methods for @Route annotations
 // This should be called after all controllers are found
-func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller) error {
+// packageFiles contains all files from the same package for type resolution
+func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller, packageFiles []*ast.File) error {
 	// Parse imports for this file to resolve package paths
 	s.parseImports(file)
+
+	// Set current file for type lookups
+	s.currentFile = file
+
+	// Build type spec map for all files in the package
+	s.buildTypeSpecMapFromPackage(packageFiles)
 
 	// Create a map of controller names for quick lookup
 	controllerMap := make(map[string]*Controller)
@@ -246,6 +254,7 @@ func (s *Scanner) parseType(expr ast.Expr) *TypeInfo {
 		typeInfo.PackageName = inner.PackageName
 		typeInfo.FullName = "*" + inner.FullName
 		typeInfo.IsError = inner.IsError
+		typeInfo.IsPrimitive = inner.IsPrimitive
 
 	case *ast.ArrayType:
 		// Slice type: []User
@@ -286,11 +295,12 @@ func joinStrings(strs []string, sep string) string {
 	if len(strs) == 0 {
 		return ""
 	}
-	result := strs[0]
+	var result strings.Builder
+	result.WriteString(strs[0])
 	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
+		result.WriteString(sep + strs[i])
 	}
-	return result
+	return result.String()
 }
 
 // isPrimitive checks if a type name is a Go primitive
@@ -352,4 +362,48 @@ func (s *Scanner) isHTTPType(typeInfo *TypeInfo) bool {
 		return false
 	}
 	return typeInfo.Name == "ResponseWriter" || typeInfo.Name == "Request"
+}
+
+// buildTypeSpecMap builds a map of type names to their TypeSpec for the current file
+func (s *Scanner) buildTypeSpecMap(file *ast.File) {
+	s.typeSpecs = make(map[string]*ast.TypeSpec)
+
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			s.typeSpecs[typeSpec.Name.Name] = typeSpec
+		}
+	}
+}
+
+// buildTypeSpecMapFromPackage builds a map of type names to their TypeSpec for all files in the package
+func (s *Scanner) buildTypeSpecMapFromPackage(packageFiles []*ast.File) {
+	s.typeSpecs = make(map[string]*ast.TypeSpec)
+
+	for _, file := range packageFiles {
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				continue
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+
+				s.typeSpecs[typeSpec.Name.Name] = typeSpec
+			}
+		}
+	}
 }

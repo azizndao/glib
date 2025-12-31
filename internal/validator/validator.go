@@ -122,6 +122,12 @@ func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Cont
 
 	// Validate path parameters match handler signature
 	v.validatePathParams(handler, location)
+
+	// Validate query parameters
+	v.validateQueryParams(handler, location)
+
+	// Validate header parameters
+	v.validateHeaderParams(handler, location)
 }
 
 // validatePathParams validates that path parameters in the route match the handler signature
@@ -223,6 +229,104 @@ func isValidPathParamType(typeInfo *scanner.TypeInfo) bool {
 	}
 
 	return false
+}
+
+// validateQueryParams validates query parameters in handler signature
+func (v *Validator) validateQueryParams(handler *scanner.Handler, location string) {
+	// Skip validation for raw HTTP handlers
+	if handler.Signature.Pattern == scanner.PatternRawHTTP {
+		return
+	}
+
+	// Validate each query parameter type
+	for _, qp := range handler.Signature.QueryParams {
+		if qp.Type == nil {
+			continue
+		}
+
+		// Check if type is supported for query parameters
+		if !isValidQueryParamType(qp.Type) {
+			v.addError(location, fmt.Sprintf(
+				"query parameter '%s' (field %s) has unsupported type '%s'. "+
+					"Supported types: string, int, int64, uint64, float64, bool, uuid.UUID, []string, and pointer variants (*string, *int, etc.)",
+				qp.ParamName, qp.FieldName, qp.Type.FullName))
+		}
+	}
+}
+
+// isValidQueryParamType checks if a type is valid for query parameters
+func isValidQueryParamType(typeInfo *scanner.TypeInfo) bool {
+	// Handle pointer types
+	actualType := typeInfo
+	if typeInfo.IsPointer {
+		// For pointers, we need to check the underlying type
+		// Just check if it's a primitive or UUID for now
+		// (We don't store underlying type in TypeInfo currently)
+		return typeInfo.IsPrimitive || (typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID")
+	}
+
+	// Handle slice types (e.g., []string)
+	if typeInfo.IsSlice {
+		// For now, only support []string
+		return actualType.Name == "string"
+	}
+
+	// Primitives
+	if actualType.IsPrimitive {
+		validPrimitives := map[string]bool{
+			"string":  true,
+			"int":     true,
+			"int64":   true,
+			"uint64":  true,
+			"float64": true,
+			"bool":    true,
+		}
+		return validPrimitives[actualType.Name]
+	}
+
+	// UUID
+	if actualType.PackageName == "uuid" && actualType.Name == "UUID" {
+		return true
+	}
+
+	// time.Time (future support)
+	if actualType.PackageName == "time" && actualType.Name == "Time" {
+		return true
+	}
+
+	return false
+}
+
+// validateHeaderParams validates header parameters in handler signature
+func (v *Validator) validateHeaderParams(handler *scanner.Handler, location string) {
+	// Skip validation for raw HTTP handlers
+	if handler.Signature.Pattern == scanner.PatternRawHTTP {
+		return
+	}
+
+	// Validate each header parameter type
+	for _, hp := range handler.Signature.HeaderParams {
+		if hp.Type == nil {
+			continue
+		}
+
+		// Check if type is supported for headers
+		if !isValidHeaderParamType(hp.Type) {
+			v.addError(location, fmt.Sprintf(
+				"header parameter '%s' (field %s) has unsupported type '%s'. "+
+					"Supported types: string, *string",
+				hp.HeaderName, hp.FieldName, hp.Type.FullName))
+		}
+	}
+}
+
+// isValidHeaderParamType checks if a type is valid for header parameters
+func isValidHeaderParamType(typeInfo *scanner.TypeInfo) bool {
+	// Headers are always strings or *string
+	if typeInfo.IsPointer {
+		return typeInfo.Name == "string"
+	}
+	return typeInfo.IsPrimitive && typeInfo.Name == "string"
 }
 
 // validateProvider validates a provider

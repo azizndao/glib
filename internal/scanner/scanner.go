@@ -13,11 +13,13 @@ import (
 // Scanner scans a Go project for Glib annotations
 type Scanner struct {
 	fset               *token.FileSet
-	modulePath         string            // e.g., "github.com/user/myapp"
-	projectDir         string            // e.g., "/path/to/myapp"
-	currentPackageName string            // Current package being scanned
-	currentPackagePath string            // Current package import path
-	currentImports     map[string]string // Maps package name to import path for current file
+	modulePath         string                   // e.g., "github.com/user/myapp"
+	projectDir         string                   // e.g., "/path/to/myapp"
+	currentPackageName string                   // Current package being scanned
+	currentPackagePath string                   // Current package import path
+	currentImports     map[string]string        // Maps package name to import path for current file
+	currentFile        *ast.File                // Current file being scanned (for type lookups)
+	typeSpecs          map[string]*ast.TypeSpec // Maps type name to TypeSpec (for current file)
 }
 
 // New creates a new scanner
@@ -87,6 +89,26 @@ func (s *Scanner) Scan() (*Project, error) {
 	}
 
 	// Second pass: scan handlers for all controllers
+	// Group files by package path
+	packageFiles := make(map[string]map[string]*ast.File) // packagePath -> filePath -> file
+	for filePath, file := range fileMap {
+		// Calculate package path relative to module
+		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
+		if err != nil {
+			continue
+		}
+		packagePath := s.modulePath
+		if relPath != "." {
+			packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
+		}
+
+		if packageFiles[packagePath] == nil {
+			packageFiles[packagePath] = make(map[string]*ast.File)
+		}
+		packageFiles[packagePath][filePath] = file
+	}
+
+	// Scan handlers with all package files available
 	for filePath, file := range fileMap {
 		// Find controllers in this file
 		var fileControllers []*Controller
@@ -97,7 +119,18 @@ func (s *Scanner) Scan() (*Project, error) {
 		}
 
 		if len(fileControllers) > 0 {
-			if err := s.scanHandlers(file, fileControllers); err != nil {
+			// Get all files from the same package
+			var pkgFiles []*ast.File
+			for _, ctrl := range fileControllers {
+				if files, ok := packageFiles[ctrl.PackagePath]; ok {
+					for _, f := range files {
+						pkgFiles = append(pkgFiles, f)
+					}
+					break
+				}
+			}
+
+			if err := s.scanHandlers(file, fileControllers, pkgFiles); err != nil {
 				return nil, fmt.Errorf("failed to scan handlers in %s: %w", filePath, err)
 			}
 		}
@@ -109,6 +142,9 @@ func (s *Scanner) Scan() (*Project, error) {
 // scanFile scans a single file for annotations
 func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) error {
 	packageName := file.Name.Name
+
+	// Parse imports for type resolution
+	s.parseImports(file)
 
 	// Calculate package path relative to module
 	relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
