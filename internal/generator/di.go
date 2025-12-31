@@ -78,66 +78,53 @@ func (g *Generator) generateDI() (string, error) {
 
 	// Add Configs as synthetic providers if they exist
 	allProviders := g.project.Providers
+	var configProviders []*scanner.Provider
 	if len(g.project.Configs) > 0 {
 		// Create synthetic providers for each Config
 		for _, cfg := range g.project.Configs {
 			configProvider := g.createConfigProvider(cfg)
-			// Prepend config providers (they should be initialized first)
-			allProviders = append([]*scanner.Provider{configProvider}, allProviders...)
+			configProviders = append(configProviders, configProvider)
+			// Add to allProviders for dependency graph analysis
+			allProviders = append(allProviders, configProvider)
 		}
 		needsFmt = true // Config loading needs fmt for error handling
 	}
 
-	// Sort providers in dependency order (topological sort)
-	sortedProviders := g.sortProvidersByDependencies(allProviders)
+	// NEW: Build dependency graph and analyze initialization order
+	depGraph := NewDependencyGraph(&scanner.Project{
+		Providers:   allProviders,
+		Controllers: g.project.Controllers,
+	})
+	initPlan := depGraph.AnalyzeUsage()
 
-	// Build provider data
-	var providers []ProviderData
-	for _, prov := range sortedProviders {
-		// Skip the synthetic config providers - handle them specially
+	// Build config provider data (always first)
+	var configProvidersData []ProviderData
+	for _, prov := range configProviders {
+		configProvidersData = append(configProvidersData, g.buildConfigProviderData(prov))
+	}
+
+	// Build provider data in THREE phases
+	var criticalTransients []ProviderData
+	var singletons []ProviderData
+	var nonCriticalTransients []ProviderData
+
+	// Phase 1: Critical Transients
+	for _, prov := range initPlan.CriticalTransients {
+		criticalTransients = append(criticalTransients, g.buildProviderData(prov))
+	}
+
+	// Phase 2: Singletons
+	for _, prov := range initPlan.Singletons {
+		// Skip config providers (already handled)
 		if strings.HasPrefix(prov.Name, "__config_") {
-			providers = append(providers, g.buildConfigProviderData(prov))
 			continue
 		}
+		singletons = append(singletons, g.buildProviderData(prov))
+	}
 
-		// Build dependency arguments
-		var args []string
-		for _, dep := range prov.Dependencies {
-			depFieldName := g.findProviderForType(dep.Type)
-			if depFieldName != "" {
-				// For transient providers, call the factory function
-				if g.isProviderTransient(dep.Type) {
-					args = append(args, "c.providers."+depFieldName+"Factory()")
-				} else {
-					args = append(args, "c.providers."+depFieldName)
-				}
-			}
-		}
-
-		// Check if provider returns error (second return value)
-		returnsError := false
-		if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
-			returnCount := 0
-			for _, field := range prov.FuncDecl.Type.Results.List {
-				if len(field.Names) == 0 {
-					returnCount++
-				} else {
-					returnCount += len(field.Names)
-				}
-			}
-			returnsError = returnCount > 1
-		}
-
-		providers = append(providers, ProviderData{
-			FieldName:    g.providerFieldName(prov),
-			TypeName:     g.typeString(prov.ReturnType),
-			PackageName:  prov.PackageName,
-			FunctionName: prov.FunctionName,
-			Name:         prov.Name,
-			ArgsString:   strings.Join(args, ", "),
-			ReturnsError: returnsError,
-			Lifecycle:    prov.Lifecycle,
-		})
+	// Phase 3: Non-Critical Transients
+	for _, prov := range initPlan.NonCriticalTransients {
+		nonCriticalTransients = append(nonCriticalTransients, g.buildProviderData(prov))
 	}
 
 	// Build controller data
@@ -184,19 +171,65 @@ func (g *Generator) generateDI() (string, error) {
 	}
 
 	data := map[string]any{
-		"PackageName":          g.pkgName,
-		"NeedsFmt":             needsFmt,
-		"NeedsHTTP":            needsHTTP,
-		"NeedsGlibMiddleware":  needsGlibMiddleware,
-		"ConfigNeedsParameter": false, // Always false - config loaded internally
-		"ConfigParameterType":  "",
-		"Imports":              g.collectImports(),
-		"Providers":            providers,
-		"Controllers":          controllers,
-		"Middleware":           middleware,
+		"PackageName":           g.pkgName,
+		"NeedsFmt":              needsFmt,
+		"NeedsHTTP":             needsHTTP,
+		"NeedsGlibMiddleware":   needsGlibMiddleware,
+		"ConfigNeedsParameter":  false, // Always false - config loaded internally
+		"ConfigParameterType":   "",
+		"Imports":               g.collectImports(),
+		"ConfigProviders":       configProvidersData,
+		"CriticalTransients":    criticalTransients,
+		"Singletons":            singletons,
+		"NonCriticalTransients": nonCriticalTransients,
+		"Controllers":           controllers,
+		"Middleware":            middleware,
 	}
 
 	return g.executeTemplate("di.tmpl", data)
+}
+
+// buildProviderData builds ProviderData for a given provider
+func (g *Generator) buildProviderData(prov *scanner.Provider) ProviderData {
+	// Build dependency arguments
+	var args []string
+	for _, dep := range prov.Dependencies {
+		depFieldName := g.findProviderForType(dep.Type)
+		if depFieldName != "" {
+			// For transient providers, call the factory function
+			if g.isProviderTransient(dep.Type) {
+				args = append(args, "c.providers."+depFieldName+"Factory()")
+			} else {
+				args = append(args, "c.providers."+depFieldName)
+			}
+		}
+	}
+
+	// Check if provider returns error (second return value)
+	returnsError := false
+	if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
+		returnCount := 0
+		for _, field := range prov.FuncDecl.Type.Results.List {
+			if len(field.Names) == 0 {
+				returnCount++
+			} else {
+				returnCount += len(field.Names)
+			}
+		}
+		returnsError = returnCount > 1
+	}
+
+	return ProviderData{
+		FieldName:    g.providerFieldName(prov),
+		TypeName:     g.typeString(prov.ReturnType),
+		PackageName:  prov.PackageName,
+		FunctionName: prov.FunctionName,
+		Name:         prov.Name,
+		ArgsString:   strings.Join(args, ", "),
+		ReturnsError: returnsError,
+		Lifecycle:    prov.Lifecycle,
+		IsConfig:     false,
+	}
 }
 
 // createConfigProvider creates a synthetic provider for Config
@@ -370,54 +403,3 @@ func (g *Generator) collectImports() []string {
 	return imports
 }
 
-// sortProvidersByDependencies performs topological sort on providers
-// to ensure dependencies are initialized before dependents
-func (g *Generator) sortProvidersByDependencies(providers []*scanner.Provider) []*scanner.Provider {
-	// Build a map of type -> provider for quick lookup
-	providerByType := make(map[string]*scanner.Provider)
-	for _, prov := range providers {
-		if prov.ReturnType != nil {
-			providerByType[prov.ReturnType.FullName] = prov
-		}
-	}
-
-	// Track visited providers and build result
-	visited := make(map[string]bool)
-	var result []*scanner.Provider
-
-	// Helper function for DFS
-	var visit func(*scanner.Provider)
-	visit = func(prov *scanner.Provider) {
-		if prov.ReturnType == nil {
-			return
-		}
-
-		typeName := prov.ReturnType.FullName
-		if visited[typeName] {
-			return
-		}
-
-		// Visit dependencies first
-		for _, dep := range prov.Dependencies {
-			if dep.Type == nil || dep.Type.IsPrimitive {
-				continue
-			}
-
-			depProvider := providerByType[dep.Type.FullName]
-			if depProvider != nil {
-				visit(depProvider)
-			}
-		}
-
-		// Mark as visited and add to result
-		visited[typeName] = true
-		result = append(result, prov)
-	}
-
-	// Visit all providers
-	for _, prov := range providers {
-		visit(prov)
-	}
-
-	return result
-}

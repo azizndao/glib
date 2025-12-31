@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"glib/demo/generated"
 	"log"
 	"net/http"
 	"os"
@@ -9,10 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"glib/demo/generated"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load()
 	ctx := context.Background()
 
 	// Bootstrap application (config loaded internally)

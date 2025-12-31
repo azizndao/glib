@@ -9,12 +9,13 @@ import (
 )
 
 type PostSerivce struct {
-	db *gorm.DB
+	db      *gorm.DB
+	auditor Auditor
 }
 
 // @Provider singleton
-func NewPostSerivce(db *gorm.DB) *PostSerivce {
-	return &PostSerivce{db: db}
+func NewPostSerivce(db *gorm.DB, auditor *Auditor) *PostSerivce {
+	return &PostSerivce{db: db, auditor: *auditor}
 }
 
 func (s *PostSerivce) GetPost(id uuid.UUID) (*models.Post, error) {
@@ -74,11 +75,11 @@ func generateSlug(title string) string {
 	slug := strings.ToLower(title)
 	slug = strings.ReplaceAll(slug, " ", "-")
 	allowedChars := "abcdefghijklmnopqrstuvwxyz0123456789-"
-	result := ""
+	var result strings.Builder
 	for _, char := range slug {
 		if strings.ContainsRune(allowedChars, char) {
-			result += string(char)
+			result.WriteString(string(char))
 		}
 	}
-	return result
+	return result.String()
 }

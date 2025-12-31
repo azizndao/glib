@@ -29,14 +29,14 @@ type container struct {
 
 // providerContainer holds all singleton and transient providers.
 type providerContainer struct {
+	// Configuration Providers
+	config *configs.Config
 	// Singleton Providers
-	config         *configs.Config
 	database       *gorm.DB
-	userSerivce    *services.UserSerivce
 	commentService *services.CommentService
 	jWTService     *services.JWTService
+	userSerivce    *services.UserSerivce
 	postSerivce    *services.PostSerivce
-
 	// Transient Provider Factories
 	auditorFactory func() *services.Auditor
 	loggerFactory  func() *services.Logger
@@ -79,26 +79,34 @@ func initContainer(ctx context.Context) (*container, error) {
 
 // initProviders initializes all singleton and transient providers.
 func (c *container) initProviders(ctx context.Context) error {
-	// Singleton Providers
 	var err error
+
+	// Configuration Providers
+
 	// Auto-load config: Config
 	c.providers.config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
 	}
+	// Phase 1: Critical Transient Provider Factories (used by singletons)
+	c.providers.auditorFactory = func() *services.Auditor {
+		return services.NewAuditor(c.providers.userSerivce)
+	}
+	// Phase 2: Singleton Providers (in dependency order)
+
 	c.providers.database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
-	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
-	c.providers.commentService = services.NewCommentService(c.providers.database)
-	c.providers.jWTService = services.NewJWTService()
-	c.providers.postSerivce = services.NewPostSerivce(c.providers.database)
 
-	// Transient Provider Factories
-	c.providers.auditorFactory = func() *services.Auditor {
-		return services.NewAuditor(c.providers.userSerivce)
-	}
+	c.providers.commentService = services.NewCommentService(c.providers.database)
+
+	c.providers.jWTService = services.NewJWTService()
+
+	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
+
+	c.providers.postSerivce = services.NewPostSerivce(c.providers.database, c.providers.auditorFactory())
+	// Phase 3: Transient Provider Factories (used only by controllers)
 	c.providers.loggerFactory = func() *services.Logger {
 		return services.NewLogger()
 	}
@@ -108,15 +116,18 @@ func (c *container) initProviders(ctx context.Context) error {
 
 // initControllers initializes all HTTP controllers and injects their dependencies.
 func (c *container) initControllers() error {
+
 	c.controllers.authController = &auth.Controller{
 		UserService: c.providers.userSerivce,
 		JWTService:  c.providers.jWTService,
 		Auditor:     c.providers.auditorFactory(),
 	}
+
 	c.controllers.commentController = &comment.Controller{
 		Logger:         c.providers.loggerFactory(),
 		CommentService: c.providers.commentService,
 	}
+
 	c.controllers.postController = &post.Controller{
 		UserSerivce: c.providers.userSerivce,
 		PostSerivce: c.providers.postSerivce,
@@ -128,13 +139,9 @@ func (c *container) initControllers() error {
 
 // initMiddleware initializes all HTTP middleware.
 func (c *container) initMiddleware() error {
-	// Wrap new-style middleware to http.Handler adapter
 	c.middleware.loggerMiddleware = wrapGlibMiddleware(middleware.Logger())
-	// Wrap new-style middleware to http.Handler adapter
 	c.middleware.authMiddleware = wrapGlibMiddleware(middleware.Auth(c.providers.jWTService))
-	// Wrap new-style middleware to http.Handler adapter
 	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
-
 	return nil
 }
 

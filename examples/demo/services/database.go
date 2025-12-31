@@ -9,12 +9,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // @Provider singleton
 func NewDatabase() (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open("demo.db"), &gorm.Config{
-		// Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect database: %w", err)
