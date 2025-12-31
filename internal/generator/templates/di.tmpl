@@ -147,37 +147,6 @@ func (c *container) initProviders(ctx context.Context) error {
 	}
 {{- end}}
 {{- end}}
-{{- if $hasSingletons}}
-
-	// Phase 2: Singleton Providers (in dependency order)
-{{- range .Singletons}}
-{{- if .ReturnsError}}
-	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
-	if err != nil {
-		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
-	}
-{{- else}}
-
-	c.providers.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
-{{- end}}
-{{- end}}
-{{- end}}
-{{- if and (or $hasCriticalTransients $hasSingletons $hasConfigs) $hasNonCriticalTransients}}
-{{- end}}
-{{- if $hasNonCriticalTransients}}
-
-	// Phase 3: Transient Provider Factories (used only by controllers)
-{{- range .NonCriticalTransients}}
-	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
-{{- if .ReturnsError}}
-		result, _ := {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
-		return result
-{{- else}}
-		return {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
-{{- end}}
-	}
-{{- end}}
-{{- end}}
 
 	return nil
 }

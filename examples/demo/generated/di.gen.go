@@ -86,25 +86,6 @@ func (c *container) initProviders(ctx context.Context) error {
 		return services.NewLogger()
 	}
 
-	// Phase 2: Singleton Providers (in dependency order)
-	c.providers.database, err = services.NewDatabase()
-	if err != nil {
-		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
-	}
-
-	c.providers.commentService = services.NewCommentService(c.providers.database)
-
-	c.providers.jWTService = services.NewJWTService()
-
-	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
-
-	c.providers.postSerivce = services.NewPostSerivce(c.providers.database, c.providers.auditorFactory())
-
-	// Phase 3: Transient Provider Factories (used only by controllers)
-	c.providers.loggerFactory = func() *services.Logger {
-		return services.NewLogger()
-	}
-
 	return nil
 }
 

@@ -90,7 +90,6 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 	// Verify generated files exist
 	generatedDir := filepath.Join(tmpDir, "generated")
 	expectedFiles := []string{
-		"glib.gen.go",
 		"di.gen.go",
 		"routes.gen.go",
 		"parsers.gen.go",
@@ -375,7 +374,7 @@ func (c *TestController) Get(ctx context.Context) glib.Result[string] {
 
 	// Verify files are in custom output directory
 	generatedDir := filepath.Join(tmpDir, customOutput)
-	if _, err := os.Stat(filepath.Join(generatedDir, "glib.gen.go")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(generatedDir, "di.gen.go")); os.IsNotExist(err) {
 		t.Errorf("Expected file in custom output directory %s", customOutput)
 	}
 }

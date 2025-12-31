@@ -27,7 +27,6 @@ func newGenerateCmd() *cobra.Command {
 		Long: `Scan Go source code for annotations and generate code.
 
 Generates:
-  - Bootstrap code (generated/glib.gen.go)
   - DI container (generated/di.gen.go)
   - Route registration (generated/routes.gen.go)  
   - Request parsers (generated/parsers.gen.go)`,
@@ -133,7 +132,6 @@ func runGenerate(opts *generateOptions) error {
 		return fmt.Errorf("failed to generate code: %w", err)
 	}
 
-	fmt.Printf("   ✓ %s/glib.gen.go\n", outputDir)
 	fmt.Printf("   ✓ %s/di.gen.go\n", outputDir)
 	fmt.Printf("   ✓ %s/routes.gen.go\n", outputDir)
 	fmt.Printf("   ✓ %s/parsers.gen.go\n", outputDir)
