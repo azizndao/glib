@@ -88,9 +88,9 @@ func (g *Generator) generateDI() (string, error) {
 			if depFieldName != "" {
 				// For transient providers, call the factory function
 				if g.isProviderTransient(dep.Type) {
-					args = append(args, "container."+depFieldName+"Factory()")
+					args = append(args, "c.providers."+depFieldName+"Factory()")
 				} else {
-					args = append(args, "container."+depFieldName)
+					args = append(args, "c.providers."+depFieldName)
 				}
 			}
 		}
@@ -151,7 +151,7 @@ func (g *Generator) generateDI() (string, error) {
 		for _, dep := range mw.Dependencies {
 			providerField := g.findProviderForType(dep.Type)
 			if providerField != "" {
-				args = append(args, "c."+providerField)
+				args = append(args, "c.providers."+providerField)
 			}
 		}
 
@@ -182,10 +182,7 @@ func (g *Generator) generateDI() (string, error) {
 
 func (g *Generator) providerFieldName(prov *scanner.Provider) string {
 	// Convert NewDatabase -> database
-	name := prov.FunctionName
-	if strings.HasPrefix(name, "New") {
-		name = name[3:]
-	}
+	name := strings.TrimPrefix(prov.FunctionName, "New")
 	return strings.ToLower(name[:1]) + name[1:]
 }
 

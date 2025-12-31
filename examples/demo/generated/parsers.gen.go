@@ -36,13 +36,13 @@ func handleAuthControllerGetSession(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.GetSession(ctx, id)
+		result := container.controllers.authController.GetSession(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -62,13 +62,13 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.Register(ctx, req)
+		result := container.controllers.authController.Register(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -88,13 +88,13 @@ func handleAuthControllerUpdate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.authController.Update(ctx, req)
+		result := container.controllers.authController.Update(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -107,13 +107,13 @@ func handleAuthControllerDelete(container *container) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Call handler
-		result := container.authController.Delete(ctx)
+		result := container.controllers.authController.Delete(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -126,14 +126,14 @@ func handleCommentControllerIndex(container *container) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Call handler
-		result := container.commentController.Index(ctx)
+		result := container.controllers.commentController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -154,14 +154,14 @@ func handleCommentControllerShow(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.commentController.Show(ctx, id)
+		result := container.controllers.commentController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -181,15 +181,15 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.commentController.Create(ctx, req)
+		result := container.controllers.commentController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -217,15 +217,15 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.commentController.Update(ctx, id, req)
+		result := container.controllers.commentController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -246,15 +246,15 @@ func handleCommentControllerDelete(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.commentController.Delete(ctx, id)
+		result := container.controllers.commentController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -267,14 +267,14 @@ func handlePostControllerIndex(container *container) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Call handler
-		result := container.postController.Index(ctx)
+		result := container.controllers.postController.Index(ctx)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -295,14 +295,14 @@ func handlePostControllerShow(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.postController.Show(ctx, id)
+		result := container.controllers.postController.Show(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -322,15 +322,15 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.postController.Create(ctx, req)
+		result := container.controllers.postController.Create(ctx, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -358,15 +358,15 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.postController.Update(ctx, id, req)
+		result := container.controllers.postController.Update(ctx, id, req)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -387,15 +387,15 @@ func handlePostControllerDelete(container *container) http.HandlerFunc {
 		}
 
 		// Call handler
-		result := container.postController.Delete(ctx, id)
+		result := container.controllers.postController.Delete(ctx, id)
 
 		// Write result
 		writeResult(w, result)
 	})
 
-	handler = container.authMiddleware(handler)
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.authMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -406,11 +406,11 @@ func handlePostControllerExport(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Raw handler - direct passthrough
-		container.postController.Export(w, r)
+		container.controllers.postController.Export(w, r)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }
@@ -421,11 +421,11 @@ func handlePostControllerStream(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Raw handler - direct passthrough
-		container.postController.Stream(w, r)
+		container.controllers.postController.Stream(w, r)
 	})
 
-	handler = container.ratelimitMiddleware(handler)
-	handler = container.loggerMiddleware(handler)
+	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
 }

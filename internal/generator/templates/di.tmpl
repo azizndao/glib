@@ -25,17 +25,38 @@ import (
 // It is initialized once at startup and provides access to controllers,
 // providers, and middleware throughout the application lifecycle.
 type container struct {
-	ctx context.Context
+	ctx         context.Context
+	providers   providerContainer
+	controllers controllerContainer
+	middleware  middlewareContainer
+}
+
+// providerContainer holds all singleton and transient providers.
+type providerContainer struct {
+	// Singleton Providers
 {{- range .Providers}}
 {{- if eq .Lifecycle "singleton"}}
 	{{.FieldName}} {{.TypeName}}
-{{- else}}
+{{- end}}
+{{- end}}
+
+	// Transient Provider Factories
+{{- range .Providers}}
+{{- if eq .Lifecycle "transient"}}
 	{{.FieldName}}Factory func() {{.TypeName}}
 {{- end}}
 {{- end}}
+}
+
+// controllerContainer holds all HTTP controllers.
+type controllerContainer struct {
 {{- range .Controllers}}
 	{{.FieldName}} *{{.PackageName}}.{{.Name}}
 {{- end}}
+}
+
+// middlewareContainer holds all HTTP middleware.
+type middlewareContainer struct {
 {{- range .Middleware}}
 {{- if eq .Signature "new"}}
 	{{.FieldName}} func(http.Handler) http.Handler // Wrapped new-style middleware
@@ -49,23 +70,55 @@ type container struct {
 // It creates and wires all providers, controllers, and middleware.
 // Returns an error if any provider initialization fails.
 func initContainer(ctx context.Context) (*container, error) {
-	container := &container{ctx: ctx}
+	c := &container{ctx: ctx}
 
-	// Initialize providers
+	if err := c.initProviders(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := c.initControllers(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initMiddleware(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// initProviders initializes all singleton and transient providers.
+func (c *container) initProviders(ctx context.Context) error {
+{{- $hasSingletons := false}}
+{{- $hasTransients := false}}
+{{- range .Providers}}
+{{- if eq .Lifecycle "singleton"}}{{$hasSingletons = true}}{{end}}
+{{- if eq .Lifecycle "transient"}}{{$hasTransients = true}}{{end}}
+{{- end}}
+
+{{- if $hasSingletons}}
+	// Singleton Providers
 {{- range .Providers}}
 {{- if eq .Lifecycle "singleton"}}
 {{- if .ReturnsError}}
 	var err error
-	container.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	c.providers.{{.FieldName}}, err = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize {{.Name}}: %w", err)
+		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
 {{- else}}
-	container.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	c.providers.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 {{- end}}
-{{- else}}
-	// Transient provider - store factory function
-	container.{{.FieldName}}Factory = func() {{.TypeName}} {
+{{- end}}
+{{- end}}
+{{- end}}
+{{if and $hasSingletons $hasTransients}}
+
+{{end}}{{- if $hasTransients}}
+	// Transient Provider Factories
+{{- range .Providers}}
+{{- if eq .Lifecycle "transient"}}
+	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
 {{- if .ReturnsError}}
 		result, _ := {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 		return result
@@ -75,31 +128,40 @@ func initContainer(ctx context.Context) (*container, error) {
 	}
 {{- end}}
 {{- end}}
+{{- end}}
 
-	// Initialize controllers
+	return nil
+}
+
+// initControllers initializes all HTTP controllers and injects their dependencies.
+func (c *container) initControllers() error {
 {{- range .Controllers}}
-	container.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
+	c.controllers.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
 {{- range .Fields}}
 {{- if .IsTransient}}
-		{{.Name}}: container.{{.ProviderField}}Factory(),
+		{{.Name}}: c.providers.{{.ProviderField}}Factory(),
 {{- else}}
-		{{.Name}}: container.{{.ProviderField}},
+		{{.Name}}: c.providers.{{.ProviderField}},
 {{- end}}
 {{- end}}
 	}
 {{- end}}
 
-	// Initialize middleware
+	return nil
+}
+
+// initMiddleware initializes all HTTP middleware.
+func (c *container) initMiddleware() error {
 {{- range .Middleware}}
 {{- if eq .Signature "new"}}
 	// Wrap new-style middleware to http.Handler adapter
-	container.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
+	c.middleware.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))
 {{- else}}
-	container.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
+	c.middleware.{{.FieldName}} = {{.PackageName}}.{{.FunctionName}}({{.ArgsString}})
 {{- end}}
 {{- end}}
 
-	return container, nil
+	return nil
 }
 
 {{- if .NeedsGlibMiddleware}}

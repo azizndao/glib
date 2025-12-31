@@ -51,7 +51,7 @@
 {{- end}}
 
 	// Call handler
-	result := container.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
+	result := container.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
 		
 		// Write result
 		writeResult(w, result)

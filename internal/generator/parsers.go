@@ -188,7 +188,7 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 		// Apply middleware chain in reverse order (innermost first)
 		for i := len(middlewareChain) - 1; i >= 0; i-- {
 			mwFieldName := g.middlewareFieldName(middlewareChain[i])
-			b.WriteString(fmt.Sprintf("\thandler = container.%s(handler)\n", mwFieldName))
+			fmt.Fprintf(&b, "\thandler = container.middleware.%s(handler)\n", mwFieldName)
 		}
 
 		b.WriteString("\n\treturn handler.ServeHTTP\n")

@@ -18,14 +18,32 @@ import (
 // It is initialized once at startup and provides access to controllers,
 // providers, and middleware throughout the application lifecycle.
 type container struct {
-	ctx                 context.Context
-	userSerivce         *services.UserSerivce
-	auditorFactory      func() *services.Auditor
-	loggerFactory       func() *services.Logger
-	postSerivce         *services.PostSerivce
-	authController      *auth.Controller
-	commentController   *comment.Controller
-	postController      *post.Controller
+	ctx         context.Context
+	providers   providerContainer
+	controllers controllerContainer
+	middleware  middlewareContainer
+}
+
+// providerContainer holds all singleton and transient providers.
+type providerContainer struct {
+	// Singleton Providers
+	userSerivce *services.UserSerivce
+	postSerivce *services.PostSerivce
+
+	// Transient Provider Factories
+	auditorFactory func() *services.Auditor
+	loggerFactory  func() *services.Logger
+}
+
+// controllerContainer holds all HTTP controllers.
+type controllerContainer struct {
+	authController    *auth.Controller
+	commentController *comment.Controller
+	postController    *post.Controller
+}
+
+// middlewareContainer holds all HTTP middleware.
+type middlewareContainer struct {
 	loggerMiddleware    func(http.Handler) http.Handler
 	authMiddleware      func(http.Handler) http.Handler
 	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style middleware
@@ -35,41 +53,66 @@ type container struct {
 // It creates and wires all providers, controllers, and middleware.
 // Returns an error if any provider initialization fails.
 func initContainer(ctx context.Context) (*container, error) {
-	container := &container{ctx: ctx}
+	c := &container{ctx: ctx}
 
-	// Initialize providers
-	container.userSerivce = services.NewUserSerivce()
-	// Transient provider - store factory function
-	container.auditorFactory = func() *services.Auditor {
-		return services.NewAuditor(container.userSerivce)
+	if err := c.initProviders(ctx); err != nil {
+		return nil, err
 	}
-	// Transient provider - store factory function
-	container.loggerFactory = func() *services.Logger {
+
+	if err := c.initControllers(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initMiddleware(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// initProviders initializes all singleton and transient providers.
+func (c *container) initProviders(ctx context.Context) error {
+	// Singleton Providers
+	c.providers.userSerivce = services.NewUserSerivce()
+	c.providers.postSerivce = services.NewPostSerivce(c.providers.userSerivce)
+
+	// Transient Provider Factories
+	c.providers.auditorFactory = func() *services.Auditor {
+		return services.NewAuditor(c.providers.userSerivce)
+	}
+	c.providers.loggerFactory = func() *services.Logger {
 		return services.NewLogger()
 	}
-	container.postSerivce = services.NewPostSerivce(container.userSerivce)
 
-	// Initialize controllers
-	container.authController = &auth.Controller{
-		UserSerivce: container.userSerivce,
-		Auditor:     container.auditorFactory(),
+	return nil
+}
+
+// initControllers initializes all HTTP controllers and injects their dependencies.
+func (c *container) initControllers() error {
+	c.controllers.authController = &auth.Controller{
+		UserSerivce: c.providers.userSerivce,
+		Auditor:     c.providers.auditorFactory(),
 	}
-	container.commentController = &comment.Controller{
-		Logger: container.loggerFactory(),
+	c.controllers.commentController = &comment.Controller{
+		Logger: c.providers.loggerFactory(),
 	}
-	container.postController = &post.Controller{
-		UserSerivce: container.userSerivce,
-		PostSerivce: container.postSerivce,
-		Logger:      container.loggerFactory(),
+	c.controllers.postController = &post.Controller{
+		UserSerivce: c.providers.userSerivce,
+		PostSerivce: c.providers.postSerivce,
+		Logger:      c.providers.loggerFactory(),
 	}
 
-	// Initialize middleware
-	container.loggerMiddleware = middleware.Logger()
-	container.authMiddleware = middleware.Auth()
+	return nil
+}
+
+// initMiddleware initializes all HTTP middleware.
+func (c *container) initMiddleware() error {
+	c.middleware.loggerMiddleware = middleware.Logger()
+	c.middleware.authMiddleware = middleware.Auth()
 	// Wrap new-style middleware to http.Handler adapter
-	container.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
+	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 
-	return container, nil
+	return nil
 }
 
 // wrapGlibMiddleware adapts a glib.Middleware to http.Handler middleware.
