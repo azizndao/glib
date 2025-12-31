@@ -30,6 +30,6 @@ func (c *Controller) Update(ctx context.Context, req UpdateAuthRequest) glib.Res
 }
 
 // @Route method=DELETE path=/logout
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+func (c *Controller) Delete(ctx context.Context) glib.Result[any] {
 	return glib.NoContent[any]()
 }

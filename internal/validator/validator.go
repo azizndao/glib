@@ -120,6 +120,109 @@ func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Cont
 		v.addError(location, fmt.Sprintf("invalid handler signature: must return glib.Result[T] (Pattern 10) or use raw http.ResponseWriter/Request (Pattern 11), got pattern %d", handler.Signature.Pattern))
 	}
 
+	// Validate path parameters match handler signature
+	v.validatePathParams(handler, location)
+}
+
+// validatePathParams validates that path parameters in the route match the handler signature
+func (v *Validator) validatePathParams(handler *scanner.Handler, location string) {
+	// Extract path parameters from the route path
+	pathParams := extractPathParams(handler.Path)
+
+	// For Pattern 11 (raw HTTP), we don't validate params since handler gets raw request
+	if handler.Signature.Pattern == 11 {
+		return
+	}
+
+	// Check that signature has matching number of path parameters
+	sigParams := handler.Signature.PathParams
+	if len(pathParams) != len(sigParams) {
+		v.addError(location, fmt.Sprintf(
+			"path parameter mismatch: route has %d parameters %v but handler signature has %d parameters",
+			len(pathParams), pathParams, len(sigParams)))
+		return
+	}
+
+	// Check that parameter names match (order matters)
+	for i, pathParam := range pathParams {
+		if i >= len(sigParams) {
+			break
+		}
+		sigParam := sigParams[i]
+		if pathParam != sigParam.Name {
+			v.addWarning(location, fmt.Sprintf(
+				"path parameter name mismatch at position %d: route has '{%s}' but handler parameter is '%s'",
+				i, pathParam, sigParam.Name))
+		}
+	}
+
+	// Validate parameter types are parseable
+	for _, sigParam := range sigParams {
+		if sigParam.Type == nil {
+			continue
+		}
+
+		// Check if the type is supported for path parameters
+		if !isValidPathParamType(sigParam.Type) {
+			v.addError(location, fmt.Sprintf(
+				"path parameter '%s' has unsupported type '%s'. Supported types: string, int, int64, uint64, float64, bool, uuid.UUID",
+				sigParam.Name, sigParam.Type.FullName))
+		}
+	}
+}
+
+// extractPathParams extracts parameter names from a path pattern
+// Example: "/posts/{id}/comments/{commentId}" -> ["id", "commentId"]
+func extractPathParams(path string) []string {
+	var params []string
+	inParam := false
+	var currentParam strings.Builder
+
+	for _, ch := range path {
+		switch ch {
+		case '{':
+			inParam = true
+			currentParam.Reset()
+		case '}':
+			if inParam {
+				params = append(params, currentParam.String())
+				inParam = false
+			}
+		default:
+			if inParam {
+				currentParam.WriteRune(ch)
+			}
+		}
+	}
+
+	return params
+}
+
+// isValidPathParamType checks if a type is valid for path parameters
+func isValidPathParamType(typeInfo *scanner.TypeInfo) bool {
+	// Primitives
+	if typeInfo.IsPrimitive {
+		validPrimitives := map[string]bool{
+			"string":  true,
+			"int":     true,
+			"int64":   true,
+			"int32":   true,
+			"uint":    true,
+			"uint64":  true,
+			"uint32":  true,
+			"float64": true,
+			"float32": true,
+			"bool":    true,
+		}
+		return validPrimitives[typeInfo.Name]
+	}
+
+	// Special types
+	if typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID" {
+		return true
+	}
+
+	return false
 }
 
 // validateProvider validates a provider

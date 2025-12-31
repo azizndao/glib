@@ -105,17 +105,9 @@ func handleAuthControllerDelete(container *container) http.HandlerFunc {
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse path parameters
-		idStr := r.PathValue("id")
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			writeResult(w, glib.BadRequest[any](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)))
-			return
-		}
 
 		// Call handler
-		result := container.authController.Delete(ctx, id)
+		result := container.authController.Delete(ctx)
 
 		// Write result
 		writeResult(w, result)

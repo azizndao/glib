@@ -86,6 +86,16 @@ func TestValidateHandler(t *testing.T) {
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
 					Pattern: 10, // Pattern 10: Result[T]
+					PathParams: []*scanner.PathParam{
+						{
+							Name: "id",
+							Type: &scanner.TypeInfo{
+								Name:        "int",
+								IsPrimitive: true,
+								FullName:    "int",
+							},
+						},
+					},
 				},
 			},
 			expectErrors: 0,
@@ -111,6 +121,16 @@ func TestValidateHandler(t *testing.T) {
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
 					Pattern: 10,
+					PathParams: []*scanner.PathParam{
+						{
+							Name: "id",
+							Type: &scanner.TypeInfo{
+								Name:        "int",
+								IsPrimitive: true,
+								FullName:    "int",
+							},
+						},
+					},
 				},
 			},
 			expectErrors: 1,
@@ -135,6 +155,16 @@ func TestValidateHandler(t *testing.T) {
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
 					Pattern: 7, // Pattern 7 is no longer valid in Glib 3.0
+					PathParams: []*scanner.PathParam{
+						{
+							Name: "id",
+							Type: &scanner.TypeInfo{
+								Name:        "int",
+								IsPrimitive: true,
+								FullName:    "int",
+							},
+						},
+					},
 				},
 			},
 			expectErrors: 1,
