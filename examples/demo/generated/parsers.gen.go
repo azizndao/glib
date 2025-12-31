@@ -70,6 +70,7 @@ func handleAuthControllerGetMe(container *container) http.HandlerFunc {
 
 	}))
 
+	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
@@ -92,6 +93,7 @@ func handleAuthControllerUpdateProfile(container *container) http.HandlerFunc {
 
 	}))
 
+	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP
@@ -107,6 +109,7 @@ func handleAuthControllerLogout(container *container) http.HandlerFunc {
 
 	}))
 
+	handler = container.middleware.authMiddleware(handler)
 	handler = container.middleware.loggerMiddleware(handler)
 
 	return handler.ServeHTTP

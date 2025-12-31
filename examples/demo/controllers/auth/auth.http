@@ -16,7 +16,8 @@ Content-Type: application/json
   "bio": "Hello, I'm a new user!"
 }
 
-### Login with credentials
+### Login with credentials (save token for later)
+# @name login
 POST {{apiBase}}/login
 Content-Type: application/json
 
@@ -25,12 +26,16 @@ Content-Type: application/json
   "password": "password123"
 }
 
-### Get current user profile
-GET {{apiBase}}/me
-Accept: application/json
+### Extract token from login response
+@token = {{login.response.body.$.token}}
 
-### Update current user profile
+### Get current user profile (requires auth)
+GET {{apiBase}}/me
+Authorization: Bearer {{token}}
+
+### Update current user profile (requires auth)
 PUT {{apiBase}}/me
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -39,9 +44,13 @@ Content-Type: application/json
   "bio": "Updated bio information"
 }
 
-### Get specific user by ID
+### Get specific user by ID (public)
 GET {{apiBase}}/users/{{userId}}
 Accept: application/json
 
-### Logout
+### Logout (requires auth)
 DELETE {{apiBase}}/logout
+Authorization: Bearer {{token}}
+
+### Test: Try to access protected route without token (should fail)
+GET {{apiBase}}/me

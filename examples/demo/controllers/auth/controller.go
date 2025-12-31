@@ -7,12 +7,14 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // @Controller path=/api/v1/auth tags=public
 type Controller struct {
-	UserSerivce *services.UserSerivce
-	Auditor     *services.Auditor // Transient provider with singleton dependency
+	UserService *services.UserSerivce
+	JWTService  *services.JWTService
+	Auditor     *services.Auditor
 }
 
 // Helper function to convert models.User to UserResponse
@@ -32,21 +34,26 @@ func toUserResponse(user *models.User) *UserResponse {
 
 // @Route method=POST path=/register
 func (c *Controller) Register(ctx context.Context, req RegisterRequest) glib.Result[*UserResponse] {
-	c.Auditor.LogAction("user registration attempt")
+	c.Auditor.LogAction("user registration attempt: " + req.Username)
 
-	// TODO: Hash password properly (use bcrypt in production)
-	// For now, we'll just store it as-is (NOT PRODUCTION READY)
-	newUser := &models.User{
-		ID:        uuid.New(),
-		Email:     req.Email,
-		Username:  req.Username,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Bio:       req.Bio,
-		Active:    true,
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return glib.Fail[*UserResponse](err)
 	}
 
-	err := c.UserSerivce.CreateUser(newUser)
+	newUser := &models.User{
+		ID:           uuid.New(),
+		Email:        req.Email,
+		Username:     req.Username,
+		PasswordHash: string(hashedPassword),
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Bio:          req.Bio,
+		Active:       true,
+	}
+
+	err = c.UserService.CreateUser(newUser)
 	if err != nil {
 		return glib.Fail[*UserResponse](err)
 	}
@@ -60,7 +67,7 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) glib.Result[*L
 	c.Auditor.LogAction("login attempt: " + req.Username)
 
 	// Find user by username
-	users, err := c.UserSerivce.GetUsers()
+	users, err := c.UserService.GetUsers()
 	if err != nil {
 		return glib.Fail[*LoginResponse](err)
 	}
@@ -77,30 +84,38 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) glib.Result[*L
 		return glib.Unauthorized[*LoginResponse]("invalid credentials")
 	}
 
-	// TODO: Verify password hash (use bcrypt.CompareHashAndPassword in production)
-	// For now, we're just checking if user exists (NOT PRODUCTION READY)
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return glib.Unauthorized[*LoginResponse]("invalid credentials")
+	}
 
 	if !foundUser.Active {
 		return glib.Forbidden[*LoginResponse]("account is inactive")
 	}
 
+	// Generate JWT token
+	token, err := c.JWTService.GenerateToken(foundUser.ID, foundUser.Username, foundUser.Email)
+	if err != nil {
+		return glib.Fail[*LoginResponse](err)
+	}
+
 	c.Auditor.LogAction("user logged in: " + foundUser.Username)
 
-	// TODO: Generate JWT token in production
 	response := &LoginResponse{
 		User:  toUserResponse(foundUser),
-		Token: "dummy-token-" + foundUser.ID.String(), // Replace with real JWT
+		Token: token,
 	}
 
 	return glib.OK(response)
 }
 
-// @Route method=GET path=/me
+// @Route method=GET path=/me tags=protected
 func (c *Controller) GetMe(ctx context.Context) glib.Result[*UserResponse] {
-	// TODO: Get user ID from JWT token/session in production
+	// TODO: Get user ID from context (set by auth middleware)
 	// For now, return the first user as a demo (NOT PRODUCTION READY)
 
-	users, err := c.UserSerivce.GetUsers()
+	users, err := c.UserService.GetUsers()
 	if err != nil {
 		return glib.Fail[*UserResponse](err)
 	}
@@ -113,12 +128,12 @@ func (c *Controller) GetMe(ctx context.Context) glib.Result[*UserResponse] {
 	return glib.OK(toUserResponse(&users[0]))
 }
 
-// @Route method=PUT path=/me
+// @Route method=PUT path=/me tags=protected
 func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest) glib.Result[*UserResponse] {
-	// TODO: Get user ID from JWT token/session in production
+	// TODO: Get user ID from context (set by auth middleware)
 	// For now, update the first user as a demo (NOT PRODUCTION READY)
 
-	users, err := c.UserSerivce.GetUsers()
+	users, err := c.UserService.GetUsers()
 	if err != nil {
 		return glib.Fail[*UserResponse](err)
 	}
@@ -140,7 +155,7 @@ func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest
 		user.Bio = *req.Bio
 	}
 
-	updatedUser, err := c.UserSerivce.UpdateUser(user.ID, &user)
+	updatedUser, err := c.UserService.UpdateUser(user.ID, &user)
 	if err != nil {
 		return glib.Fail[*UserResponse](err)
 	}
@@ -149,16 +164,17 @@ func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest
 	return glib.OK(toUserResponse(updatedUser))
 }
 
-// @Route method=DELETE path=/logout
+// @Route method=DELETE path=/logout tags=protected
 func (c *Controller) Logout(ctx context.Context) glib.Result[any] {
 	c.Auditor.LogAction("user logout")
-	// TODO: Invalidate JWT token/session in production
+	// Token invalidation would go here (e.g., add to blacklist)
+	// For stateless JWT, client just deletes the token
 	return glib.NoContent[any]()
 }
 
 // @Route method=GET path=/users/{id}
 func (c *Controller) GetUser(ctx context.Context, id uuid.UUID) glib.Result[*UserResponse] {
-	user, err := c.UserSerivce.GetUser(id)
+	user, err := c.UserService.GetUser(id)
 	if err != nil {
 		return glib.NotFound[*UserResponse]("user not found")
 	}

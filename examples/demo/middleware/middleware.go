@@ -1,13 +1,25 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
+	"glib/demo/services"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/pkg/middleware"
+)
+
+// ContextKey type for context keys
+type ContextKey string
+
+const (
+	UserIDKey   ContextKey = "user_id"
+	UsernameKey ContextKey = "username"
+	EmailKey    ContextKey = "email"
 )
 
 // @Middleware name=logger target=all order=1
@@ -25,17 +37,44 @@ func Logger() func(http.Handler) http.Handler {
 }
 
 // @Middleware name=auth target=protected order=10
-func Auth() func(http.Handler) http.Handler {
+func Auth(jwtService *services.JWTService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := r.Header.Get("Authorization")
-			if token == "" {
-				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error":{"code":"unauthenticated","message":"Authorization header required"}}`))
 				return
 			}
 
-			// Token validation would go here
-			next.ServeHTTP(w, r)
+			// Extract token from "Bearer <token>"
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error":{"code":"unauthenticated","message":"Invalid authorization header format. Use: Bearer <token>"}}`))
+				return
+			}
+
+			token := parts[1]
+
+			// Validate token
+			claims, err := jwtService.ValidateToken(token)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(fmt.Sprintf(`{"error":{"code":"unauthenticated","message":"Invalid token: %s"}}`, err.Error())))
+				return
+			}
+
+			// Add user info to context
+			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+			ctx = context.WithValue(ctx, UsernameKey, claims.Username)
+			ctx = context.WithValue(ctx, EmailKey, claims.Email)
+
+			// Continue with updated context
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

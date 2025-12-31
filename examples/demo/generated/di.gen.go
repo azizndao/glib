@@ -32,6 +32,7 @@ type providerContainer struct {
 	database       *gorm.DB
 	userSerivce    *services.UserSerivce
 	commentService *services.CommentService
+	jWTService     *services.JWTService
 	postSerivce    *services.PostSerivce
 
 	// Transient Provider Factories
@@ -84,6 +85,7 @@ func (c *container) initProviders(ctx context.Context) error {
 	}
 	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
 	c.providers.commentService = services.NewCommentService(c.providers.database)
+	c.providers.jWTService = services.NewJWTService()
 	c.providers.postSerivce = services.NewPostSerivce(c.providers.database)
 
 	// Transient Provider Factories
@@ -100,7 +102,8 @@ func (c *container) initProviders(ctx context.Context) error {
 // initControllers initializes all HTTP controllers and injects their dependencies.
 func (c *container) initControllers() error {
 	c.controllers.authController = &auth.Controller{
-		UserSerivce: c.providers.userSerivce,
+		UserService: c.providers.userSerivce,
+		JWTService:  c.providers.jWTService,
 		Auditor:     c.providers.auditorFactory(),
 	}
 	c.controllers.commentController = &comment.Controller{
@@ -119,7 +122,7 @@ func (c *container) initControllers() error {
 // initMiddleware initializes all HTTP middleware.
 func (c *container) initMiddleware() error {
 	c.middleware.loggerMiddleware = middleware.Logger()
-	c.middleware.authMiddleware = middleware.Auth()
+	c.middleware.authMiddleware = middleware.Auth(c.providers.jWTService)
 	// Wrap new-style middleware to http.Handler adapter
 	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 

@@ -1,69 +1,82 @@
-### Post Controller Tests
+### Post API Tests
 @baseUrl = http://localhost:8080
 @apiBase = {{baseUrl}}/api/v1/post
+@postId = d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a
 
-### Get all posts
-GET {{apiBase}}/
-
-### Get specific post by ID
-# Replace with actual UUID from GET all posts response
-GET {{apiBase}}/00000000-0000-0000-0000-000000000000
-
-### Search posts with filters
-GET {{apiBase}}/search?page=1&limit=10
-
-### Search posts with query
-GET {{apiBase}}/search?q=glib
-
-### Search posts with tags
-GET {{apiBase}}/search?tag=golang&tag=web
-
-### Search posts with multiple filters
-GET {{apiBase}}/search?q=kubernetes&tag=golang&page=1&limit=5
-
-### Create a new post
-POST {{apiBase}}/
+### Login first to get token
+# @name login
+POST {{baseUrl}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "title": "My New Blog Post",
-  "body": "This is the content of my blog post about Go programming and Glib framework.",
-  "slug": "my-new-blog-post",
-  "published": true,
-  "author_id": "00000000-0000-0000-0000-000000000000",
-  "tags": "golang,blogging,glib"
+  "username": "john_doe",
+  "password": "password123"
 }
 
-### Update a post
-# Replace with actual UUID
-PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
+### Extract token
+@token = {{login.response.body.$.token}}
+
+### Get all posts (public)
+GET {{apiBase}}/
+Accept: application/json
+
+### Search posts with query and pagination (public)
+GET {{apiBase}}/?q=glib&page=1&limit=10
+Accept: application/json
+
+### Get single post by ID (public)
+GET {{apiBase}}/{{postId}}
+Accept: application/json
+
+### Create new post (requires auth)
+POST {{apiBase}}/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "New Post via API",
+  "body": "This is the content of my new post created with authentication",
+  "slug": "new-post-api",
+  "author_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+  "published": true,
+  "tags": "api,test,new"
+}
+
+### Update post (requires auth)
+PUT {{apiBase}}/{{postId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "title": "Updated Post Title",
-  "body": "This is the updated content.",
-  "published": false
+  "body": "Updated content",
+  "slug": "updated-slug",
+  "author_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+  "published": true,
+  "tags": "updated,tags"
 }
 
-### Partial update (only title)
-# Replace with actual UUID
-PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
+### Delete post (requires auth)
+DELETE {{apiBase}}/{{postId}}
+Authorization: Bearer {{token}}
+
+### Export posts to CSV (public)
+GET {{apiBase}}/export
+Accept: text/csv
+
+### Stream posts via Server-Sent Events (public)
+GET {{apiBase}}/stream
+Accept: text/event-stream
+
+### Health check (public)
+GET {{apiBase}}/health
+Accept: application/json
+
+### Test: Try to create without auth (should fail)
+POST {{apiBase}}/
 Content-Type: application/json
 
 {
-  "title": "Only Title Changed"
+  "title": "Should Fail",
+  "body": "No auth token"
 }
-
-### Delete a post
-# Replace with actual UUID
-DELETE {{apiBase}}/00000000-0000-0000-0000-000000000000
-
-### Export posts as CSV
-GET {{apiBase}}/export
-
-### Stream posts via Server-Sent Events (SSE)
-# This will stream 3 events, 1 second apart
-GET {{apiBase}}/stream
-
-### Health check endpoint (no middleware)
-GET {{apiBase}}/health

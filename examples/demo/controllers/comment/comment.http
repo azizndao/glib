@@ -1,33 +1,60 @@
-### Comment Controller Tests
+### Comment API Tests
 @baseUrl = http://localhost:8080
 @apiBase = {{baseUrl}}/api/v1/comment
+@commentId = c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f
 
-### Get all comments
+### Login first to get token
+# @name login
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "password": "password123"
+}
+
+### Extract token
+@token = {{login.response.body.$.token}}
+
+### Get all comments (public)
 GET {{apiBase}}/
+Accept: application/json
 
-### Get specific comment by ID
-# Replace with actual UUID from GET all comments response
-GET {{apiBase}}/00000000-0000-0000-0000-000000000000
+### Get single comment by ID (public)
+GET {{apiBase}}/{{commentId}}
+Accept: application/json
 
-### Create a new comment
+### Create new comment (requires auth)
+POST {{apiBase}}/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "post_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+  "user_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+  "content": "This is a new comment created via API with authentication"
+}
+
+### Update comment (requires auth)
+PUT {{apiBase}}/{{commentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "post_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+  "user_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+  "content": "Updated comment content"
+}
+
+### Delete comment (requires auth)
+DELETE {{apiBase}}/{{commentId}}
+Authorization: Bearer {{token}}
+
+### Test: Try to create without auth (should fail)
 POST {{apiBase}}/
 Content-Type: application/json
 
 {
-  "content": "This is a test comment! Great article.",
-  "post_id": "00000000-0000-0000-0000-000000000000",
-  "user_id": "00000000-0000-0000-0000-000000000000"
+  "post_id": "d4e5f6a7-b8c9-4d5e-1f2a-3b4c5d6e7f8a",
+  "content": "Should fail"
 }
-
-### Update a comment
-# Replace with actual UUID
-PUT {{apiBase}}/00000000-0000-0000-0000-000000000000
-Content-Type: application/json
-
-{
-  "content": "Updated comment content with new information."
-}
-
-### Delete a comment
-# Replace with actual UUID
-DELETE {{apiBase}}/00000000-0000-0000-0000-000000000000

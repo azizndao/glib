@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -45,34 +46,40 @@ func seedDatabase(db *gorm.DB) {
 
 	log.Println("Seeding database with initial data...")
 
+	// Create password hash for demo users (password: "password123")
+	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+
 	// Create users with realistic UUIDs
 	users := []models.User{
 		{
-			ID:        uuid.MustParse("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d"),
-			Email:     "john@example.com",
-			Username:  "john_doe",
-			FirstName: "John",
-			LastName:  "Doe",
-			Bio:       "Software engineer passionate about Go and web development",
-			Active:    true,
+			ID:           uuid.MustParse("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d"),
+			Email:        "john@example.com",
+			Username:     "john_doe",
+			PasswordHash: string(passwordHash),
+			FirstName:    "John",
+			LastName:     "Doe",
+			Bio:          "Software engineer passionate about Go and web development",
+			Active:       true,
 		},
 		{
-			ID:        uuid.MustParse("b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e"),
-			Email:     "jane@example.com",
-			Username:  "jane_smith",
-			FirstName: "Jane",
-			LastName:  "Smith",
-			Bio:       "Full-stack developer and tech blogger",
-			Active:    true,
+			ID:           uuid.MustParse("b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e"),
+			Email:        "jane@example.com",
+			Username:     "jane_smith",
+			PasswordHash: string(passwordHash),
+			FirstName:    "Jane",
+			LastName:     "Smith",
+			Bio:          "Full-stack developer and tech blogger",
+			Active:       true,
 		},
 		{
-			ID:        uuid.MustParse("c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f"),
-			Email:     "bob@example.com",
-			Username:  "bob_wilson",
-			FirstName: "Bob",
-			LastName:  "Wilson",
-			Bio:       "DevOps engineer and cloud enthusiast",
-			Active:    true,
+			ID:           uuid.MustParse("c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f"),
+			Email:        "bob@example.com",
+			Username:     "bob_wilson",
+			PasswordHash: string(passwordHash),
+			FirstName:    "Bob",
+			LastName:     "Wilson",
+			Bio:          "DevOps engineer and cloud enthusiast",
+			Active:       true,
 		},
 	}
 
