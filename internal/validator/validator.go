@@ -426,8 +426,8 @@ func (v *Validator) validateMiddlewareReferences(project *scanner.Project) {
 		}
 
 		// Split comma-separated targets
-		targets := strings.Split(mw.Target, ",")
-		for _, target := range targets {
+		targets := strings.SplitSeq(mw.Target, ",")
+		for target := range targets {
 			target = strings.TrimSpace(target)
 			if target == "" {
 				continue

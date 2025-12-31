@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"go/ast"
+	"maps"
 	"regexp"
 	"strings"
 )
@@ -94,13 +95,11 @@ func parseKeyValuePairs(value string, defaults map[string]string) map[string]str
 	result := make(map[string]string)
 
 	// Copy defaults
-	for k, v := range defaults {
-		result[k] = v
-	}
+	maps.Copy(result, defaults)
 
 	// Parse key=value pairs
-	pairs := strings.Fields(value)
-	for _, pair := range pairs {
+	pairs := strings.FieldsSeq(value)
+	for pair := range pairs {
 		parts := strings.SplitN(pair, "=", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])

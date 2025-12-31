@@ -285,8 +285,8 @@ func (g *Generator) middlewareMatches(mw *scanner.Middleware, tags map[string]bo
 	}
 
 	// Split comma-separated targets
-	targets := strings.Split(mw.Target, ",")
-	for _, target := range targets {
+	targets := strings.SplitSeq(mw.Target, ",")
+	for target := range targets {
 		target = strings.TrimSpace(target)
 		if target == "all" || tags[target] {
 			return true
@@ -302,7 +302,7 @@ func sortMiddleware(middleware []*scanner.Middleware) []*scanner.Middleware {
 	sorted := make([]*scanner.Middleware, len(middleware))
 	copy(sorted, middleware)
 
-	for i := 0; i < len(sorted); i++ {
+	for i := range sorted {
 		for j := i + 1; j < len(sorted); j++ {
 			if compareMiddleware(sorted[i], sorted[j]) > 0 {
 				sorted[i], sorted[j] = sorted[j], sorted[i]
