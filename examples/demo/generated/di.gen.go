@@ -6,11 +6,9 @@ import (
 	"context"
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
-	"glib/demo/controllers/admin"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
-	"glib/demo/controllers/session"
 	"glib/demo/middleware"
 	"glib/demo/services"
 	"net/http"
@@ -21,13 +19,11 @@ import (
 // providers, and middleware throughout the application lifecycle.
 type container struct {
 	ctx                 context.Context
-	postSerivce         *services.PostSerivce
 	userSerivce         *services.UserSerivce
-	adminController     *admin.Controller
+	postSerivce         *services.PostSerivce
 	authController      *auth.Controller
 	commentController   *comment.Controller
 	postController      *post.Controller
-	sessionController   *session.Controller
 	loggerMiddleware    func(http.Handler) http.Handler
 	authMiddleware      func(http.Handler) http.Handler
 	ratelimitMiddleware func(http.Handler) http.Handler // Wrapped new-style middleware
@@ -40,19 +36,15 @@ func initContainer(ctx context.Context) (*container, error) {
 	container := &container{ctx: ctx}
 
 	// Initialize providers
-	container.postSerivce = services.NewPostSerivce()
 	container.userSerivce = services.NewUserSerivce()
+	container.postSerivce = services.NewPostSerivce(container.userSerivce)
 
 	// Initialize controllers
-	container.adminController = &admin.Controller{}
 	container.authController = &auth.Controller{}
 	container.commentController = &comment.Controller{}
 	container.postController = &post.Controller{
 		UserSerivce: container.userSerivce,
 		PostSerivce: container.postSerivce,
-	}
-	container.sessionController = &session.Controller{
-		UserSerivce: container.userSerivce,
 	}
 
 	// Initialize middleware

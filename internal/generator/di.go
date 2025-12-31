@@ -73,15 +73,18 @@ func (g *Generator) generateDI() (string, error) {
 		}
 	}
 
+	// Sort providers in dependency order (topological sort)
+	sortedProviders := g.sortProvidersByDependencies(g.project.Providers)
+
 	// Build provider data
 	var providers []ProviderData
-	for _, prov := range g.project.Providers {
+	for _, prov := range sortedProviders {
 		// Build dependency arguments
 		var args []string
 		for _, dep := range prov.Dependencies {
 			depFieldName := g.findProviderForType(dep.Type)
 			if depFieldName != "" {
-				args = append(args, "c."+depFieldName)
+				args = append(args, "container."+depFieldName)
 			}
 		}
 
@@ -243,4 +246,56 @@ func (g *Generator) collectImports() []string {
 	}
 
 	return imports
+}
+
+// sortProvidersByDependencies performs topological sort on providers
+// to ensure dependencies are initialized before dependents
+func (g *Generator) sortProvidersByDependencies(providers []*scanner.Provider) []*scanner.Provider {
+	// Build a map of type -> provider for quick lookup
+	providerByType := make(map[string]*scanner.Provider)
+	for _, prov := range providers {
+		if prov.ReturnType != nil {
+			providerByType[prov.ReturnType.FullName] = prov
+		}
+	}
+
+	// Track visited providers and build result
+	visited := make(map[string]bool)
+	var result []*scanner.Provider
+
+	// Helper function for DFS
+	var visit func(*scanner.Provider)
+	visit = func(prov *scanner.Provider) {
+		if prov.ReturnType == nil {
+			return
+		}
+
+		typeName := prov.ReturnType.FullName
+		if visited[typeName] {
+			return
+		}
+
+		// Visit dependencies first
+		for _, dep := range prov.Dependencies {
+			if dep.Type == nil || dep.Type.IsPrimitive {
+				continue
+			}
+
+			depProvider := providerByType[dep.Type.FullName]
+			if depProvider != nil {
+				visit(depProvider)
+			}
+		}
+
+		// Mark as visited and add to result
+		visited[typeName] = true
+		result = append(result, prov)
+	}
+
+	// Visit all providers
+	for _, prov := range providers {
+		visit(prov)
+	}
+
+	return result
 }

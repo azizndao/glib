@@ -5,11 +5,15 @@ import (
 	"time"
 )
 
-type PostSerivce struct{}
+type PostSerivce struct {
+	UserSerivce *UserSerivce
+}
 
 // @Provider singleton
-func NewPostSerivce() *PostSerivce {
-	return &PostSerivce{}
+func NewPostSerivce(userSerivce *UserSerivce) *PostSerivce {
+	return &PostSerivce{
+		UserSerivce: userSerivce,
+	}
 }
 
 func (s *PostSerivce) GetPost(id int) *models.Post {

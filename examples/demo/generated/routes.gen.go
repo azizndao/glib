@@ -9,11 +9,6 @@ import (
 // registerRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are grouped by controller and registered with the provided ServeMux.
 func registerRoutes(mux *http.ServeMux, container *container) error {
-	mux.HandleFunc("GET /api/v1/admin/", handleAdminControllerIndex(container))
-	mux.HandleFunc("GET /api/v1/admin/{id}", handleAdminControllerShow(container))
-	mux.HandleFunc("POST /api/v1/admin/", handleAdminControllerCreate(container))
-	mux.HandleFunc("PUT /api/v1/admin/{id}", handleAdminControllerUpdate(container))
-	mux.HandleFunc("DELETE /api/v1/admin/{id}", handleAdminControllerDelete(container))
 	mux.HandleFunc("GET /api/v1/auth/", handleAuthControllerIndex(container))
 	mux.HandleFunc("GET /api/v1/auth/{id}", handleAuthControllerShow(container))
 	mux.HandleFunc("POST /api/v1/auth/", handleAuthControllerCreate(container))
@@ -31,11 +26,6 @@ func registerRoutes(mux *http.ServeMux, container *container) error {
 	mux.HandleFunc("DELETE /api/v1/post/{id}", handlePostControllerDelete(container))
 	mux.HandleFunc("GET /api/v1/post/export", handlePostControllerExport(container))
 	mux.HandleFunc("GET /api/v1/post/stream", handlePostControllerStream(container))
-	mux.HandleFunc("GET /api/v1/session/", handleSessionControllerIndex(container))
-	mux.HandleFunc("GET /api/v1/session/{id}", handleSessionControllerShow(container))
-	mux.HandleFunc("POST /api/v1/session/", handleSessionControllerCreate(container))
-	mux.HandleFunc("PUT /api/v1/session/{id}", handleSessionControllerUpdate(container))
-	mux.HandleFunc("DELETE /api/v1/session/{id}", handleSessionControllerDelete(container))
 	return nil
 }
 
