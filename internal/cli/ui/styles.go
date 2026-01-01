@@ -3,7 +3,6 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Color palette
 	ColorPrimary   = lipgloss.Color("39")  // Blue
 	ColorSuccess   = lipgloss.Color("42")  // Green
 	ColorError     = lipgloss.Color("196") // Red

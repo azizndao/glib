@@ -1,3 +1,4 @@
+// Package services provides business logic for the demo application
 package services
 
 import (

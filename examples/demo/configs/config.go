@@ -1,6 +1,5 @@
 package configs
 
-// Config holds application configuration
 // @Config
 type Config struct {
 	Server struct {

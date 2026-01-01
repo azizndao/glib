@@ -69,7 +69,7 @@ type initResult struct {
 // prepareInit validates and prepares the init specification
 func prepareInit(dir, module string, example, minimal bool) (initSpec, error) {
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return initSpec{}, fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -111,10 +111,10 @@ func executeInit(spec initSpec) initResult {
 
 	for path, content := range files {
 		fullPath := filepath.Join(spec.absDir, path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 			return initResult{err: fmt.Errorf("failed to create directory for %s: %w", path, err)}
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			return initResult{err: fmt.Errorf("failed to write %s: %w", path, err)}
 		}
 		createdFiles = append(createdFiles, path)
@@ -191,7 +191,7 @@ func createGoMod(dir, module string) error {
 go 1.25
 `, module)
 
-	return os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0o644)
 }
 
 func buildProjectFiles(module string, example, minimal bool) map[string]string {
@@ -219,7 +219,7 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 
 	// Example controller
 	if example {
-		files["health/controller.go"] = renderHealthController(module)
+		files["health/controller.go"] = renderHealthController()
 	}
 
 	return files
@@ -295,7 +295,7 @@ func renderReadme(module string) string {
 	return result
 }
 
-func renderHealthController(module string) string {
+func renderHealthController() string {
 	result, err := executeTemplate("health_controller.go.tmpl", nil)
 	if err != nil {
 		panic(err) // Should never happen with valid templates

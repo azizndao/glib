@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
@@ -185,30 +186,33 @@ func (m validateModel) View() string {
 		return fmt.Sprintf("%s Validating...", m.spinner.View())
 
 	case validatePhaseError:
-		output := "\n" + ui.Error("Validation failed") + "\n\n"
+		var output strings.Builder
+		output.WriteString("\n" + ui.Error("Validation failed") + "\n\n")
 		for i, err := range m.errors {
-			output += fmt.Sprintf("  %d. %s\n", i+1, err)
+			fmt.Fprintf(&output, "  %d. %s\n", i+1, err)
 		}
-		return output
+		return output.String()
 
 	case validatePhaseDone:
 		if len(m.errors) > 0 {
-			output := ui.Error("Validation failed") + "\n\n"
+			var output strings.Builder
+			output.WriteString(ui.Error("Validation failed") + "\n\n")
 			for i, err := range m.errors {
-				output += fmt.Sprintf("  %d. %s\n", i+1, err)
+				fmt.Fprintf(&output, "  %d. %s\n", i+1, err)
 			}
-			return output
+			return output.String()
 		}
 
 		if len(m.warnings) > 0 {
-			output := ui.Warning(fmt.Sprintf("Validation passed with %d warnings", len(m.warnings))) + "\n"
+			var output strings.Builder
+			output.WriteString(ui.Warning(fmt.Sprintf("Validation passed with %d warnings", len(m.warnings))) + "\n")
 			if m.verbose {
-				output += "\n"
+				output.WriteString("\n")
 				for i, warn := range m.warnings {
-					output += fmt.Sprintf("  %d. %s\n", i+1, warn)
+					fmt.Fprintf(&output, "  %d. %s\n", i+1, warn)
 				}
 			}
-			return output
+			return output.String()
 		}
 
 		return ui.Success("Validation passed") + "\n"
@@ -224,18 +228,20 @@ func (m validateModel) plainView() string {
 	case validatePhaseValidating:
 		return "Validating..."
 	case validatePhaseError:
-		output := "Validation failed\n"
+		var output strings.Builder
+		output.WriteString("Validation failed\n")
 		for i, err := range m.errors {
-			output += fmt.Sprintf("  %d. %s\n", i+1, err)
+			fmt.Fprintf(&output, "  %d. %s\n", i+1, err)
 		}
-		return output
+		return output.String()
 	case validatePhaseDone:
 		if len(m.errors) > 0 {
-			output := "Validation failed\n"
+			var output strings.Builder
+			output.WriteString("Validation failed\n")
 			for i, err := range m.errors {
-				output += fmt.Sprintf("  %d. %s\n", i+1, err)
+				fmt.Fprintf(&output, "  %d. %s\n", i+1, err)
 			}
-			return output
+			return output.String()
 		}
 
 		if len(m.warnings) > 0 {

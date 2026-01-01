@@ -34,7 +34,7 @@ func (s *UserSerivce) CreateUser(user *models.User) error {
 
 func (s *UserSerivce) UpdateUser(id uuid.UUID, user *models.User) (*models.User, error) {
 	// Use Updates with a map to update specific fields
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"first_name": user.FirstName,
 		"last_name":  user.LastName,
 		"bio":        user.Bio,

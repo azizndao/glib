@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
 )
 
 //go:embed templates/**/*.tmpl
@@ -16,7 +17,7 @@ var cliTemplates *template.Template
 func init() {
 	var err error
 	cliTemplates, err = template.New("").Funcs(template.FuncMap{
-		"title": strings.Title, // Keep for backward compatibility in templates
+		"title": cases.Title, // Keep for backward compatibility in templates
 	}).ParseFS(templatesFS, "templates/**/*.tmpl")
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse CLI templates: %v", err))

@@ -204,7 +204,7 @@ func executeMake(spec makeSpec) makeResult {
 
 	case "middleware":
 		middlewarePath := filepath.Join(spec.outputDir, spec.name+".go")
-		middlewareCode := renderMiddleware(spec.name, !spec.noExample)
+		middlewareCode := renderMiddleware(spec.name)
 		if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0o644); err != nil {
 			return makeResult{err: fmt.Errorf("failed to write middleware: %w", err)}
 		}
@@ -352,7 +352,7 @@ func NewDatabase(cfg *Config) (*gorm.DB, error) {
 `
 }
 
-func renderMiddleware(name string, withExample bool) string {
+func renderMiddleware(name string) string {
 	// Capitalize function name
 	caser := cases.Title(language.English)
 	funcName := caser.String(name)
@@ -440,11 +440,12 @@ func (m *makeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *makeModel) View() string {
 	if m.phase == "done" {
 		duration := time.Since(m.startTime)
-		result := ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(m.spec.componentType), duration.Milliseconds()))
+		var result strings.Builder
+		result.WriteString(ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(m.spec.componentType), duration.Milliseconds())))
 		for _, file := range m.result.files {
-			result += "\n  " + ui.Muted(file)
+			result.WriteString("\n  " + ui.Muted(file))
 		}
-		return result
+		return result.String()
 	}
 
 	if m.phase == "error" {

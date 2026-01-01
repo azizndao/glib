@@ -49,14 +49,13 @@ func (s *JWTService) GenerateToken(userID uuid.UUID, username, email string) (st
 
 // ValidateToken validates a JWT token and returns the claims
 func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		// Validate signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return s.secretKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
