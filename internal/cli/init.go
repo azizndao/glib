@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -141,39 +139,20 @@ func initProject(dir, module string, example, minimal bool) error {
 	return runInit(spec)
 }
 
-// runInit executes the init operation with appropriate UI
+// runInit executes the init operation with simple output
 func runInit(spec initSpec) error {
 	start := time.Now()
-	renderer := ui.NewRenderer()
-
-	// TTY mode: use Bubble Tea
-	if renderer.IsTTY() {
-		m := newInitModel(spec, renderer, start)
-		p := tea.NewProgram(m)
-		if _, err := p.Run(); err != nil {
-			return fmt.Errorf("failed to run UI: %w", err)
-		}
-		if m.result.err != nil {
-			return m.result.err
-		}
-		return nil
-	}
-
-	// Non-TTY mode: execute and show simple output
-	fmt.Printf("Initializing Glib project in %s\n", spec.absDir)
-	fmt.Printf("Module: %s\n", spec.module)
 
 	result := executeInit(spec)
 	if result.err != nil {
+		fmt.Println(ui.Error(result.err.Error()))
 		return result.err
-	}
-
-	for _, path := range result.createdFiles {
-		fmt.Printf("Created %s\n", path)
 	}
 
 	duration := time.Since(start)
 	fmt.Println(ui.Success(fmt.Sprintf("Project initialized (%dms)", duration.Milliseconds())))
+	fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("Module: %s", spec.module)))
+	fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("Files: %d", len(result.createdFiles))))
 
 	return nil
 }
@@ -301,82 +280,4 @@ func renderHealthController() string {
 		panic(err) // Should never happen with valid templates
 	}
 	return result
-}
-
-// initModel is the Bubble Tea model for init command
-type initModel struct {
-	spec      initSpec
-	renderer  *ui.Renderer
-	spinner   spinner.Model
-	phase     string
-	result    initResult
-	startTime time.Time
-}
-
-type initCompleteMsg struct {
-	result initResult
-}
-
-func newInitModel(spec initSpec, renderer *ui.Renderer, startTime time.Time) *initModel {
-	return &initModel{
-		spec:      spec,
-		renderer:  renderer,
-		spinner:   ui.NewSpinner(),
-		phase:     "creating",
-		startTime: startTime,
-	}
-}
-
-func (m *initModel) Init() tea.Cmd {
-	return tea.Batch(
-		m.spinner.Tick,
-		m.doInit,
-	)
-}
-
-func (m *initModel) doInit() tea.Msg {
-	result := executeInit(m.spec)
-	return initCompleteMsg{result: result}
-}
-
-func (m *initModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
-			return m, tea.Quit
-		}
-
-	case initCompleteMsg:
-		m.result = msg.result
-		if msg.result.err != nil {
-			m.phase = "error"
-		} else {
-			m.phase = "done"
-		}
-		return m, tea.Quit
-
-	default:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	}
-
-	return m, nil
-}
-
-func (m *initModel) View() string {
-	if m.phase == "done" {
-		duration := time.Since(m.startTime)
-		result := ui.Success(fmt.Sprintf("Project initialized (%dms)", duration.Milliseconds()))
-		result += "\n  " + ui.Muted(fmt.Sprintf("Module: %s", m.spec.module))
-		result += "\n  " + ui.Muted(fmt.Sprintf("Files: %d", len(m.result.createdFiles)))
-		return result
-	}
-
-	if m.phase == "error" {
-		return ui.Error(fmt.Sprintf("Failed to initialize project: %v", m.result.err))
-	}
-
-	// Creating phase
-	return fmt.Sprintf("%s Initializing project %s...", m.spinner.View(), ui.Primary(m.spec.module))
 }

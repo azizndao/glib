@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -229,34 +227,20 @@ func makeMiddleware(name string, opts *makeOptions, cfg *glibConfig) error {
 	return runMake(spec)
 }
 
-// runMake executes the make operation with appropriate UI
+// runMake executes the make operation with simple output
 func runMake(spec makeSpec) error {
 	start := time.Now()
-	renderer := ui.NewRenderer()
 
-	// TTY mode: use Bubble Tea
-	if renderer.IsTTY() {
-		m := newMakeModel(spec, renderer, start)
-		p := tea.NewProgram(m)
-		if _, err := p.Run(); err != nil {
-			return fmt.Errorf("failed to run UI: %w", err)
-		}
-		if m.result.err != nil {
-			return m.result.err
-		}
-		return nil
-	}
-
-	// Non-TTY mode: execute and show simple output
 	result := executeMake(spec)
 	if result.err != nil {
+		fmt.Println(ui.Error(result.err.Error()))
 		return result.err
 	}
 
 	duration := time.Since(start)
 	fmt.Println(ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(spec.componentType), duration.Milliseconds())))
 	for _, file := range result.files {
-		fmt.Printf("  %s\n", file)
+		fmt.Printf("  %s\n", ui.Muted(file))
 	}
 
 	return nil
@@ -374,84 +358,4 @@ func %s() func(http.Handler) http.Handler {
 	}
 }
 `, name, funcName)
-}
-
-// makeModel is the Bubble Tea model for make command
-type makeModel struct {
-	spec      makeSpec
-	renderer  *ui.Renderer
-	spinner   spinner.Model
-	phase     string
-	result    makeResult
-	startTime time.Time
-}
-
-type makeCompleteMsg struct {
-	result makeResult
-}
-
-func newMakeModel(spec makeSpec, renderer *ui.Renderer, startTime time.Time) *makeModel {
-	return &makeModel{
-		spec:      spec,
-		renderer:  renderer,
-		spinner:   ui.NewSpinner(),
-		phase:     "creating",
-		startTime: startTime,
-	}
-}
-
-func (m *makeModel) Init() tea.Cmd {
-	return tea.Batch(
-		m.spinner.Tick,
-		m.doMake,
-	)
-}
-
-func (m *makeModel) doMake() tea.Msg {
-	result := executeMake(m.spec)
-	return makeCompleteMsg{result: result}
-}
-
-func (m *makeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
-			return m, tea.Quit
-		}
-
-	case makeCompleteMsg:
-		m.result = msg.result
-		if msg.result.err != nil {
-			m.phase = "error"
-		} else {
-			m.phase = "done"
-		}
-		return m, tea.Quit
-
-	default:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	}
-
-	return m, nil
-}
-
-func (m *makeModel) View() string {
-	if m.phase == "done" {
-		duration := time.Since(m.startTime)
-		var result strings.Builder
-		result.WriteString(ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(m.spec.componentType), duration.Milliseconds())))
-		for _, file := range m.result.files {
-			result.WriteString("\n  " + ui.Muted(file))
-		}
-		return result.String()
-	}
-
-	if m.phase == "error" {
-		return ui.Error(fmt.Sprintf("Failed to create %s: %v", m.spec.componentType, m.result.err))
-	}
-
-	// Creating phase
-	return fmt.Sprintf("%s Creating %s %s...", m.spinner.View(), m.spec.componentType, ui.Primary(m.spec.name))
 }

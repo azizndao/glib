@@ -1,80 +1,54 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+// ANSI color codes
+const (
+	Reset = "\033[0m"
+	Bold  = "\033[1m"
 
-var (
-	ColorPrimary   = lipgloss.Color("39")  // Blue
-	ColorSuccess   = lipgloss.Color("42")  // Green
-	ColorError     = lipgloss.Color("196") // Red
-	ColorWarning   = lipgloss.Color("214") // Orange
-	ColorInfo      = lipgloss.Color("86")  // Cyan
-	ColorMuted     = lipgloss.Color("241") // Gray
-	ColorHighlight = lipgloss.Color("212") // Pink
+	// Colors
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	Gray    = "\033[90m"
+	White   = "\033[97m"
 
-	// Base styles
-	TitleStyle = lipgloss.NewStyle().
-			Foreground(ColorPrimary).
-			Bold(true).
-			MarginBottom(1)
-
-	HeaderStyle = lipgloss.NewStyle().
-			Foreground(ColorHighlight).
-			Bold(true)
-
-	SuccessStyle = lipgloss.NewStyle().
-			Foreground(ColorSuccess).
-			Bold(true)
-
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(ColorError).
-			Bold(true)
-
-	WarningStyle = lipgloss.NewStyle().
-			Foreground(ColorWarning)
-
-	InfoStyle = lipgloss.NewStyle().
-			Foreground(ColorInfo)
-
-	MutedStyle = lipgloss.NewStyle().
-			Foreground(ColorMuted)
-
-	// Component styles
-	SpinnerStyle = lipgloss.NewStyle().
-			Foreground(ColorPrimary)
-
-	BoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorPrimary).
-			Padding(0, 1)
-
-	ListItemStyle = lipgloss.NewStyle().
-			PaddingLeft(3)
-
-	SubItemStyle = lipgloss.NewStyle().
-			PaddingLeft(5).
-			Foreground(ColorMuted)
+	// Bright colors
+	BrightRed     = "\033[91m"
+	BrightGreen   = "\033[92m"
+	BrightYellow  = "\033[93m"
+	BrightBlue    = "\033[94m"
+	BrightMagenta = "\033[95m"
+	BrightCyan    = "\033[96m"
 )
 
+// Helper functions for colored output
 func Success(text string) string {
-	return SuccessStyle.Render(IconSuccess) + " " + text
+	return Green + IconSuccess + " " + text + Reset
 }
 
 func Error(text string) string {
-	return ErrorStyle.Render(IconError) + " " + text
+	return Red + IconError + " " + text + Reset
 }
 
 func Warning(text string) string {
-	return WarningStyle.Render(IconWarning) + " " + text
+	return Yellow + IconWarning + " " + text + Reset
 }
 
 func Info(text string) string {
-	return InfoStyle.Render(IconInfo + " " + text)
+	return Cyan + IconInfo + " " + text + Reset
 }
 
 func Muted(text string) string {
-	return MutedStyle.Render(text)
+	return Gray + text + Reset
 }
 
 func Primary(text string) string {
-	return lipgloss.NewStyle().Foreground(ColorPrimary).Render(text)
+	return Blue + text + Reset
+}
+
+func BoldText(text string) string {
+	return "\033[1m" + text + Reset
 }

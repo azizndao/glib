@@ -51,3 +51,6 @@ bin/
 # Build artifacts
 dist/
 build/
+
+# Built binary (root level only)
+/glib

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/azizndao/glib/internal/cli/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 	// Check if config exists (glib.json or .glibrc)
 	if _, err := os.Stat("glib.json"); os.IsNotExist(err) {
 		if _, err := os.Stat(".glibrc"); os.IsNotExist(err) {
+			fmt.Println(ui.Error("No glib.json or .glibrc found - run 'glib init' first"))
 			return fmt.Errorf("no glib.json or .glibrc found - run 'glib init' first")
 		}
 	}
@@ -42,6 +44,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 	// Load config for port
 	cfg, err := loadGlibrc()
 	if err != nil {
+		fmt.Println(ui.Error(fmt.Sprintf("Failed to load config: %v", err)))
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
@@ -54,30 +57,32 @@ func runDev(port int, airConfig string, noAir bool) error {
 		}
 	}
 
-	fmt.Printf("🚀 Starting Glib dev server on port %d\n\n", port)
+	fmt.Println(ui.Info(fmt.Sprintf("Starting Glib dev server on port %d\n", port)))
 
 	// Run initial generation
-	fmt.Println("📦 Running initial code generation...")
+	fmt.Println(ui.Info("Running initial code generation..."))
 	if err := runGenerate(&generateOptions{dir: ".", verbose: false}); err != nil {
+		fmt.Println(ui.Error(fmt.Sprintf("Initial generation failed: %v", err)))
 		return fmt.Errorf("initial generation failed: %w", err)
 	}
-	fmt.Println("✅ Initial generation complete")
+	fmt.Println(ui.Success("Initial generation complete"))
 
 	// Generate .air.toml if it doesn't exist
 	if _, err := os.Stat(airConfig); os.IsNotExist(err) && !noAir {
-		fmt.Printf("📝 Generating %s...\n", airConfig)
+		fmt.Println(ui.Info(fmt.Sprintf("Generating %s...", airConfig)))
 		if err := generateAirConfig(airConfig, cfg); err != nil {
+			fmt.Println(ui.Error(fmt.Sprintf("Failed to generate Air config: %v", err)))
 			return fmt.Errorf("failed to generate Air config: %w", err)
 		}
-		fmt.Printf("✅ Generated %s\n\n", airConfig)
+		fmt.Println(ui.Success(fmt.Sprintf("Generated %s\n", airConfig)))
 	}
 
 	// Check if Air is installed
 	if !noAir {
 		if _, err := exec.LookPath("air"); err != nil {
-			fmt.Println("⚠️  Air not found in PATH")
-			fmt.Println("   Install with: go install github.com/cosmtrek/air@latest")
-			fmt.Println("   Falling back to basic mode (no hot reload)")
+			fmt.Println(ui.Warning("Air not found in PATH"))
+			fmt.Printf("  %s\n", ui.Muted("Install with: go install github.com/cosmtrek/air@latest"))
+			fmt.Printf("  %s\n", ui.Muted("Falling back to basic mode (no hot reload)"))
 			noAir = true
 		}
 	}
@@ -88,9 +93,9 @@ func runDev(port int, airConfig string, noAir bool) error {
 	}
 
 	// Start Air
-	fmt.Println("🔥 Starting Air hot reload...")
-	fmt.Println("   Watching for file changes...")
-	fmt.Println("   Press Ctrl+C to stop")
+	fmt.Println(ui.Info("Starting Air hot reload..."))
+	fmt.Printf("  %s\n", ui.Muted("Watching for file changes..."))
+	fmt.Printf("  %s\n", ui.Muted("Press Ctrl+C to stop"))
 
 	airCmd := exec.Command("air", "-c", airConfig)
 	airCmd.Stdout = os.Stdout
@@ -102,7 +107,7 @@ func runDev(port int, airConfig string, noAir bool) error {
 }
 
 func runBasicMode(port int) error {
-	fmt.Println("🔨 Building application...")
+	fmt.Println(ui.Info("Building application..."))
 
 	// Build the app
 	buildCmd := exec.Command("go", "build", "-o", "./tmp/main", ".")
@@ -110,13 +115,14 @@ func runBasicMode(port int) error {
 	buildCmd.Stderr = os.Stderr
 
 	if err := buildCmd.Run(); err != nil {
+		fmt.Println(ui.Error(fmt.Sprintf("Build failed: %v", err)))
 		return fmt.Errorf("build failed: %w", err)
 	}
 
-	fmt.Printf("✅ Build complete\n")
+	fmt.Println(ui.Success("Build complete"))
 
-	fmt.Printf("🚀 Starting server on port %d...\n", port)
-	fmt.Println("   (No hot reload in basic mode - restart manually after changes)")
+	fmt.Println(ui.Info(fmt.Sprintf("Starting server on port %d...", port)))
+	fmt.Printf("  %s\n", ui.Muted("(No hot reload in basic mode - restart manually after changes)"))
 
 	// Run the app
 	runCmd := exec.Command("./tmp/main")

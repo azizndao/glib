@@ -31,28 +31,22 @@ func New() *Validator {
 
 // Validate validates the project and returns errors
 func (v *Validator) Validate(project *scanner.Project) error {
-	// Validate controllers
 	for _, ctrl := range project.Controllers {
 		v.validateController(ctrl)
 	}
 
-	// Validate providers
 	for _, prov := range project.Providers {
 		v.validateProvider(prov)
 	}
 
-	// Validate middleware
 	for _, mw := range project.Middleware {
 		v.validateMiddleware(mw)
 	}
 
-	// Check for duplicate routes
 	v.validateUniqueRoutes(project.Controllers)
 
-	// Check for dependency cycles (simple check)
 	v.validateDependencies(project)
 
-	// Check middleware references
 	v.validateMiddlewareReferences(project)
 
 	if len(v.errors) > 0 {
@@ -62,17 +56,14 @@ func (v *Validator) Validate(project *scanner.Project) error {
 	return nil
 }
 
-// Errors returns all validation errors
 func (v *Validator) Errors() []*ValidationError {
 	return v.errors
 }
 
-// Warnings returns all validation warnings
 func (v *Validator) Warnings() []*ValidationError {
 	return v.warnings
 }
 
-// validateController validates a controller
 func (v *Validator) validateController(ctrl *scanner.Controller) {
 	location := fmt.Sprintf("%s:%d", ctrl.FilePath, ctrl.Position.Line)
 
