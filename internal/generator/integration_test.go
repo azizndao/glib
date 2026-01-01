@@ -172,28 +172,28 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 
 	// Verify generated code structure
 	// 1. auditorFactory should be defined before postService initialization
-	auditorFactoryPos := strings.Index(diCode, "auditorFactory = func()")
-	postServicePos := strings.Index(diCode, "postService = services.NewPostService")
+	auditorFactoryPos := strings.Index(diCode, "AuditorFactory = func()")
+	postServicePos := strings.Index(diCode, "PostService = services.NewPostService")
 
 	if auditorFactoryPos == -1 {
-		t.Error("auditorFactory not found in generated code")
+		t.Error("AuditorFactory not found in generated code")
 	}
 	if postServicePos == -1 {
-		t.Error("postService initialization not found in generated code")
+		t.Error("PostService initialization not found in generated code")
 	}
 	if auditorFactoryPos > postServicePos {
-		t.Error("auditorFactory should be defined BEFORE postService initialization")
+		t.Error("AuditorFactory should be defined BEFORE PostService initialization")
 	}
 
 	// 2. Verify critical transient factory is defined before singleton that uses it
 	if auditorFactoryPos > postServicePos {
-		t.Error("Critical ordering: auditorFactory must be initialized before postService")
+		t.Error("Critical ordering: AuditorFactory must be initialized before PostService")
 	}
 
 	// 3. Verify non-critical transient factory (loggerFactory) exists
-	found := strings.Contains(diCode, "loggerFactory = func()")
+	found := strings.Contains(diCode, "LoggerFactory = func()")
 	if !found {
-		t.Error("loggerFactory should be defined as a factory function")
+		t.Error("LoggerFactory should be defined as a factory function")
 	}
 }
 

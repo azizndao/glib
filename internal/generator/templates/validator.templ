@@ -4,8 +4,7 @@
 package {{.PackageName}}
 
 import (
-	"strings"
-
+	"github.com/azizndao/glib/utils"
 	glib "github.com/azizndao/glib/validator"
 {{- range .Languages}}
 	locales_{{.}} "github.com/go-playground/locales/{{.}}"
@@ -40,26 +39,14 @@ func initValidator() *glib.Validator {
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
 // Falls back to "{{.DefaultLanguage}}" if no language specified or no match found
 func DetectLanguageOrDefault(acceptLanguage string) string {
-	if acceptLanguage == "" {
-		return "{{.DefaultLanguage}}"
-	}
+	lang := utils.DetectLanguage(acceptLanguage, "{{.DefaultLanguage}}")
 
-	// Parse Accept-Language header (e.g., "es-MX,es;q=0.9,en;q=0.8")
-	languages := strings.SplitSeq(acceptLanguage, ",")
-	for lang := range languages {
-		// Extract language code (before '-' or ';')
-		langCode := strings.TrimSpace(lang)
-		if idx := strings.IndexAny(langCode, "-;"); idx != -1 {
-			langCode = langCode[:idx]
-		}
-
-		// Check if this language is configured
-		switch langCode {
-		{{- range .Languages}}
-		case "{{.}}":
-			return langCode
-		{{- end}}
-		}
+	// Validate that the detected language is in our supported list
+	switch lang {
+	{{- range .Languages}}
+	case "{{.}}":
+		return lang
+	{{- end}}
 	}
 
 	return "{{.DefaultLanguage}}" // Fallback to configured default

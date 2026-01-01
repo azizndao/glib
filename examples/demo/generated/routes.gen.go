@@ -2,56 +2,54 @@
 
 package generated
 
-import (
-	"github.com/go-chi/chi/v5"
-)
+import "github.com/go-chi/chi/v5"
 
 // RegisterRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are organized by controller using chi's Route/Group/Use for clean code structure.
-func RegisterRoutes(r chi.Router, container *container) error {
+func (app *App) RegisterRoutes() error {
 	// Controller - /api/v1/auth
-	r.Route("/api/v1/auth", func(r chi.Router) {
-		r.Post("/register", handleAuthControllerRegister(container))
-		r.Post("/login", handleAuthControllerLogin(container))
-		r.Get("/users/{id}", handleAuthControllerGetUser(container))
+	app.Router.Route("/api/v1/auth", func(r chi.Router) {
+		r.Post("/register", handleAuthControllerRegister(app))
+		r.Post("/login", handleAuthControllerLogin(app))
+		r.Get("/users/{id}", handleAuthControllerGetUser(app))
 		// Routes with tags: protected
 		r.Group(func(r chi.Router) {
-			r.Use(container.middleware.authMiddleware)
-			r.Get("/me", handleAuthControllerGetMe(container))
-			r.Put("/me", handleAuthControllerUpdateProfile(container))
-			r.Delete("/logout", handleAuthControllerLogout(container))
+			r.Use(app.middleware.AuthMiddleware)
+			r.Get("/me", handleAuthControllerGetMe(app))
+			r.Put("/me", handleAuthControllerUpdateProfile(app))
+			r.Delete("/logout", handleAuthControllerLogout(app))
 		})
 	})
 	// Controller - /api/v1/comment
-	r.Route("/api/v1/comment", func(r chi.Router) {
+	app.Router.Route("/api/v1/comment", func(r chi.Router) {
 		// Controller-level middleware
-		r.Use(container.middleware.ratelimitMiddleware)
-		r.Get("/", handleCommentControllerIndex(container))
-		r.Get("/{id}", handleCommentControllerShow(container))
+		r.Use(app.middleware.RatelimitMiddleware)
+		r.Get("/", handleCommentControllerIndex(app))
+		r.Get("/{id}", handleCommentControllerShow(app))
 		// Routes with tags: protected
 		r.Group(func(r chi.Router) {
-			r.Use(container.middleware.authMiddleware)
-			r.Post("/", handleCommentControllerCreate(container))
-			r.Put("/{id}", handleCommentControllerUpdate(container))
-			r.Delete("/{id}", handleCommentControllerDelete(container))
+			r.Use(app.middleware.AuthMiddleware)
+			r.Post("/", handleCommentControllerCreate(app))
+			r.Put("/{id}", handleCommentControllerUpdate(app))
+			r.Delete("/{id}", handleCommentControllerDelete(app))
 		})
 	})
 	// Controller - /api/v1/post
-	r.Route("/api/v1/post", func(r chi.Router) {
+	app.Router.Route("/api/v1/post", func(r chi.Router) {
 		// Controller-level middleware
-		r.Use(container.middleware.ratelimitMiddleware)
-		r.Get("/", handlePostControllerIndex(container))
-		r.Get("/{id}", handlePostControllerShow(container))
-		r.Get("/export", handlePostControllerExport(container))
-		r.Get("/stream", handlePostControllerStream(container))
+		r.Use(app.middleware.RatelimitMiddleware)
+		r.Get("/", handlePostControllerIndex(app))
+		r.Get("/{id}", handlePostControllerShow(app))
+		r.Get("/export", handlePostControllerExport(app))
+		r.Get("/stream", handlePostControllerStream(app))
 		// No middleware
-		r.Get("/health", handlePostControllerHealth(container))
+		r.Get("/health", handlePostControllerHealth(app))
 		// Routes with tags: protected
 		r.Group(func(r chi.Router) {
-			r.Use(container.middleware.authMiddleware)
-			r.Post("/", handlePostControllerCreate(container))
-			r.Put("/{id}", handlePostControllerUpdate(container))
-			r.Delete("/{id}", handlePostControllerDelete(container))
+			r.Use(app.middleware.AuthMiddleware)
+			r.Post("/", handlePostControllerCreate(app))
+			r.Put("/{id}", handlePostControllerUpdate(app))
+			r.Delete("/{id}", handlePostControllerDelete(app))
 		})
 	})
 

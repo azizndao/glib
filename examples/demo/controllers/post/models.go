@@ -18,3 +18,10 @@ type UpdatePostRequest struct {
 	Published *bool  `json:"published"`
 	Tags      string `json:"tags" validate:"omitempty,max=500"`
 }
+
+type PostPaginationParams struct {
+	Page     int    `query:"page" validate:"required,min=1"`
+	PerPage  int    `query:"per_page" validate:"required,min=1,max=100"`
+	Sort     string `query:"sort" validate:"omitempty,oneof=asc desc"`
+	Language string `header:"Accept-Language" validate:"omitempty"`
+}

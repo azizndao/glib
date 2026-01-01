@@ -21,7 +21,7 @@ type Controller struct {
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
+func (c *Controller) Index(ctx context.Context, params PostPaginationParams) glib.Result[[]models.Post] {
 	c.Logger.Info("Fetching all posts")
 	posts, err := c.PostSerivce.GetPosts()
 	if err != nil {

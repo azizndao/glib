@@ -19,25 +19,14 @@ func main() {
 	ctx := context.Background()
 
 	// Bootstrap application
-	handler, err := Bootstrap(ctx)
+	server, err := Bootstrap(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 
-	// Create server
-	addr := ":8080"
-
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
 	// Start server in goroutine
 	go func() {
-		log.Printf("🚀 Server starting on %s", addr)
+		log.Printf("🚀 Server starting on %s", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server failed: %v", err)
 		}

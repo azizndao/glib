@@ -126,14 +126,14 @@ func runGenerateSimple(outputDir, pkgName string, cfg *glibConfig, verbose bool)
 		return err
 	}
 
+	duration := time.Since(start)
+	fmt.Println(ui.Success(fmt.Sprintf("Generation complete (%dms)", duration.Milliseconds())))
+
 	// Format generated code
 	if err := formatGeneratedCode(outputDir, verbose); err != nil {
 		fmt.Println(ui.Warning(fmt.Sprintf("Failed to format code: %v", err)))
 		// Don't return error, formatting is not critical
 	}
-
-	duration := time.Since(start)
-	fmt.Println(ui.Success(fmt.Sprintf("Generation complete (%dms)", duration.Milliseconds())))
 
 	if verbose {
 		fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("%d controllers, %d providers, %d middleware",

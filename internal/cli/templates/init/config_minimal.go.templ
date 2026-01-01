@@ -1,10 +1,13 @@
 package configs
 
 // @Config
-// Config holds application configuration.
-// Configuration is automatically loaded from environment variables by glib.
 type Config struct {
-	App struct {
-		Port int `env:"APP_PORT" default:"8080"`
+	Server struct {
+		Port int    `env:"APP_PORT" default:"8080"`
+		Env  string `env:"APP_ENV" default:"development"`
 	}
+}
+
+func (c *Config) Addr() string {
+	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
 }

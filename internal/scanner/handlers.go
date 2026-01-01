@@ -125,12 +125,21 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		paramType := params[i]
 
 		// First, check if this is a struct with query/header tags
-		// Only check if it's not a pointer and not from external package (same package or no package)
-		if !paramType.IsPointer && !paramType.IsSlice && !paramType.IsPrimitive &&
-			(paramType.PackageName == "" || paramType.PackageName == s.currentPackageName) {
+		// Check both pointer and non-pointer structs from same package
+		typeName := paramType.Name
+
+		// For pointer types, get the underlying type name
+		if paramType.IsPointer && paramType.Name != "" {
+			typeName = paramType.Name
+		}
+
+		// Only check structs from same package (not primitives, not external packages)
+		if !paramType.IsSlice && !paramType.IsPrimitive &&
+			(paramType.PackageName == "" || paramType.PackageName == s.currentPackageName) &&
+			typeName != "" {
 
 			// Try to parse struct tags
-			queryParams, headerParams, hasJSONTags := s.parseStructTags(paramType.Name)
+			queryParams, headerParams, hasJSONTags := s.parseStructTags(typeName)
 
 			if len(queryParams) > 0 {
 				// This struct has query parameters
@@ -146,12 +155,12 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			if len(queryParams) > 0 || len(headerParams) > 0 {
 				sig.ParamsStructType = paramType
 				// Check if params struct has validation tags
-				sig.NeedsParamsValidation = s.hasValidationTags(paramType.Name)
+				sig.NeedsParamsValidation = s.hasValidationTags(typeName)
 
 				// If struct also has JSON tags, treat JSON fields as request body
 				if hasJSONTags {
 					sig.RequestType = paramType
-					sig.NeedsValidation = s.hasValidationTags(paramType.Name)
+					sig.NeedsValidation = s.hasValidationTags(typeName)
 				}
 				continue
 			}
@@ -160,7 +169,7 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			if hasJSONTags {
 				sig.RequestType = paramType
 				// Check if struct has validation tags
-				sig.NeedsValidation = s.hasValidationTags(paramType.Name)
+				sig.NeedsValidation = s.hasValidationTags(typeName)
 			}
 		}
 

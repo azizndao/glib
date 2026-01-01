@@ -81,7 +81,7 @@ func (g *Generator) getControllerMiddleware(ctrl *scanner.Controller) []string {
 
 	for _, mw := range g.project.Middleware {
 		if g.middlewareAppliesToController(mw, ctrl) {
-			middleware = append(middleware, fmt.Sprintf("container.middleware.%sMiddleware", mw.Name))
+			middleware = append(middleware, fmt.Sprintf("app.middleware.%sMiddleware", capitalize(mw.Name)))
 		}
 	}
 
@@ -174,7 +174,7 @@ func (g *Generator) getTagGroupMiddleware(tags []string) []string {
 		for target := range targets {
 			target = strings.TrimSpace(target)
 			if slices.Contains(tags, target) {
-				middleware = append(middleware, fmt.Sprintf("container.middleware.%sMiddleware", mw.Name))
+				middleware = append(middleware, fmt.Sprintf("app.middleware.%sMiddleware", capitalize(mw.Name)))
 				break
 			}
 		}
@@ -190,7 +190,7 @@ func (g *Generator) getTagGroupMiddleware(tags []string) []string {
 
 // getMiddlewareOrder returns the order of a middleware by name
 func (g *Generator) getMiddlewareOrder(middlewareName string) int {
-	// Extract middleware name from "container.middleware.authMiddleware"
+	// Extract middleware name from "app.middleware.AuthMiddleware"
 	parts := strings.Split(middlewareName, ".")
 	if len(parts) != 3 {
 		return 100
@@ -198,7 +198,7 @@ func (g *Generator) getMiddlewareOrder(middlewareName string) int {
 	name := strings.TrimSuffix(parts[2], "Middleware")
 
 	for _, mw := range g.project.Middleware {
-		if mw.Name == name {
+		if capitalize(mw.Name) == name {
 			return mw.Order
 		}
 	}

@@ -3,13 +3,11 @@
 package generated
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/azizndao/glib"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+	"github.com/azizndao/glib/utils"
 
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
@@ -17,13 +15,13 @@ import (
 	"glib/demo/models"
 )
 
-func handleAuthControllerRegister(container *container) http.HandlerFunc {
+func handleAuthControllerRegister(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body
-		var req auth.RegisterRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.RegisterRequest](r)
+		if err != nil {
 			glib.BadRequest[*auth.UserResponse](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -32,24 +30,24 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*auth.UserResponse](err).Write(w)
 			return
 		}
 
-		result := container.controllers.authController.Register(ctx, req)
+		result := app.controllers.AuthController.Register(ctx, req)
 		result.Write(w)
 
 	}
 }
 
-func handleAuthControllerLogin(container *container) http.HandlerFunc {
+func handleAuthControllerLogin(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body
-		var req auth.LoginRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.LoginRequest](r)
+		if err != nil {
 			glib.BadRequest[*auth.LoginResponse](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -58,133 +56,131 @@ func handleAuthControllerLogin(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*auth.LoginResponse](err).Write(w)
 			return
 		}
 
-		result := container.controllers.authController.Login(ctx, req)
+		result := app.controllers.AuthController.Login(ctx, req)
 		result.Write(w)
 
 	}
 }
 
-func handleAuthControllerGetMe(container *container) http.HandlerFunc {
+func handleAuthControllerGetMe(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		result := container.controllers.authController.GetMe(ctx)
+		result := app.controllers.AuthController.GetMe(ctx)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleAuthControllerUpdateProfile(container *container) http.HandlerFunc {
+func handleAuthControllerUpdateProfile(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body
-		var req auth.UpdateProfileRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.UpdateProfileRequest](r)
+		if err != nil {
 			glib.BadRequest[*auth.UserResponse](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.authController.UpdateProfile(ctx, req)
+		result := app.controllers.AuthController.UpdateProfile(ctx, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleAuthControllerLogout(container *container) http.HandlerFunc {
+func handleAuthControllerLogout(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		result := container.controllers.authController.Logout(ctx)
+		result := app.controllers.AuthController.Logout(ctx)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleAuthControllerGetUser(container *container) http.HandlerFunc {
+func handleAuthControllerGetUser(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[*auth.UserResponse](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.authController.GetUser(ctx, id)
+		result := app.controllers.AuthController.GetUser(ctx, id)
 		result.Write(w)
 
 	}
 }
 
-func handleCommentControllerIndex(container *container) http.HandlerFunc {
+func handleCommentControllerIndex(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		result := container.controllers.commentController.Index(ctx)
+		result := app.controllers.CommentController.Index(ctx)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleCommentControllerShow(container *container) http.HandlerFunc {
+func handleCommentControllerShow(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.commentController.Show(ctx, id)
+		result := app.controllers.CommentController.Show(ctx, id)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleCommentControllerCreate(container *container) http.HandlerFunc {
+func handleCommentControllerCreate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body
-		var req comment.CreateCommentRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[comment.CreateCommentRequest](r)
+		if err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -193,37 +189,36 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*models.Comment](err).Write(w)
 			return
 		}
 
-		result := container.controllers.commentController.Create(ctx, req)
+		result := app.controllers.CommentController.Create(ctx, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleCommentControllerUpdate(container *container) http.HandlerFunc {
+func handleCommentControllerUpdate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
-		// Parse request body
-		var req comment.UpdateCommentRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[comment.UpdateCommentRequest](r)
+		if err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -232,91 +227,117 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*models.Comment](err).Write(w)
 			return
 		}
 
-		result := container.controllers.commentController.Update(ctx, id, req)
+		result := app.controllers.CommentController.Update(ctx, id, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handleCommentControllerDelete(container *container) http.HandlerFunc {
+func handleCommentControllerDelete(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[any](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.commentController.Delete(ctx, id)
+		result := app.controllers.CommentController.Delete(ctx, id)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerIndex(container *container) http.HandlerFunc {
+func handlePostControllerIndex(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+		// Parse query parameters and headers into struct
+		var req post.PostPaginationParams
+		// Parse query parameters
+		// Required parameter: page
+		if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+			req.Page = utils.ParseIntOrZero(pageStr)
+		}
+		// Required parameter: per_page
+		if per_pageStr := r.URL.Query().Get("per_page"); per_pageStr != "" {
+			req.PerPage = utils.ParseIntOrZero(per_pageStr)
+		}
+		// Required parameter: sort
+		if sortStr := r.URL.Query().Get("sort"); sortStr != "" {
+			req.Sort = sortStr
+		}
+		// Parse headers
+		// Required header: Accept-Language
+		if LanguageVal := r.Header.Get("Accept-Language"); LanguageVal != "" {
+			req.Language = LanguageVal
+		}
 
-		result := container.controllers.postController.Index(ctx)
+		// Validate query/header parameters with language detection and section "query"
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
+			glib.Fail[[]models.Post](err).Write(w)
+			return
+		}
+
+		result := app.controllers.PostController.Index(ctx, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerShow(container *container) http.HandlerFunc {
+func handlePostControllerShow(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.postController.Show(ctx, id)
+		result := app.controllers.PostController.Show(ctx, id)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerCreate(container *container) http.HandlerFunc {
+func handlePostControllerCreate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body
-		var req post.CreatePostRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[post.CreatePostRequest](r)
+		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -325,37 +346,36 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*models.Post](err).Write(w)
 			return
 		}
 
-		result := container.controllers.postController.Create(ctx, req)
+		result := app.controllers.PostController.Create(ctx, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerUpdate(container *container) http.HandlerFunc {
+func handlePostControllerUpdate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
-		// Parse request body
-		var req post.UpdatePostRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[post.UpdatePostRequest](r)
+		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
@@ -364,62 +384,61 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 		// Validate request with language detection
 		acceptLang := r.Header.Get("Accept-Language")
 		lang := DetectLanguageOrDefault(acceptLang)
-		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.Fail[*models.Post](err).Write(w)
 			return
 		}
 
-		result := container.controllers.postController.Update(ctx, id, req)
+		result := app.controllers.PostController.Update(ctx, id, req)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerDelete(container *container) http.HandlerFunc {
+func handlePostControllerDelete(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 		// Parse path parameters
-		idStr := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idStr)
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.BadRequest[any](
 				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
 			return
 		}
 
-		result := container.controllers.postController.Delete(ctx, id)
+		result := app.controllers.PostController.Delete(ctx, id)
 		result.Write(w)
 
 	}))
 
-	handler = container.middleware.authMiddleware(handler)
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerExport(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Export))
+func handlePostControllerExport(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Export))
 
-	handler = container.middleware.ratelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerStream(container *container) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(container.controllers.postController.Stream))
-
-	handler = container.middleware.ratelimitMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
 
 	return handler.ServeHTTP
 }
 
-func handlePostControllerHealth(container *container) http.HandlerFunc {
-	return container.controllers.postController.Health
+func handlePostControllerStream(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Stream))
+
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerHealth(app *App) http.HandlerFunc {
+	return app.controllers.PostController.Health
 }

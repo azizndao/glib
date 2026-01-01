@@ -3,73 +3,29 @@ package generated
 
 import (
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 
 	"glib/demo/configs"
+
+	"github.com/azizndao/glib/utils"
 )
 
 func loadConfig() (*configs.Config, error) {
 	cfg := &configs.Config{}
+	var err error
 
-	if v := os.Getenv("APP_PORT"); v != "" {
-		val, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("APP_PORT: invalid integer: %w", err)
-		}
-		cfg.Server.Port = val
-	} else {
-		cfg.Server.Port = 8080
+	cfg.Server.Host = utils.GetEnvOr("APP_HOST", "0.0.0.0")
+
+	if cfg.Server.Port, err = utils.GetEnvInt("APP_PORT", 8080); err != nil {
+		return nil, err
 	}
 
-	cfg.Server.Env = getEnvHelper("APP_ENV", "development")
+	cfg.Server.Env = utils.GetEnvOr("APP_ENV", "development")
 
-	if v := os.Getenv("ROUTER_TIMEOUT"); v != "" {
-		val, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("ROUTER_TIMEOUT: invalid integer: %w", err)
-		}
-		cfg.Server.Timeout = val
-	} else {
-		cfg.Server.Timeout = 60
+	if cfg.Server.Timeout, err = utils.GetEnvDuration("ROUTER_TIMEOUT", 60); err != nil {
+		return nil, err
 	}
 
-	if v := os.Getenv("CORS_ENABLED"); v != "" {
-		val, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, fmt.Errorf("CORS_ENABLED: invalid boolean: %w", err)
-		}
-		cfg.CORS.Enabled = val
-	}
-
-	cfg.CORS.AllowedOrigins = getEnvSliceHelper("CORS_ALLOWED_ORIGINS", "")
-
-	cfg.CORS.AllowedMethods = getEnvSliceHelper("CORS_ALLOWED_METHODS", "")
-
-	cfg.CORS.AllowedHeaders = getEnvSliceHelper("CORS_ALLOWED_HEADERS", "")
-
-	cfg.CORS.ExposedHeaders = getEnvSliceHelper("CORS_EXPOSED_HEADERS", "")
-
-	if v := os.Getenv("CORS_ALLOW_CREDENTIALS"); v != "" {
-		val, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, fmt.Errorf("CORS_ALLOW_CREDENTIALS: invalid boolean: %w", err)
-		}
-		cfg.CORS.AllowCredentials = val
-	}
-
-	if v := os.Getenv("CORS_MAX_AGE"); v != "" {
-		val, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("CORS_MAX_AGE: invalid integer: %w", err)
-		}
-		cfg.CORS.MaxAge = val
-	} else {
-		cfg.CORS.MaxAge = 300
-	}
-
-	cfg.Database.Filename = getEnvHelper("DB_FILENAME", "data.db")
+	cfg.Database.Filename = utils.GetEnvOr("DB_FILENAME", "data.db")
 
 	var validationErrors []string
 
@@ -83,20 +39,15 @@ func loadConfig() (*configs.Config, error) {
 
 func loadRedisConfig() (*configs.RedisConfig, error) {
 	cfg := &configs.RedisConfig{}
+	var err error
 
-	cfg.Host = getEnvHelper("REDIS_HOST", "localhost")
+	cfg.Host = utils.GetEnvOr("REDIS_HOST", "localhost")
 
-	if v := os.Getenv("REDIS_PORT"); v != "" {
-		val, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("REDIS_PORT: invalid integer: %w", err)
-		}
-		cfg.Port = val
-	} else {
-		cfg.Port = 6379
+	if cfg.Port, err = utils.GetEnvInt("REDIS_PORT", 6379); err != nil {
+		return nil, err
 	}
 
-	cfg.Password = getEnvHelper("REDIS_PASSWORD", "")
+	cfg.Password = utils.GetEnvOr("REDIS_PASSWORD", "")
 
 	var validationErrors []string
 
@@ -106,30 +57,4 @@ func loadRedisConfig() (*configs.RedisConfig, error) {
 	}
 
 	return cfg, nil
-}
-
-func getEnvHelper(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func getEnvSliceHelper(key, fallback string) []string {
-	value := os.Getenv(key)
-	if value == "" {
-		value = fallback
-	}
-	if value == "" {
-		return []string{}
-	}
-
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
 }

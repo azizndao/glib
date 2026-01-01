@@ -11,11 +11,11 @@ func TestProviderFieldName(t *testing.T) {
 		functionName string
 		expected     string
 	}{
-		{"NewDatabase", "database"},
-		{"NewCache", "cache"},
-		{"NewAuthService", "authService"},
-		{"Database", "database"},
-		{"CreateLogger", "createLogger"},
+		{"NewDatabase", "Database"},
+		{"NewCache", "Cache"},
+		{"NewAuthService", "AuthService"},
+		{"Database", "Database"},
+		{"CreateLogger", "CreateLogger"},
 	}
 
 	g := &Generator{}
@@ -38,10 +38,10 @@ func TestControllerFieldName(t *testing.T) {
 		name        string
 		expected    string
 	}{
-		{"post", "PostController", "postPostController"},
-		{"comment", "CommentController", "commentCommentController"},
-		{"auth", "AuthController", "authAuthController"},
-		{"user", "UserService", "userUserService"},
+		{"post", "PostController", "PostPostController"},
+		{"comment", "CommentController", "CommentCommentController"},
+		{"auth", "AuthController", "AuthAuthController"},
+		{"user", "UserService", "UserUserService"},
 	}
 
 	g := &Generator{}
@@ -64,9 +64,9 @@ func TestMiddlewareFieldName(t *testing.T) {
 		name     string
 		expected string
 	}{
-		{"auth", "authMiddleware"},
-		{"ratelimit", "ratelimitMiddleware"},
-		{"cors", "corsMiddleware"},
+		{"auth", "AuthMiddleware"},
+		{"ratelimit", "RatelimitMiddleware"},
+		{"cors", "CorsMiddleware"},
 	}
 
 	g := &Generator{}
@@ -113,14 +113,14 @@ func TestFindProviderForType(t *testing.T) {
 			typeInfo: &scanner.TypeInfo{
 				FullName: "*gorm.DB",
 			},
-			expected: "database",
+			expected: "Database",
 		},
 		{
 			name: "find redis.Client",
 			typeInfo: &scanner.TypeInfo{
 				FullName: "*redis.Client",
 			},
-			expected: "cache",
+			expected: "Cache",
 		},
 		{
 			name: "not found",

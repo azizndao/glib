@@ -45,11 +45,9 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString("\t\"encoding/json\"\n")
 	b.WriteString("\t\"fmt\"\n")
 	b.WriteString("\t\"net/http\"\n")
-	b.WriteString("\t\"strconv\"\n")
 	b.WriteString("\n")
 	b.WriteString("\t\"github.com/azizndao/glib\"\n")
-	b.WriteString("\t\"github.com/go-chi/chi/v5\"\n")
-	b.WriteString("\t\"github.com/google/uuid\"\n")
+	b.WriteString("\t\"github.com/azizndao/glib/utils\"\n")
 
 	// Add local imports
 	if len(localImports) > 0 {
@@ -89,21 +87,21 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 	middlewareChain := g.buildMiddlewareChain(ctrl, handler)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "func %s(container *container) http.HandlerFunc {\n", wrapperName)
+	fmt.Fprintf(&b, "func %s(app *App) http.HandlerFunc {\n", wrapperName)
 
 	// Optimization: For raw HTTP handlers, use method directly (no wrapper needed)
 	if handler.Signature.Pattern == scanner.PatternRawHTTP {
 		if len(middlewareChain) == 0 {
 			// No middleware: return method directly
-			fmt.Fprintf(&b, "\treturn container.controllers.%s.%s\n", ctrlField, handler.Name)
+			fmt.Fprintf(&b, "\treturn app.controllers.%s.%s\n", ctrlField, handler.Name)
 		} else {
 			// With middleware: wrap method reference
-			fmt.Fprintf(&b, "\thandler := http.Handler(http.HandlerFunc(container.controllers.%s.%s))\n\n", ctrlField, handler.Name)
+			fmt.Fprintf(&b, "\thandler := http.Handler(http.HandlerFunc(app.controllers.%s.%s))\n\n", ctrlField, handler.Name)
 
 			// Apply middleware chain in reverse order (innermost first)
 			for i := len(middlewareChain) - 1; i >= 0; i-- {
 				mwFieldName := g.middlewareFieldName(middlewareChain[i])
-				fmt.Fprintf(&b, "\thandler = container.middleware.%s(handler)\n", mwFieldName)
+				fmt.Fprintf(&b, "\thandler = app.middleware.%s(handler)\n", mwFieldName)
 			}
 
 			b.WriteString("\n\treturn handler.ServeHTTP\n")
@@ -132,7 +130,7 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 		// Apply middleware chain in reverse order (innermost first)
 		for i := len(middlewareChain) - 1; i >= 0; i-- {
 			mwFieldName := g.middlewareFieldName(middlewareChain[i])
-			fmt.Fprintf(&b, "\thandler = container.middleware.%s(handler)\n", mwFieldName)
+			fmt.Fprintf(&b, "\thandler = app.middleware.%s(handler)\n", mwFieldName)
 		}
 
 		b.WriteString("\n\treturn handler.ServeHTTP\n")

@@ -134,7 +134,7 @@ func (g *Generator) generateDI() (string, error) {
 		for _, dep := range mw.Dependencies {
 			providerField := g.findProviderForType(dep.Type)
 			if providerField != "" {
-				args = append(args, "c.providers."+providerField)
+				args = append(args, "c."+providerField)
 			}
 		}
 
@@ -209,9 +209,9 @@ func (g *Generator) buildProviderData(prov *scanner.Provider) ProviderData {
 		if depFieldName != "" {
 			// For transient providers, call the factory function
 			if g.isProviderTransient(dep.Type) {
-				args = append(args, "c.providers."+depFieldName+"Factory()")
+				args = append(args, "c."+depFieldName+"Factory()")
 			} else {
-				args = append(args, "c.providers."+depFieldName)
+				args = append(args, "c."+depFieldName)
 			}
 		}
 	}
@@ -263,7 +263,7 @@ func (g *Generator) createConfigProvider(cfg *scanner.Config) *scanner.Provider 
 func (g *Generator) buildConfigProviderData(prov *scanner.Provider) ProviderData {
 	// Extract config name from provider name: __config_AppConfig__ -> AppConfig
 	configName := strings.TrimSuffix(strings.TrimPrefix(prov.Name, "__config_"), "__")
-	fieldName := strings.ToLower(configName[:1]) + configName[1:] // AppConfig -> appConfig
+	fieldName := capitalize(configName) // AppConfig -> AppConfig (exported)
 
 	// loadXxxConfig is in the generated package (same package as DI container)
 	return ProviderData{
@@ -295,18 +295,18 @@ func (g *Generator) getConfigType(cfg *scanner.Config) *scanner.TypeInfo {
 // Helper functions
 
 func (g *Generator) providerFieldName(prov *scanner.Provider) string {
-	// Convert NewDatabase -> database
+	// Convert NewDatabase -> Database (exported)
 	name := strings.TrimPrefix(prov.FunctionName, "New")
-	return strings.ToLower(name[:1]) + name[1:]
+	return capitalize(name)
 }
 
 func (g *Generator) controllerFieldName(ctrl *scanner.Controller) string {
-	// Include package name to ensure uniqueness: "commentController", "postController"
-	return ctrl.PackageName + capitalize(ctrl.Name)
+	// Include package name to ensure uniqueness: "CommentController", "PostController" (exported)
+	return capitalize(ctrl.PackageName) + capitalize(ctrl.Name)
 }
 
 func (g *Generator) middlewareFieldName(mw *scanner.Middleware) string {
-	return mw.Name + "Middleware"
+	return capitalize(mw.Name) + "Middleware"
 }
 
 func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
@@ -320,8 +320,8 @@ func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 
 		// Match by name or by full type path
 		if typeInfo.Name == cfg.Name || typeInfo.FullName == configType.FullName {
-			// Return field name: AppConfig -> appConfig
-			return strings.ToLower(cfg.Name[:1]) + cfg.Name[1:]
+			// Return field name: AppConfig -> AppConfig (exported)
+			return capitalize(cfg.Name)
 		}
 	}
 

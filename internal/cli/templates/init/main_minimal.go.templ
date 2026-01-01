@@ -11,13 +11,17 @@ import (
 func main() {
 	ctx := context.Background()
 	
-	handler, err := generated.Bootstrap(ctx)
+	app, err := generated.InitContainer(ctx)
 	if err != nil {
 		log.Fatalf("bootstrap failed: %v", err)
 	}
 	
+	if err := app.RegisterRoutes(); err != nil {
+		log.Fatalf("routes registration failed: %v", err)
+	}
+	
 	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", handler); err != nil {
+	if err := http.ListenAndServe(":8080", app.Router); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }

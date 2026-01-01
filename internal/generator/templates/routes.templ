@@ -2,16 +2,12 @@
 
 package {{.PackageName}}
 
-import (
-	"github.com/go-chi/chi/v5"
-)
-
 // RegisterRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are organized by controller using chi's Route/Group/Use for clean code structure.
-func RegisterRoutes(r chi.Router, container *container) error {
+func (app *App) RegisterRoutes() error {
 {{- range .ControllerGroups}}
 	// {{.Controller.Name}} - {{.Prefix}}
-	r.Route("{{.Prefix}}", func(r chi.Router) {
+	app.Router.Route("{{.Prefix}}", func(r chi.Router) {
 		{{- if .Middleware}}
 		// Controller-level middleware
 		{{- range .Middleware}}
@@ -27,7 +23,7 @@ func RegisterRoutes(r chi.Router, container *container) error {
 		// Explicit middleware: {{join .With ", "}}
 		{{- end}}
 		{{- end}}
-		r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(container))
+		r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(app))
 		{{- end}}
 
 		{{- range .TagGroups}}
@@ -37,7 +33,7 @@ func RegisterRoutes(r chi.Router, container *container) error {
 			r.Use({{.}})
 			{{- end}}
 			{{- range .Routes}}
-			r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(container))
+			r.{{toChiMethod .Method}}("{{.Path}}", {{.HandlerName}}(app))
 			{{- end}}
 		})
 		{{- end}}

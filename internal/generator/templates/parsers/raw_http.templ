@@ -1,3 +1,3 @@
 {{/* Raw HTTP Pattern: Direct http.ResponseWriter and *http.Request handlers */}}
 	// Raw handler - direct passthrough
-	container.controllers.{{.CtrlField}}.{{.Handler.Name}}(w, r)
+	app.controllers.{{.CtrlField}}.{{.Handler.Name}}(w, r)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/validator"
+	"github.com/go-chi/chi/v5"
 {{- if .NeedsGlibMiddleware}}
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 {{- end}}
@@ -18,18 +19,19 @@ import (
 {{- end}}
 )
 
-// container holds all application dependencies.
-type container struct {
+// App holds all application dependencies.
+type App struct {
+	ProviderContainer
+	Router      chi.Router
 	ctx         context.Context
-{{- if .ValidationEnabled}}
-	validator   *validator.Validator
-{{- end}}
-	providers   providerContainer
-	controllers controllerContainer
-	middleware  middlewareContainer
+	controllers ControllerContainer
+	middleware  MiddlewareContainer
 }
 
-type providerContainer struct {
+type ProviderContainer struct {
+{{- if .ValidationEnabled}}
+	Validator *validator.Validator
+{{- end}}
 {{- if gt (len .ConfigProviders) 0}}
 {{- range .ConfigProviders}}
 	{{.FieldName}} {{.TypeName}}
@@ -52,25 +54,23 @@ type providerContainer struct {
 {{- end}}
 }
 
-type controllerContainer struct {
+type ControllerContainer struct {
 {{- range .Controllers}}
 	{{.FieldName}} *{{.PackageName}}.{{.Name}}
 {{- end}}
 }
 
-type middlewareContainer struct {
+type MiddlewareContainer struct {
 {{- range .Middleware}}
 	{{.FieldName}} func(http.Handler) http.Handler
 {{- end}}
 }
 
-func InitContainer(ctx context.Context) (*container, error) {
-	c := &container{ctx: ctx}
-
-{{- if .ValidationEnabled}}
-	// Initialize validator (generated in validator.gen.go)
-	c.validator = initValidator()
-{{- end}}
+func InitContainer(ctx context.Context) (*App, error) {
+	c := &App{
+		ctx:    ctx,
+		Router: chi.NewRouter(),
+	}
 
 	if err := c.initProviders(ctx); err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func InitContainer(ctx context.Context) (*container, error) {
 	return c, nil
 }
 
-func (c *container) initProviders(ctx context.Context) error {
+func (c *App) initProviders(ctx context.Context) error {
 {{- $hasCriticalTransients := gt (len .CriticalTransients) 0}}
 {{- $hasSingletons := gt (len .Singletons) 0}}
 {{- $hasNonCriticalTransients := gt (len .NonCriticalTransients) 0}}
@@ -106,9 +106,14 @@ func (c *container) initProviders(ctx context.Context) error {
 {{- end}}
 {{- end}}
 
+{{- if .ValidationEnabled}}
+	// Initialize validator (generated in validator.gen.go)
+	c.Validator = initValidator()
+{{- end}}
+
 {{- if $hasConfigs}}
 {{- range .ConfigProviders}}
-	c.providers.{{.FieldName}}, err = {{.FunctionName}}()
+	c.{{.FieldName}}, err = {{.FunctionName}}()
 	if err != nil {
 		return fmt.Errorf("failed to load {{.Name}}: %w", err)
 	}
@@ -117,7 +122,7 @@ func (c *container) initProviders(ctx context.Context) error {
 
 {{- if $hasCriticalTransients}}
 {{- range .CriticalTransients}}
-	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
+	c.{{.FieldName}}Factory = func() {{.TypeName}} {
 {{- if .ReturnsError}}
 		result, _ := {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 		return result
@@ -130,19 +135,19 @@ func (c *container) initProviders(ctx context.Context) error {
 {{- if $hasSingletons}}
 {{- range .Singletons}}
 {{- if .ReturnsError}}
-	c.providers.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+	c.{{.FieldName}}, err = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 	if err != nil {
 		return fmt.Errorf("failed to initialize {{.Name}}: %w", err)
 	}
 {{- else}}
-	c.providers.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
+	c.{{.FieldName}} = {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 {{- end}}
 {{- end}}
 {{- end}}
 
 {{- if $hasNonCriticalTransients}}
 {{- range .NonCriticalTransients}}
-	c.providers.{{.FieldName}}Factory = func() {{.TypeName}} {
+	c.{{.FieldName}}Factory = func() {{.TypeName}} {
 {{- if .ReturnsError}}
 		result, _ := {{if .PackageName}}{{.PackageName}}.{{end}}{{.FunctionName}}({{.ArgsString}})
 		return result
@@ -156,14 +161,14 @@ func (c *container) initProviders(ctx context.Context) error {
 	return nil
 }
 
-func (c *container) initControllers() error {
+func (c *App) initControllers() error {
 {{- range .Controllers}}
 	c.controllers.{{.FieldName}} = &{{.PackageName}}.{{.Name}}{
 {{- range .Fields}}
 {{- if .IsTransient}}
-		{{.Name}}: c.providers.{{.ProviderField}}Factory(),
+		{{.Name}}: c.{{.ProviderField}}Factory(),
 {{- else}}
-		{{.Name}}: c.providers.{{.ProviderField}},
+		{{.Name}}: c.{{.ProviderField}},
 {{- end}}
 {{- end}}
 	}
@@ -172,7 +177,7 @@ func (c *container) initControllers() error {
 	return nil
 }
 
-func (c *container) initMiddleware() error {
+func (c *App) initMiddleware() error {
 {{- range .Middleware}}
 {{- if eq .Signature "glib"}}
 	c.middleware.{{.FieldName}} = wrapGlibMiddleware({{.PackageName}}.{{.FunctionName}}({{.ArgsString}}))

@@ -17,45 +17,48 @@ import (
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 	"github.com/azizndao/glib/validator"
+	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
-// container holds all application dependencies.
-type container struct {
+// App holds all application dependencies.
+type App struct {
+	ProviderContainer
+	Router      chi.Router
 	ctx         context.Context
-	validator   *validator.Validator
-	providers   providerContainer
-	controllers controllerContainer
-	middleware  middlewareContainer
+	controllers ControllerContainer
+	middleware  MiddlewareContainer
 }
 
-type providerContainer struct {
-	config         *configs.Config
-	redisConfig    *configs.RedisConfig
-	database       *gorm.DB
-	commentService *services.CommentService
-	jWTService     *services.JWTService
-	userSerivce    *services.UserSerivce
-	postSerivce    *services.PostSerivce
-	auditorFactory func() *services.Auditor
-	loggerFactory  func() *services.Logger
+type ProviderContainer struct {
+	Validator      *validator.Validator
+	Config         *configs.Config
+	RedisConfig    *configs.RedisConfig
+	Database       *gorm.DB
+	CommentService *services.CommentService
+	JWTService     *services.JWTService
+	UserSerivce    *services.UserSerivce
+	PostSerivce    *services.PostSerivce
+	AuditorFactory func() *services.Auditor
+	LoggerFactory  func() *services.Logger
 }
 
-type controllerContainer struct {
-	authController    *auth.Controller
-	commentController *comment.Controller
-	postController    *post.Controller
+type ControllerContainer struct {
+	AuthController    *auth.Controller
+	CommentController *comment.Controller
+	PostController    *post.Controller
 }
 
-type middlewareContainer struct {
-	authMiddleware      func(http.Handler) http.Handler
-	ratelimitMiddleware func(http.Handler) http.Handler
+type MiddlewareContainer struct {
+	AuthMiddleware      func(http.Handler) http.Handler
+	RatelimitMiddleware func(http.Handler) http.Handler
 }
 
-func InitContainer(ctx context.Context) (*container, error) {
-	c := &container{ctx: ctx}
-	// Initialize validator (generated in validator.gen.go)
-	c.validator = initValidator()
+func InitContainer(ctx context.Context) (*App, error) {
+	c := &App{
+		ctx:    ctx,
+		Router: chi.NewRouter(),
+	}
 
 	if err := c.initProviders(ctx); err != nil {
 		return nil, err
@@ -72,56 +75,58 @@ func InitContainer(ctx context.Context) (*container, error) {
 	return c, nil
 }
 
-func (c *container) initProviders(ctx context.Context) error {
+func (c *App) initProviders(ctx context.Context) error {
 	var err error
-	c.providers.config, err = loadConfig()
+	// Initialize validator (generated in validator.gen.go)
+	c.Validator = initValidator()
+	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
 	}
-	c.providers.redisConfig, err = loadRedisConfig()
+	c.RedisConfig, err = loadRedisConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load RedisConfig: %w", err)
 	}
-	c.providers.auditorFactory = func() *services.Auditor {
-		return services.NewAuditor(c.providers.userSerivce)
+	c.AuditorFactory = func() *services.Auditor {
+		return services.NewAuditor(c.UserSerivce)
 	}
-	c.providers.database, err = services.NewDatabase()
+	c.Database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
-	c.providers.commentService = services.NewCommentService(c.providers.database)
-	c.providers.jWTService = services.NewJWTService()
-	c.providers.userSerivce = services.NewUserSerivce(c.providers.database)
-	c.providers.postSerivce = services.NewPostSerivce(c.providers.database, c.providers.auditorFactory())
-	c.providers.loggerFactory = func() *services.Logger {
+	c.CommentService = services.NewCommentService(c.Database)
+	c.JWTService = services.NewJWTService()
+	c.UserSerivce = services.NewUserSerivce(c.Database)
+	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
+	c.LoggerFactory = func() *services.Logger {
 		return services.NewLogger()
 	}
 
 	return nil
 }
 
-func (c *container) initControllers() error {
-	c.controllers.authController = &auth.Controller{
-		UserService: c.providers.userSerivce,
-		JWTService:  c.providers.jWTService,
-		Auditor:     c.providers.auditorFactory(),
+func (c *App) initControllers() error {
+	c.controllers.AuthController = &auth.Controller{
+		UserService: c.UserSerivce,
+		JWTService:  c.JWTService,
+		Auditor:     c.AuditorFactory(),
 	}
-	c.controllers.commentController = &comment.Controller{
-		Logger:         c.providers.loggerFactory(),
-		CommentService: c.providers.commentService,
+	c.controllers.CommentController = &comment.Controller{
+		Logger:         c.LoggerFactory(),
+		CommentService: c.CommentService,
 	}
-	c.controllers.postController = &post.Controller{
-		UserSerivce: c.providers.userSerivce,
-		PostSerivce: c.providers.postSerivce,
-		Logger:      c.providers.loggerFactory(),
+	c.controllers.PostController = &post.Controller{
+		UserSerivce: c.UserSerivce,
+		PostSerivce: c.PostSerivce,
+		Logger:      c.LoggerFactory(),
 	}
 
 	return nil
 }
 
-func (c *container) initMiddleware() error {
-	c.middleware.authMiddleware = wrapGlibMiddleware(middleware.Auth(c.providers.jWTService))
-	c.middleware.ratelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
+func (c *App) initMiddleware() error {
+	c.middleware.AuthMiddleware = wrapGlibMiddleware(middleware.Auth(c.JWTService))
+	c.middleware.RatelimitMiddleware = wrapGlibMiddleware(middleware.RateLimit())
 
 	return nil
 }
