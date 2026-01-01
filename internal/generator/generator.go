@@ -44,6 +44,11 @@ func NewWithValidation(project *scanner.Project, outputDir, pkgName string, vali
 
 // Generate generates all code files
 func (g *Generator) Generate() error {
+	// Validate field name uniqueness before generating
+	if err := g.validateUniqueNames(); err != nil {
+		return err
+	}
+
 	// Create output directory
 	if err := os.MkdirAll(g.outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
@@ -171,4 +176,51 @@ func (g *Generator) generateValidator() (string, error) {
 	}
 
 	return g.executeTemplate("validator.templ", data)
+}
+
+// validateUniqueNames checks for field name collisions across providers, controllers, and configs
+func (g *Generator) validateUniqueNames() error {
+	seen := make(map[string]string) // fieldName -> source
+
+	// Check providers
+	for _, prov := range g.project.Providers {
+		name := g.providerFieldName(prov)
+		if source, exists := seen[name]; exists {
+			return fmt.Errorf("field name collision: '%s' (provider:%s conflicts with %s)",
+				name, prov.Name, source)
+		}
+		seen[name] = "provider:" + prov.Name
+	}
+
+	// Check controllers
+	for _, ctrl := range g.project.Controllers {
+		name := g.controllerFieldName(ctrl)
+		if source, exists := seen[name]; exists {
+			return fmt.Errorf("field name collision: '%s' (controller:%s conflicts with %s)",
+				name, ctrl.Name, source)
+		}
+		seen[name] = "controller:" + ctrl.Name
+	}
+
+	// Check configs
+	for _, cfg := range g.project.Configs {
+		name := capitalize(cfg.Name)
+		if source, exists := seen[name]; exists {
+			return fmt.Errorf("field name collision: '%s' (config:%s conflicts with %s)",
+				name, cfg.Name, source)
+		}
+		seen[name] = "config:" + cfg.Name
+	}
+
+	// Check middleware
+	for _, mw := range g.project.Middleware {
+		name := g.middlewareFieldName(mw)
+		if source, exists := seen[name]; exists {
+			return fmt.Errorf("field name collision: '%s' (middleware:%s conflicts with %s)",
+				name, mw.Name, source)
+		}
+		seen[name] = "middleware:" + mw.Name
+	}
+
+	return nil
 }

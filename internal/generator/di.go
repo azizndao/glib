@@ -147,41 +147,8 @@ func (g *Generator) generateDI() (string, error) {
 		})
 	}
 
-	// Collect all package paths for imports (goimports will remove unused ones)
-	var imports []string
-	seen := make(map[string]bool)
-
-	// Add config packages
-	for _, cfg := range g.project.Configs {
-		if cfg.PackagePath != "" && !seen[cfg.PackagePath] && cfg.PackagePath != g.pkgName {
-			imports = append(imports, cfg.PackagePath)
-			seen[cfg.PackagePath] = true
-		}
-	}
-
-	// Add controller packages
-	for _, ctrl := range g.project.Controllers {
-		if ctrl.PackagePath != "" && !seen[ctrl.PackagePath] && ctrl.PackagePath != g.pkgName {
-			imports = append(imports, ctrl.PackagePath)
-			seen[ctrl.PackagePath] = true
-		}
-	}
-
-	// Add provider packages
-	for _, prov := range g.project.Providers {
-		if prov.PackagePath != "" && !seen[prov.PackagePath] && prov.PackagePath != g.pkgName {
-			imports = append(imports, prov.PackagePath)
-			seen[prov.PackagePath] = true
-		}
-	}
-
-	// Add middleware packages
-	for _, mw := range g.project.Middleware {
-		if mw.PackagePath != "" && !seen[mw.PackagePath] && mw.PackagePath != g.pkgName {
-			imports = append(imports, mw.PackagePath)
-			seen[mw.PackagePath] = true
-		}
-	}
+	// Collect all package paths for imports
+	imports := g.collectPackageImports()
 
 	data := map[string]any{
 		"PackageName":           g.pkgName,
@@ -356,4 +323,34 @@ func (g *Generator) typeString(typeInfo *scanner.TypeInfo) string {
 		return "any"
 	}
 	return typeInfo.FullName
+}
+
+// collectPackageImports collects all unique package paths from the project
+func (g *Generator) collectPackageImports() []string {
+	seen := make(map[string]bool)
+	var imports []string
+
+	// Helper to add import if not seen
+	addImport := func(pkgPath string) {
+		if pkgPath != "" && !seen[pkgPath] && pkgPath != g.pkgName {
+			imports = append(imports, pkgPath)
+			seen[pkgPath] = true
+		}
+	}
+
+	// Collect from all sources
+	for _, cfg := range g.project.Configs {
+		addImport(cfg.PackagePath)
+	}
+	for _, ctrl := range g.project.Controllers {
+		addImport(ctrl.PackagePath)
+	}
+	for _, prov := range g.project.Providers {
+		addImport(prov.PackagePath)
+	}
+	for _, mw := range g.project.Middleware {
+		addImport(mw.PackagePath)
+	}
+
+	return imports
 }

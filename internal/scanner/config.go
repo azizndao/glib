@@ -49,8 +49,9 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) ([]*C
 				Position:    s.fset.Position(typeSpec.Pos()),
 			}
 
-			// Parse struct fields
-			fields, err := s.scanConfigFields(structType, "")
+			// Parse struct fields with cycle detection
+			visited := make(map[string]bool)
+			fields, err := s.scanConfigFields(structType, "", visited)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse @Config %s fields: %w", config.Name, err)
 			}
@@ -64,7 +65,8 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) ([]*C
 }
 
 // scanConfigFields recursively scans struct fields and extracts config metadata
-func (s *Scanner) scanConfigFields(structType *ast.StructType, envPrefix string) ([]*ConfigField, error) {
+// visited tracks field paths to detect circular references
+func (s *Scanner) scanConfigFields(structType *ast.StructType, envPrefix string, visited map[string]bool) ([]*ConfigField, error) {
 	var fields []*ConfigField
 
 	for _, field := range structType.Fields.List {
@@ -124,9 +126,22 @@ func (s *Scanner) scanConfigFields(structType *ast.StructType, envPrefix string)
 		// Check if field is a nested struct
 		if structType, ok := field.Type.(*ast.StructType); ok {
 			configField.IsNested = true
+			// Check for circular reference
+			structKey := envPrefix + fieldName
+			if visited[structKey] {
+				return nil, fmt.Errorf("circular reference detected in config struct at field: %s", structKey)
+			}
+
+			// Mark as visited before recursing
+			visited[structKey] = true
+
 			// Recursively scan nested struct fields
 			nestedPrefix := configField.EnvName + "_"
-			nestedFields, err := s.scanConfigFields(structType, nestedPrefix)
+			nestedFields, err := s.scanConfigFields(structType, nestedPrefix, visited)
+
+			// Backtrack: unmark after recursion completes
+			delete(visited, structKey)
+
 			if err != nil {
 				return nil, err
 			}
@@ -147,7 +162,7 @@ func (s *Scanner) parseConfigType(expr ast.Expr) *TypeInfo {
 		typeName := t.Name
 		return &TypeInfo{
 			Name:        typeName,
-			IsPrimitive: isPrimitiveType(typeName),
+			IsPrimitive: isPrimitive(typeName),
 			FullName:    typeName,
 		}
 
@@ -216,27 +231,4 @@ func toSnakeCase(s string) string {
 		result.WriteRune(r)
 	}
 	return strings.ToUpper(result.String())
-}
-
-// isPrimitiveType checks if a type is a Go primitive
-func isPrimitiveType(typeName string) bool {
-	primitives := map[string]bool{
-		"string":  true,
-		"int":     true,
-		"int8":    true,
-		"int16":   true,
-		"int32":   true,
-		"int64":   true,
-		"uint":    true,
-		"uint8":   true,
-		"uint16":  true,
-		"uint32":  true,
-		"uint64":  true,
-		"float32": true,
-		"float64": true,
-		"bool":    true,
-		"byte":    true,
-		"rune":    true,
-	}
-	return primitives[typeName]
 }

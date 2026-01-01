@@ -3,7 +3,7 @@ package scanner
 import (
 	"fmt"
 	"go/ast"
-	"strings"
+	"reflect"
 )
 
 // parseHandlerSignature analyzes a handler function signature and determines its pattern
@@ -335,29 +335,11 @@ func (s *Scanner) parseStructTags(typeName string) (queryParams []*QueryParam, h
 	return queryParams, headerParams, hasJSONTags
 }
 
-// parseStructTag extracts a specific tag value from struct tag string
+// parseStructTag extracts a specific tag value from struct tag string using reflect.StructTag
 // Example: `query:"page" json:"title"` with key="query" returns "page"
 func parseStructTag(tagString, key string) string {
-	// Simple parser for struct tags
-	// Format: `key:"value" key2:"value2"`
-
-	// Find key in tag string
-	keyPrefix := key + `:"`
-	startIdx := strings.Index(tagString, keyPrefix)
-	if startIdx == -1 {
-		return ""
-	}
-
-	// Find value start
-	valueStart := startIdx + len(keyPrefix)
-
-	// Find closing quote
-	endIdx := strings.Index(tagString[valueStart:], `"`)
-	if endIdx == -1 {
-		return ""
-	}
-
-	return tagString[valueStart : valueStart+endIdx]
+	tag := reflect.StructTag(tagString)
+	return tag.Get(key)
 }
 
 // hasValidationTags checks if a struct has validate tags

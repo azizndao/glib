@@ -216,9 +216,15 @@ func (g *Generator) handlerWrapperName(ctrl *scanner.Controller, handler *scanne
 
 // diffTags returns tags in a that are not in b
 func diffTags(a, b []string) []string {
+	// Build map for O(1) lookups
+	bMap := make(map[string]bool, len(b))
+	for _, tag := range b {
+		bMap[tag] = true
+	}
+
 	var diff []string
 	for _, tag := range a {
-		if !slices.Contains(b, tag) {
+		if !bMap[tag] {
 			diff = append(diff, tag)
 		}
 	}

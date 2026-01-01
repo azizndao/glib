@@ -298,35 +298,10 @@ func joinStrings(strs []string, sep string) string {
 	var result strings.Builder
 	result.WriteString(strs[0])
 	for i := 1; i < len(strs); i++ {
-		result.WriteString(sep + strs[i])
+		result.WriteString(sep)
+		result.WriteString(strs[i])
 	}
 	return result.String()
-}
-
-// isPrimitive checks if a type name is a Go primitive
-func isPrimitive(name string) bool {
-	primitives := map[string]bool{
-		"bool":       true,
-		"string":     true,
-		"int":        true,
-		"int8":       true,
-		"int16":      true,
-		"int32":      true,
-		"int64":      true,
-		"uint":       true,
-		"uint8":      true,
-		"uint16":     true,
-		"uint32":     true,
-		"uint64":     true,
-		"uintptr":    true,
-		"byte":       true,
-		"rune":       true,
-		"float32":    true,
-		"float64":    true,
-		"complex64":  true,
-		"complex128": true,
-	}
-	return primitives[name]
 }
 
 // parseImports extracts import mappings from a file
@@ -362,27 +337,6 @@ func (s *Scanner) isHTTPType(typeInfo *TypeInfo) bool {
 		return false
 	}
 	return typeInfo.Name == "ResponseWriter" || typeInfo.Name == "Request"
-}
-
-// buildTypeSpecMap builds a map of type names to their TypeSpec for the current file
-func (s *Scanner) buildTypeSpecMap(file *ast.File) {
-	s.typeSpecs = make(map[string]*ast.TypeSpec)
-
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.TYPE {
-			continue
-		}
-
-		for _, spec := range genDecl.Specs {
-			typeSpec, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				continue
-			}
-
-			s.typeSpecs[typeSpec.Name.Name] = typeSpec
-		}
-	}
 }
 
 // buildTypeSpecMapFromPackage builds a map of type names to their TypeSpec for all files in the package
