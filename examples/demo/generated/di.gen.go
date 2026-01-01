@@ -27,6 +27,7 @@ type container struct {
 
 type providerContainer struct {
 	config         *configs.Config
+	redisConfig    *configs.RedisConfig
 	database       *gorm.DB
 	commentService *services.CommentService
 	jWTService     *services.JWTService
@@ -70,6 +71,10 @@ func (c *container) initProviders(ctx context.Context) error {
 	c.providers.config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
+	}
+	c.providers.redisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
 	}
 	c.providers.auditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.providers.userSerivce)

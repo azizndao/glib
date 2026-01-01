@@ -19,6 +19,6 @@ type Config struct {
 	}
 
 	Database struct {
-		Filename string `env:"DB_FILENAME" default:"db.sqlite"`
+		Filename string `env:"DB_FILENAME" default:"data.db"`
 	}
 }
