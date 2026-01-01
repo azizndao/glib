@@ -45,30 +45,8 @@ type MiddlewareData struct {
 
 // generateDI generates the DI container (di.gen.go)
 func (g *Generator) generateDI() (string, error) {
-	// Determine what's needed
-	needsFmt := false
-	needsHTTP := len(g.project.Middleware) > 0
-	needsGlibMiddleware := false
-
-	// Check if any provider returns error (needs fmt for error wrapping)
-	for _, prov := range g.project.Providers {
-		if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
-			returnCount := 0
-			for _, field := range prov.FuncDecl.Type.Results.List {
-				if len(field.Names) == 0 {
-					returnCount++
-				} else {
-					returnCount += len(field.Names)
-				}
-			}
-			if returnCount > 1 {
-				needsFmt = true
-				break
-			}
-		}
-	}
-
 	// Check if any middleware uses glib-style signature
+	needsGlibMiddleware := false
 	for _, mw := range g.project.Middleware {
 		if mw.Signature == "glib" {
 			needsGlibMiddleware = true
@@ -87,7 +65,6 @@ func (g *Generator) generateDI() (string, error) {
 			// Add to allProviders for dependency graph analysis
 			allProviders = append(allProviders, configProvider)
 		}
-		needsFmt = true // Config loading needs fmt for error handling
 	}
 
 	// NEW: Build dependency graph and analyze initialization order
@@ -170,12 +147,46 @@ func (g *Generator) generateDI() (string, error) {
 		})
 	}
 
+	// Collect all package paths for imports (goimports will remove unused ones)
+	var imports []string
+	seen := make(map[string]bool)
+
+	// Add config packages
+	for _, cfg := range g.project.Configs {
+		if cfg.PackagePath != "" && !seen[cfg.PackagePath] && cfg.PackagePath != g.pkgName {
+			imports = append(imports, cfg.PackagePath)
+			seen[cfg.PackagePath] = true
+		}
+	}
+
+	// Add controller packages
+	for _, ctrl := range g.project.Controllers {
+		if ctrl.PackagePath != "" && !seen[ctrl.PackagePath] && ctrl.PackagePath != g.pkgName {
+			imports = append(imports, ctrl.PackagePath)
+			seen[ctrl.PackagePath] = true
+		}
+	}
+
+	// Add provider packages
+	for _, prov := range g.project.Providers {
+		if prov.PackagePath != "" && !seen[prov.PackagePath] && prov.PackagePath != g.pkgName {
+			imports = append(imports, prov.PackagePath)
+			seen[prov.PackagePath] = true
+		}
+	}
+
+	// Add middleware packages
+	for _, mw := range g.project.Middleware {
+		if mw.PackagePath != "" && !seen[mw.PackagePath] && mw.PackagePath != g.pkgName {
+			imports = append(imports, mw.PackagePath)
+			seen[mw.PackagePath] = true
+		}
+	}
+
 	data := map[string]any{
 		"PackageName":           g.pkgName,
-		"NeedsFmt":              needsFmt,
-		"NeedsHTTP":             needsHTTP,
 		"NeedsGlibMiddleware":   needsGlibMiddleware,
-		"Imports":               g.collectImports(),
+		"Imports":               imports,
 		"ConfigProviders":       configProvidersData,
 		"CriticalTransients":    criticalTransients,
 		"Singletons":            singletons,
@@ -345,60 +356,4 @@ func (g *Generator) typeString(typeInfo *scanner.TypeInfo) string {
 		return "any"
 	}
 	return typeInfo.FullName
-}
-
-func (g *Generator) collectImports() []string {
-	seen := make(map[string]bool)
-	var imports []string
-
-	// Helper to add an import if valid
-	addImport := func(path string) {
-		if path == "" || path == g.pkgName || path == "main" || seen[path] {
-			return
-		}
-		seen[path] = true
-		imports = append(imports, path)
-	}
-
-	// Helper to recursively collect imports from a type
-	var collectTypeImports func(*scanner.TypeInfo)
-	collectTypeImports = func(typeInfo *scanner.TypeInfo) {
-		if typeInfo == nil {
-			return
-		}
-		addImport(typeInfo.PackagePath)
-		for _, param := range typeInfo.TypeParams {
-			collectTypeImports(param)
-		}
-	}
-
-	// Add config package imports if configs exist
-	for _, cfg := range g.project.Configs {
-		addImport(cfg.PackagePath)
-	}
-
-	// Add imports from controllers
-	for _, ctrl := range g.project.Controllers {
-		addImport(ctrl.PackagePath)
-	}
-
-	// Add imports from providers
-	for _, prov := range g.project.Providers {
-		addImport(prov.PackagePath)
-
-		// Add imports from provider return type
-		collectTypeImports(prov.ReturnType)
-
-		// Add imports from provider dependencies
-		for _, dep := range prov.Dependencies {
-			collectTypeImports(dep.Type)
-		}
-	}
-
-	// Add imports from middleware
-	for _, mw := range g.project.Middleware {
-		addImport(mw.PackagePath)
-	}
-
-	return imports
 }

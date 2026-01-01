@@ -4,20 +4,13 @@ package {{.PackageName}}
 
 import (
 	"context"
-{{- if .NeedsFmt}}
 	"fmt"
-{{- end}}
-{{- if .NeedsHTTP}}
 	"net/http"
-{{- end}}
 
+	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/validator"
 {{- if .NeedsGlibMiddleware}}
-	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/validator"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
-{{- else}}
-	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/validator"
 {{- end}}
 
 {{- range .Imports}}

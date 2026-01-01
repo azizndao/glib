@@ -5,13 +5,14 @@ package generated
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"glib/demo/configs"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
 	"glib/demo/middleware"
 	"glib/demo/services"
-	"net/http"
 
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
