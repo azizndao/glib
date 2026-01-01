@@ -32,8 +32,8 @@ type App struct {
 
 type ProviderContainer struct {
 	Validator      *validator.Validator
-	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
+	RedisConfig    *configs.RedisConfig
 	Database       *gorm.DB
 	CommentService *services.CommentService
 	JWTService     *services.JWTService
@@ -79,13 +79,13 @@ func (c *App) initProviders(ctx context.Context) error {
 	var err error
 	// Initialize validator (generated in validator.gen.go)
 	c.Validator = initValidator()
-	c.RedisConfig, err = loadRedisConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load RedisConfig: %w", err)
-	}
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
+	}
+	c.RedisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
 	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)

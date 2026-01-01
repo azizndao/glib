@@ -13,7 +13,7 @@ Glib uses annotation-based code generation to eliminate boilerplate and let you 
 - **Raw HTTP Support**: Full control for streaming, SSE, file uploads when needed
 - **Dependency Injection**: Built-in DI container with singleton and transient lifecycles
 - **Structured Errors**: Encore.dev-style error handling with HTTP status mapping and ValidationErrors support
-- **Hot Reload**: Development server with automatic code regeneration using Air
+- **Hot Reload**: Native development server with incremental code regeneration and automatic restart
 - **CLI Tools**: Generate boilerplate, validate annotations, and manage development workflow
 
 ## Quick Start
@@ -22,12 +22,6 @@ Glib uses annotation-based code generation to eliminate boilerplate and let you 
 
 ```bash
 go install github.com/azizndao/glib/cmd/glib@latest
-```
-
-Optionally install Air for hot reload:
-
-```bash
-go install github.com/cosmtrek/air@latest
 ```
 
 ### Create a New Project
@@ -54,9 +48,12 @@ glib dev
 This will:
 
 1. Run initial code generation
-2. Start Air file watcher
-3. Auto-regenerate code on file changes
-4. Rebuild and restart server automatically
+2. Build and start your server
+3. Watch for file changes (`.go` files + `glib.json`)
+4. Auto-regenerate code incrementally (fast!)
+5. Rebuild and restart server automatically
+
+Press `Ctrl+C` to stop the development server.
 
 ## Example
 
@@ -596,18 +593,19 @@ glib validate
 
 ### `glib dev`
 
-Start development server with hot reload.
+Start development server with native hot reload.
 
 ```bash
-glib dev [--port 8080] [--air-config .air.toml] [--no-air]
+glib dev [--port 8080] [--verbose] [--workers 4] [--no-cache] [--debounce 300]
 ```
 
 Features:
 
-- Auto-regenerates code on file changes
-- Rebuilds and restarts server
-- Uses Air for advanced file watching
-- Falls back to basic mode if Air not installed
+- Auto-regenerates code on file changes (incremental!)
+- Rebuilds and restarts server automatically
+- Native file watching (no external dependencies)
+- Debouncing for rapid file changes (default: 300ms)
+- Press Ctrl+C to stop
 
 ## Configuration
 
@@ -649,7 +647,6 @@ my-app/
 │   └── parsers.gen.go
 ├── main.go              # Your entry point
 ├── glib.json              # Glib configuration
-├── .air.toml            # Air configuration (auto-generated)
 └── go.mod
 ```
 
@@ -699,7 +696,6 @@ Glib uses **2 handler patterns**:
 ## Requirements
 
 - Go 1.21 or later
-- Air (optional, for hot reload)
 
 ## Contributing
 
