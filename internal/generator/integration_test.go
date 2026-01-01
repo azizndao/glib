@@ -191,8 +191,8 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 	}
 
 	// 3. Verify non-critical transient factory (loggerFactory) exists
-	loggerFactoryPos := strings.Index(diCode, "loggerFactory = func()")
-	if loggerFactoryPos == -1 {
+	found := strings.Contains(diCode, "loggerFactory = func()")
+	if !found {
 		t.Error("loggerFactory should be defined as a factory function")
 	}
 }

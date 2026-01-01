@@ -105,10 +105,24 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Write CSV header
-	_, _ = fmt.Fprintln(w, "id,title,created_at")
+	_, _ = fmt.Fprintln(w, "id,title,slug,created_at")
 
-	// Write sample data (in real app, fetch from DB)
-	_, _ = fmt.Fprintf(w, "%s,Sample Post,%s\n", uuid.New(), time.Now().Format(time.RFC3339))
+	// Fetch real posts from database
+	posts, err := c.PostSerivce.GetPosts()
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "# Error: %v\n", err)
+		return
+	}
+
+	// Write posts data
+	for _, post := range posts {
+		_, _ = fmt.Fprintf(w, "%s,%q,%s,%s\n",
+			post.ID,
+			post.Title,
+			post.Slug,
+			post.CreatedAt.Format(time.RFC3339),
+		)
+	}
 }
 
 // @Route method=GET path=/stream
@@ -124,20 +138,30 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send 3 events then close
-	for i := range 3 {
+	// Fetch posts
+	posts, err := c.PostSerivce.GetPosts()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Stream posts one by one
+	for _, post := range posts {
 		select {
 		case <-r.Context().Done():
 			return
-		case <-time.After(1 * time.Second):
+		default:
 			data := map[string]any{
-				"id":      uuid.New(),
-				"message": fmt.Sprintf("Event %d", i+1),
-				"time":    time.Now().Format(time.RFC3339),
+				"id":     post.ID,
+				"title":  post.Title,
+				"slug":   post.Slug,
+				"author": post.AuthorID,
+				"time":   time.Now().Format(time.RFC3339),
 			}
 			jsonData, _ := json.Marshal(data)
 			_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }

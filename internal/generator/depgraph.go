@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/azizndao/glib/internal/scanner"
 )
@@ -271,39 +272,39 @@ func (g *DependencyGraph) IsUsedBySingleton(transient *scanner.Provider) bool {
 
 // DebugString returns a debug representation of the dependency graph
 func (g *DependencyGraph) DebugString() string {
-	var s string
-	s += "Dependency Graph:\n"
-	s += fmt.Sprintf("  Providers: %d\n", len(g.Providers))
-	s += fmt.Sprintf("  Dependencies:\n")
+	var s strings.Builder
+	s.WriteString("Dependency Graph:\n")
+	fmt.Fprintf(&s, "  Providers: %d\n", len(g.Providers))
+	s.WriteString("  Dependencies:\n")
 
 	for provType, deps := range g.Dependencies {
-		s += fmt.Sprintf("    %s ->\n", provType)
+		fmt.Fprintf(&s, "    %s ->\n", provType)
 		for _, dep := range deps {
-			s += fmt.Sprintf("      - %s\n", dep)
+			fmt.Fprintf(&s, "      - %s\n", dep)
 		}
 	}
 
-	return s
+	return s.String()
 }
 
 // DebugPlan returns a debug representation of an initialization plan
 func (plan *InitializationPlan) DebugString() string {
-	var s string
-	s += "Initialization Plan:\n"
-	s += fmt.Sprintf("  Phase 1 - Critical Transients: %d\n", len(plan.CriticalTransients))
+	var s strings.Builder
+	s.WriteString("Initialization Plan:\n")
+	fmt.Fprintf(&s, "  Phase 1 - Critical Transients: %d\n", len(plan.CriticalTransients))
 	for i, prov := range plan.CriticalTransients {
-		s += fmt.Sprintf("    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
+		fmt.Fprintf(&s, "    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
 	}
 
-	s += fmt.Sprintf("  Phase 2 - Singletons: %d\n", len(plan.Singletons))
+	fmt.Fprintf(&s, "  Phase 2 - Singletons: %d\n", len(plan.Singletons))
 	for i, prov := range plan.Singletons {
-		s += fmt.Sprintf("    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
+		fmt.Fprintf(&s, "    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
 	}
 
-	s += fmt.Sprintf("  Phase 3 - Non-Critical Transients: %d\n", len(plan.NonCriticalTransients))
+	fmt.Fprintf(&s, "  Phase 3 - Non-Critical Transients: %d\n", len(plan.NonCriticalTransients))
 	for i, prov := range plan.NonCriticalTransients {
-		s += fmt.Sprintf("    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
+		fmt.Fprintf(&s, "    %d. %s (%s)\n", i+1, prov.Name, prov.ReturnType.FullName)
 	}
 
-	return s
+	return s.String()
 }

@@ -16,4 +16,9 @@ type glibConfig struct {
 	Dev struct {
 		Port int `json:"port"`
 	} `json:"dev"`
+	Validation struct {
+		Enabled         bool     `json:"enabled"`
+		Languages       []string `json:"languages"`
+		DefaultLanguage string   `json:"defaultLanguage"`
+	} `json:"validation"`
 }

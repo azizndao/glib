@@ -11,17 +11,34 @@ import (
 
 // Generator generates code from scanned project
 type Generator struct {
-	project   *scanner.Project
-	outputDir string
-	pkgName   string
+	project       *scanner.Project
+	outputDir     string
+	pkgName       string
+	validationCfg ValidationConfig
+}
+
+// ValidationConfig holds validation settings from glib.json
+type ValidationConfig struct {
+	Enabled         bool
+	Languages       []string
+	DefaultLanguage string
 }
 
 // New creates a new generator
 func New(project *scanner.Project, outputDir, pkgName string) *Generator {
+	return NewWithValidation(project, outputDir, pkgName, ValidationConfig{
+		Languages:       []string{"en"},
+		DefaultLanguage: "en",
+	})
+}
+
+// NewWithValidation creates a new generator with validation config
+func NewWithValidation(project *scanner.Project, outputDir, pkgName string, validationCfg ValidationConfig) *Generator {
 	return &Generator{
-		project:   project,
-		outputDir: outputDir,
-		pkgName:   pkgName,
+		project:       project,
+		outputDir:     outputDir,
+		pkgName:       pkgName,
+		validationCfg: validationCfg,
 	}
 }
 
@@ -40,6 +57,14 @@ func (g *Generator) Generate() error {
 		{"di.gen.go", g.generateDI},
 		{"routes.gen.go", g.generateRoutes},
 		{"parsers.gen.go", g.generateParsers},
+	}
+
+	// Add validator only if validation is enabled
+	if g.validationCfg.Enabled {
+		files = append([]struct {
+			name      string
+			generator func() (string, error)
+		}{{"validator.gen.go", g.generateValidator}}, files...)
 	}
 
 	// Add config loader to generated files if Configs exist
@@ -122,4 +147,28 @@ func (g *Generator) generateEnvExample() error {
 	projectRoot := filepath.Dir(g.outputDir)
 	path := filepath.Join(projectRoot, ".env.example")
 	return os.WriteFile(path, []byte(content), 0644)
+}
+
+// generateValidator generates the validator initialization code
+func (g *Generator) generateValidator() (string, error) {
+	// Use configured default language, or default to English
+	defaultLang := g.validationCfg.DefaultLanguage
+	if defaultLang == "" {
+		defaultLang = "en"
+	}
+
+	// Use configured languages, or use the default language
+	languages := g.validationCfg.Languages
+	if len(languages) == 0 {
+		languages = []string{defaultLang}
+	}
+
+	// Prepare template data
+	data := map[string]any{
+		"PackageName":     g.pkgName,
+		"Languages":       languages,
+		"DefaultLanguage": defaultLang,
+	}
+
+	return g.executeTemplate("validator.tmpl", data)
 }

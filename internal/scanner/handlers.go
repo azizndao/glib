@@ -145,12 +145,22 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			// If struct has query/header tags, store the struct type
 			if len(queryParams) > 0 || len(headerParams) > 0 {
 				sig.ParamsStructType = paramType
+				// Check if params struct has validation tags
+				sig.NeedsParamsValidation = s.hasValidationTags(paramType.Name)
+
+				// If struct also has JSON tags, treat JSON fields as request body
+				if hasJSONTags {
+					sig.RequestType = paramType
+					sig.NeedsValidation = s.hasValidationTags(paramType.Name)
+				}
 				continue
 			}
 
 			// If struct has JSON tags (and no query/header tags), treat as request body
 			if hasJSONTags {
 				sig.RequestType = paramType
+				// Check if struct has validation tags
+				sig.NeedsValidation = s.hasValidationTags(paramType.Name)
 			}
 		}
 
@@ -165,6 +175,8 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			// If no struct tags and not a path param, treat as request body
 			// (backward compatible: structs without tags are JSON bodies)
 			sig.RequestType = paramType
+			// Check if struct has validation tags
+			sig.NeedsValidation = s.hasValidationTags(paramType.Name)
 		}
 	}
 
@@ -337,4 +349,40 @@ func parseStructTag(tagString, key string) string {
 	}
 
 	return tagString[valueStart : valueStart+endIdx]
+}
+
+// hasValidationTags checks if a struct has validate tags
+func (s *Scanner) hasValidationTags(typeName string) bool {
+	// Look up TypeSpec in current file
+	typeSpec, ok := s.typeSpecs[typeName]
+	if !ok {
+		return false
+	}
+
+	// Must be a struct type
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok {
+		return false
+	}
+
+	// Check if any field has a validate tag
+	for _, field := range structType.Fields.List {
+		if field.Tag == nil {
+			continue
+		}
+
+		// Parse struct tag
+		tagValue := field.Tag.Value
+		// Remove backticks
+		if len(tagValue) >= 2 && tagValue[0] == '`' && tagValue[len(tagValue)-1] == '`' {
+			tagValue = tagValue[1 : len(tagValue)-1]
+		}
+
+		// Check for validate tag
+		if validateTag := parseStructTag(tagValue, "validate"); validateTag != "" {
+			return true
+		}
+	}
+
+	return false
 }

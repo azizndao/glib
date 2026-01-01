@@ -42,7 +42,7 @@
 
 {{- if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams}}
 		// Parse query parameters and headers into struct
-		var reqParams {{typeRef .Handler.Signature.ParamsStructType}}
+		var req {{typeRef .Handler.Signature.ParamsStructType}}
 {{- end}}
 
 {{- if .Handler.Signature.QueryParams}}
@@ -51,13 +51,13 @@
 {{- if .Type.IsSlice}}
 		// Slice parameter: {{.ParamName}}
 		if values := r.URL.Query()["{{.ParamName}}"]; len(values) > 0 {
-			reqParams.{{.FieldName}} = values
+			req.{{.FieldName}} = values
 		}
 {{- else if .IsOptional}}
 		// Optional parameter: {{.ParamName}}
 		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
 {{- if eq .Type.Name "string"}}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Str
+			req.{{.FieldName}} = &{{.ParamName}}Str
 {{- else if eq .Type.Name "int"}}
 			{{.ParamName}}Val, err := strconv.Atoi({{.ParamName}}Str)
 			if err != nil {
@@ -65,7 +65,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+			req.{{.FieldName}} = &{{.ParamName}}Val
 {{- else if eq .Type.Name "int64"}}
 			{{.ParamName}}Val, err := strconv.ParseInt({{.ParamName}}Str, 10, 64)
 			if err != nil {
@@ -73,7 +73,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+			req.{{.FieldName}} = &{{.ParamName}}Val
 {{- else if eq .Type.Name "bool"}}
 			{{.ParamName}}Val, err := strconv.ParseBool({{.ParamName}}Str)
 			if err != nil {
@@ -81,7 +81,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be true or false")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+			req.{{.FieldName}} = &{{.ParamName}}Val
 {{- else if eq .Type.Name "float64"}}
 			{{.ParamName}}Val, err := strconv.ParseFloat({{.ParamName}}Str, 64)
 			if err != nil {
@@ -89,7 +89,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a number")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+			req.{{.FieldName}} = &{{.ParamName}}Val
 {{- else if eq .Type.PackageName "uuid"}}
 			{{.ParamName}}Val, err := uuid.Parse({{.ParamName}}Str)
 			if err != nil {
@@ -97,14 +97,14 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a valid UUID")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = &{{.ParamName}}Val
+			req.{{.FieldName}} = &{{.ParamName}}Val
 {{- end}}
 		}
 {{- else}}
 		// Required parameter: {{.ParamName}}
 		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
 {{- if eq .Type.Name "string"}}
-			reqParams.{{.FieldName}} = {{.ParamName}}Str
+			req.{{.FieldName}} = {{.ParamName}}Str
 {{- else if eq .Type.Name "int"}}
 			{{.ParamName}}Val, err := strconv.Atoi({{.ParamName}}Str)
 			if err != nil {
@@ -112,7 +112,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = {{.ParamName}}Val
+			req.{{.FieldName}} = {{.ParamName}}Val
 {{- else if eq .Type.Name "int64"}}
 			{{.ParamName}}Val, err := strconv.ParseInt({{.ParamName}}Str, 10, 64)
 			if err != nil {
@@ -120,7 +120,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be an integer")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = {{.ParamName}}Val
+			req.{{.FieldName}} = {{.ParamName}}Val
 {{- else if eq .Type.Name "bool"}}
 			{{.ParamName}}Val, err := strconv.ParseBool({{.ParamName}}Str)
 			if err != nil {
@@ -128,7 +128,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be true or false")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = {{.ParamName}}Val
+			req.{{.FieldName}} = {{.ParamName}}Val
 {{- else if eq .Type.Name "float64"}}
 			{{.ParamName}}Val, err := strconv.ParseFloat({{.ParamName}}Str, 64)
 			if err != nil {
@@ -136,7 +136,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a number")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = {{.ParamName}}Val
+			req.{{.FieldName}} = {{.ParamName}}Val
 {{- else if eq .Type.PackageName "uuid"}}
 			{{.ParamName}}Val, err := uuid.Parse({{.ParamName}}Str)
 			if err != nil {
@@ -144,7 +144,7 @@
 					fmt.Sprintf("invalid query parameter '{{.ParamName}}': must be a valid UUID")).Write(w)
 				return
 			}
-			reqParams.{{.FieldName}} = {{.ParamName}}Val
+			req.{{.FieldName}} = {{.ParamName}}Val
 {{- end}}
 		}
 {{- end}}
@@ -157,25 +157,56 @@
 {{- if .IsOptional}}
 		// Optional header: {{.HeaderName}}
 		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
-			reqParams.{{.FieldName}} = &{{.FieldName}}Val
+			req.{{.FieldName}} = &{{.FieldName}}Val
 		}
 {{- else}}
 		// Required header: {{.HeaderName}}
-		reqParams.{{.FieldName}} = r.Header.Get("{{.HeaderName}}")
+		req.{{.FieldName}} = r.Header.Get("{{.HeaderName}}")
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+{{- if not .Handler.Signature.RequestType}}
+
+		// Validate query/header parameters with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[{{typeRef $.Handler.Signature.ResponseType}}](err).Write(w)
+			return
+		}
 {{- end}}
 {{- end}}
 {{- end}}
 
 {{- if .Handler.Signature.RequestType}}
+{{- if not (or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams)}}
 		// Parse request body
 		var req {{typeRef .Handler.Signature.RequestType}}
+{{- else}}
+		// Parse request body (JSON fields only)
+{{- end}}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			glib.BadRequest[{{typeRef $.Handler.Signature.ResponseType}}](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
 			return
 		}
+{{- if or .Handler.Signature.NeedsValidation .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[{{typeRef $.Handler.Signature.ResponseType}}](err).Write(w)
+			return
+		}
+{{- end}}
+{{- end}}
 {{- end}}
 
-		result := container.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams}}, reqParams{{end}}{{if .Handler.Signature.RequestType}}, req{{end}})
+		result := container.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams .Handler.Signature.RequestType}}, req{{end}})
 		result.Write(w)
 

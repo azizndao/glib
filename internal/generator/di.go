@@ -182,6 +182,8 @@ func (g *Generator) generateDI() (string, error) {
 		"NonCriticalTransients": nonCriticalTransients,
 		"Controllers":           controllers,
 		"Middleware":            middleware,
+		"ValidationConfig":      g.validationCfg,
+		"ValidationEnabled":     g.validationCfg.Enabled,
 	}
 
 	return g.executeTemplate("di.tmpl", data)

@@ -5,21 +5,24 @@ package generated
 import (
 	"context"
 	"fmt"
-	"github.com/azizndao/glib"
-	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 	"glib/demo/configs"
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
 	"glib/demo/middleware"
 	"glib/demo/services"
-	"gorm.io/gorm"
 	"net/http"
+
+	"github.com/azizndao/glib"
+	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
+	"github.com/azizndao/glib/validator"
+	"gorm.io/gorm"
 )
 
 // container holds all application dependencies.
 type container struct {
 	ctx         context.Context
+	validator   *validator.Validator
 	providers   providerContainer
 	controllers controllerContainer
 	middleware  middlewareContainer
@@ -50,6 +53,8 @@ type middlewareContainer struct {
 
 func InitContainer(ctx context.Context) (*container, error) {
 	c := &container{ctx: ctx}
+	// Initialize validator (generated in validator.gen.go)
+	c.validator = initValidator()
 
 	if err := c.initProviders(ctx); err != nil {
 		return nil, err

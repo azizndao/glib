@@ -13,7 +13,11 @@ import (
 
 {{- if .NeedsGlibMiddleware}}
 	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/validator"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
+{{- else}}
+	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/validator"
 {{- end}}
 
 {{- range .Imports}}
@@ -24,6 +28,9 @@ import (
 // container holds all application dependencies.
 type container struct {
 	ctx         context.Context
+{{- if .ValidationEnabled}}
+	validator   *validator.Validator
+{{- end}}
 	providers   providerContainer
 	controllers controllerContainer
 	middleware  middlewareContainer
@@ -66,6 +73,11 @@ type middlewareContainer struct {
 
 func InitContainer(ctx context.Context) (*container, error) {
 	c := &container{ctx: ctx}
+
+{{- if .ValidationEnabled}}
+	// Initialize validator (generated in validator.gen.go)
+	c.validator = initValidator()
+{{- end}}
 
 	if err := c.initProviders(ctx); err != nil {
 		return nil, err

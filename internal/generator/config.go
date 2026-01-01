@@ -11,10 +11,9 @@ import (
 // ConfigGenerator generates configuration loader code
 type ConfigGenerator struct {
 	project       *scanner.Project
-	targetPackage string // Package where code will be generated (e.g., "generated")
+	targetPackage string // (e.g., "generated")
 }
 
-// NewConfigGenerator creates a new config generator
 func NewConfigGenerator(project *scanner.Project, targetPackage string) *ConfigGenerator {
 	return &ConfigGenerator{
 		project:       project,
@@ -33,7 +32,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 		ConfigPackageName string
 		ConfigName        string
 		FunctionName      string
-		Fields            []map[string]interface{}
+		Fields            []map[string]any
 	}
 
 	var configs []configData
@@ -66,7 +65,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 
 	// Generate single file with all configs
 	var buf bytes.Buffer
-	err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]interface{}{
+	err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]any{
 		"PackageName":      g.targetPackage,
 		"ConfigImportPath": configPackagePath,
 		"Configs":          configs,
@@ -81,7 +80,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 }
 
 // flattenFields recursively flattens nested config fields
-func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPath string) []map[string]interface{} {
+func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPath string) []map[string]any {
 	var result []map[string]any
 
 	for _, field := range fields {
@@ -91,7 +90,7 @@ func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPat
 			result = append(result, g.flattenFields(field.Fields, nestedPath)...)
 		} else {
 			// Add leaf field
-			result = append(result, map[string]interface{}{
+			result = append(result, map[string]any{
 				"Name":         field.Name,
 				"ParentPath":   parentPath,
 				"Type":         field.Type,
@@ -125,14 +124,6 @@ func (g *ConfigGenerator) GenerateEnvExample() (string, error) {
 			if field.IsNested && len(field.Fields) > 0 {
 				generate(field.Fields, field.Name+" Configuration")
 			} else {
-				// Write comment
-				comment := field.EnvName
-				if field.Required {
-					comment += " (required)"
-				}
-				if field.DefaultValue != "" {
-					comment += fmt.Sprintf(" [default: %s]", field.DefaultValue)
-				}
 				fmt.Fprintf(&buf, "%s=%s\n", field.EnvName, field.DefaultValue)
 			}
 		}

@@ -1,164 +1,212 @@
 # Glib Demo Application
 
-Complete example demonstrating Glib's annotation-based code generation for building HTTP APIs.
+A complete reference implementation demonstrating Glib's annotation-based code generation for building HTTP APIs in Go.
 
-## Features Demonstrated
+## 🚀 Features Demonstrated
 
-- **Result[T] Handlers**: Type-safe responses with explicit status control
-- **Raw HTTP Handlers**: Full control for file exports and SSE
-- **Dependency Injection**: Auto-wired services with topological sorting
-- **ValidationErrors**: Structured field-level validation errors
-- **Cross-Package Types**: Handler responses from `models/` package
-- **Middleware**: Tag-based middleware targeting system
-- **Hot Reload**: Development mode with automatic code regeneration
+- ✅ **Result[T] Handlers** - Type-safe responses with explicit status control
+- ✅ **Raw HTTP Handlers** - Full control for CSV exports and Server-Sent Events
+- ✅ **Dependency Injection** - Auto-wired services with topological sorting
+- ✅ **JWT Authentication** - Registration, login, and protected routes
+- ✅ **Middleware System** - Tag-based middleware targeting (auth, rate limiting)
+- ✅ **Error Handling** - Structured field-level validation errors
+- ✅ **Database Integration** - SQLite with GORM, auto-migration, and seed data
+- ✅ **Hot Reload** - Development mode with automatic code regeneration
 
-## Quick Start
+## 📋 Prerequisites
 
-### Prerequisites
+- **Go 1.21+** ([install](https://golang.org/doc/install))
+- **glib CLI** (built from project root)
+- **Optional:** [Air](https://github.com/cosmtrek/air) for hot reload
+- **Optional:** [VS Code REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) for API testing
+
+## 🏗️ Quick Start
+
+### 1. Build the glib CLI
+
+From the project root:
 
 ```bash
-# Build the glib CLI (from project root)
-go build -o bin/glib ./cmd/glib
+cd /path/to/glib
+go build -o glib ./cmd/glib
 
 # Verify installation
-./bin/glib version
+./glib version
+# Output: glib 0.2.1
 ```
 
-### Run the Demo
+### 2. Run the Demo
 
 From the demo directory:
 
 ```bash
+cd examples/demo
+
 # Generate code
-../../bin/glib generate
+../../glib generate
 
 # Run the server
 go run .
 ```
 
-Or use hot reload mode:
+The server will start on **http://localhost:8091**
+
+### 3. Test the API
+
+Use the HTTP test files in `api-tests/`:
 
 ```bash
-../../bin/glib dev
-```
+# Install VS Code REST Client extension, then open:
+- api-tests/auth.http
+- api-tests/posts.http
+- api-tests/comments.http
 
-The server will start on port 8091 (configured in `glib.json`).
-
-## API Endpoints
-
-### Posts API
-
-**List all posts:**
-
-```bash
+# Or use curl:
 curl http://localhost:8091/api/v1/post
 ```
 
-**Get specific post:**
+## 🔥 Hot Reload Development
+
+For automatic code regeneration and server restart on file changes:
 
 ```bash
-curl http://localhost:8091/api/v1/post/1
+../../glib dev
 ```
 
-**Create post:**
+This will:
+1. Run initial code generation
+2. Start Air file watcher (if installed)
+3. Auto-regenerate code on changes
+4. Rebuild and restart server automatically
 
-```bash
-curl -X POST http://localhost:8091/api/v1/post \
-  -H "Content-Type: application/json" \
-  -d '{"title":"My Post","body":"Hello World"}'
-```
-
-**Update post:**
-
-```bash
-curl -X PUT http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Updated Title","body":"Updated content"}'
-```
-
-**Delete post:**
-
-```bash
-curl -X DELETE http://localhost:8091/api/v1/post/550e8400-e29b-41d4-a716-446655440000
-```
-
-**Export posts as CSV (Raw HTTP):**
-
-```bash
-curl http://localhost:8091/api/v1/post/export
-```
-
-**Stream posts via SSE (Raw HTTP):**
-
-```bash
-curl http://localhost:8091/api/v1/post/stream
-```
-
-### Comments API
-
-**Create comment:**
-
-```bash
-curl -X POST http://localhost:8091/api/v1/comment \
-  -H "Content-Type: application/json" \
-  -d '{"content":"Great post!","postId":1,"authorId":1}'
-```
-
-**List comments:**
-
-```bash
-curl http://localhost:8091/api/v1/comment
-```
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 demo/
-├── controllers/
+├── controllers/          # HTTP controllers
 │   ├── auth/
-│   │   ├── controller.go    # Auth controller with Result[T]
-│   │   └── models.go         # Request/response models
-│   ├── comment/
-│   │   ├── controller.go    # Comment CRUD
-│   │   └── models.go
-│   └── post/
-│       ├── controller.go    # Post CRUD + streaming examples
-│       └── models.go
+│   │   ├── controller.go # Auth endpoints (register, login, profile)
+│   │   └── models.go     # Request/response DTOs
+│   ├── post/
+│   │   ├── controller.go # Post CRUD + streaming examples
+│   │   └── models.go     # Post DTOs
+│   └── comment/
+│       ├── controller.go # Comment CRUD
+│       └── models.go     # Comment DTOs
 ├── middleware/
-│   └── middleware.go         # @Middleware annotations
-├── models/
-│   ├── post.go              # Post domain model
-│   └── user.go              # User domain model
-├── services/
-│   ├── post.go              # @Provider singleton
-│   └── user.go              # @Provider singleton
-├── generated/               # ⚠️ DO NOT EDIT - Generated code
-│   ├── glib.gen.go         # Bootstrap function
-│   ├── di.gen.go           # DI container (topologically sorted)
-│   ├── routes.gen.go       # Route registration
-│   └── parsers.gen.go      # Handler wrappers
-├── config.go               # Configuration loading
-├── main.go                 # Application entry point
-├── glib.json                 # Glib configuration
-└── .air.toml               # Hot reload configuration
+│   └── middleware.go     # @Middleware annotations (auth, rate limit)
+├── models/               # Domain models
+│   ├── user.go           # User entity
+│   ├── post.go           # Post entity
+│   └── comment.go        # Comment entity
+├── services/             # Business logic
+│   ├── database.go       # @Provider for database
+│   ├── user.go           # @Provider for user service
+│   ├── post.go           # @Provider for post service
+│   ├── comment.go        # @Provider for comment service
+│   ├── jwt.go            # @Provider for JWT service
+│   └── logger.go         # @Provider for logger (transient)
+├── generated/            # ⚠️ DO NOT EDIT - Generated code
+│   ├── config.gen.go     # Config loaders
+│   ├── di.gen.go         # DI container (topologically sorted)
+│   ├── routes.gen.go     # Route registration
+│   └── parsers.gen.go    # Handler wrappers + middleware chains
+├── api-tests/            # HTTP test files
+│   ├── auth.http
+│   ├── posts.http
+│   ├── comments.http
+│   └── README.md
+├── configs/
+│   ├── config.go         # App configuration
+│   └── redis.go          # Redis configuration
+├── bootstrap.go          # Application bootstrap
+├── main.go               # Entry point
+├── glib.json             # Glib configuration
+├── .air.toml             # Hot reload config
+├── .env.example          # Environment variables template
+└── demo.db               # SQLite database (auto-created)
 ```
 
-## Handler Examples
+## 🔐 Authentication
+
+The demo includes a complete JWT-based authentication system.
+
+### Demo Users
+
+The database is pre-seeded with 3 users (password: `password123`):
+
+| Username      | Email              | UUID                                 |
+|---------------|-------------------|--------------------------------------|
+| john_doe      | john@example.com  | a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d |
+| jane_smith    | jane@example.com  | b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e |
+| bob_wilson    | bob@example.com   | c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f |
+
+### Authentication Flow
+
+```bash
+# 1. Login to get JWT token
+curl -X POST http://localhost:8091/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"john_doe","password":"password123"}'
+
+# Response:
+{
+  "user": {...},
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+# 2. Use token for protected endpoints
+curl http://localhost:8091/api/v1/auth/me \
+  -H "Authorization: Bearer <your-token>"
+```
+
+## 📡 API Endpoints
+
+### Authentication (`/api/v1/auth`)
+
+| Method | Path          | Auth      | Description           |
+|--------|--------------|-----------|----------------------|
+| POST   | /register    | Public    | Register new user    |
+| POST   | /login       | Public    | Login and get JWT    |
+| GET    | /me          | Protected | Get current user     |
+| PUT    | /me          | Protected | Update profile       |
+| GET    | /users/{id}  | Public    | Get user by ID       |
+| DELETE | /logout      | Protected | Logout               |
+
+### Posts (`/api/v1/post`)
+
+| Method | Path        | Auth      | Description              |
+|--------|-----------|-----------|-------------------------|
+| GET    | /         | Public    | List all posts          |
+| GET    | /{id}     | Public    | Get single post         |
+| POST   | /         | Protected | Create post             |
+| PUT    | /{id}     | Protected | Update post             |
+| DELETE | /{id}     | Protected | Delete post             |
+| GET    | /export   | Public    | Export posts as CSV     |
+| GET    | /stream   | Public    | Stream posts (SSE)      |
+| GET    | /health   | Public    | Health check (no middleware) |
+
+### Comments (`/api/v1/comment`)
+
+| Method | Path      | Auth      | Description         |
+|--------|---------|-----------|-------------------|
+| GET    | /       | Public    | List all comments |
+| GET    | /{id}   | Public    | Get single comment |
+| POST   | /       | Protected | Create comment    |
+| PUT    | /{id}   | Protected | Update comment    |
+| DELETE | /{id}   | Protected | Delete comment    |
+
+## 💡 Handler Examples
 
 ### Result[T] Pattern (Type-Safe)
 
 Most handlers use the Result[T] pattern for type-safe responses:
 
 ```go
-// @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
-    return glib.OK(c.PostService.GetPosts())
-}
-
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post] {
-    post := c.PostService.GetPost(id)
-    if post == nil {
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*models.Post] {
+    post, err := c.PostService.GetPost(id)
+    if err != nil {
         return glib.NotFound[*models.Post]("post not found")
     }
     return glib.OK(post)
@@ -166,44 +214,23 @@ func (c *Controller) Show(ctx context.Context, id int) glib.Result[*models.Post]
 
 // @Route method=POST path=/
 func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*models.Post] {
-    // Validation example
-    if len(req.Title) < 3 {
-        validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-            {Field: "title", Messages: []string{"must be at least 3 characters"}},
-        })
-        err := errs.B().
-            Code(errs.InvalidArgument).
-            Msg("Validation failed").
-            Details(validationErrs).
-            Err()
-        return glib.Fail[*models.Post](err)
-    }
-
-    post := c.PostService.CreatePost(req)
-    return glib.Created(post)
-}
-
-// @Route method=DELETE path=/{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    if err := c.PostService.Delete(id); err != nil {
-        return glib.Fail[any](err)
-    }
-    return glib.NoContent[any]()
+    post := c.Service.Create(req)
+    return glib.Created(post)  // Returns 201 Created
 }
 ```
 
 **Available Result[T] Helpers:**
-
 - `glib.OK[T](data)` - 200 OK
 - `glib.Created[T](data)` - 201 Created
 - `glib.NoContent[T]()` - 204 No Content
 - `glib.NotFound[T](msg)` - 404 Not Found
 - `glib.BadRequest[T](msg)` - 400 Bad Request
+- `glib.Unauthorized[T](msg)` - 401 Unauthorized
 - `glib.Fail[T](err)` - Auto-extract status from errs.Error
 
 ### Raw HTTP Pattern (Advanced)
 
-Use the Raw HTTP pattern when you need full control:
+Use Raw HTTP when you need full control:
 
 ```go
 // @Route method=GET path=/export
@@ -211,155 +238,137 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/csv")
     w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
     w.WriteHeader(http.StatusOK)
-
+    
     fmt.Fprintln(w, "id,title,created_at")
-    for _, post := range c.PostService.GetPosts() {
-        fmt.Fprintf(w, "%d,%s,%s\n", post.ID, post.Title, post.CreatedAt)
-    }
+    // Write CSV data...
 }
 
 // @Route method=GET path=/stream
 func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
-    w.Header().Set("Cache-Control", "no-cache")
-    w.Header().Set("Connection", "keep-alive")
-
-    flusher, ok := w.(http.Flusher)
-    if !ok {
-        http.Error(w, "Streaming not supported", http.StatusInternalServerError)
-        return
+    flusher := w.(http.Flusher)
+    
+    for event := range c.Events {
+        fmt.Fprintf(w, "data: %s\n\n", event)
+        flusher.Flush()
     }
+}
+```
 
-    for i := range 3 {
-        select {
-        case <-r.Context().Done():
-            return
-        case <-time.After(1 * time.Second):
-            data := map[string]any{"event": i + 1, "time": time.Now()}
-            jsonData, _ := json.Marshal(data)
-            fmt.Fprintf(w, "data: %s\n\n", jsonData)
-            flusher.Flush()
+## 🔧 Middleware System
+
+Middleware is applied automatically based on tags:
+
+```go
+// middleware/middleware.go
+
+// @Middleware name=auth target=protected order=10
+func Auth(jwtService *services.JWTService) middleware.Middleware {
+    return func(req middleware.Request, next middleware.Next) glib.Result[any] {
+        token := req.Header("Authorization")
+        if token == "" {
+            return glib.Unauthorized[any]("authorization required")
         }
+        // Validate token...
+        return next(req)
     }
 }
-```
 
-## Dependency Injection
-
-Services are automatically injected by type:
-
-```go
-// services/user.go
-// @Provider singleton
-func NewUserService() *UserService {
-    return &UserService{}
-}
-
-// services/post.go
-// @Provider singleton
-func NewPostService(userService *UserService) *PostService {
-    return &PostService{UserService: userService}
+// @Middleware name=ratelimit target=api order=5
+func RateLimit() middleware.Middleware {
+    // Rate limiting logic...
 }
 ```
 
-**Generated DI Container (generated/di.gen.go):**
+**Middleware Targeting:**
+- `target=all` - Applies to all routes
+- `target=api` - Applies to routes/controllers tagged with `tags=api`
+- `target=protected` - Applies to routes tagged with `tags=protected`
 
-```go
-type container struct {
-    userSerivce *services.UserSerivce
-    postSerivce *services.PostSerivce
-}
+**Execution Order:**
+Routes with `tags=api,protected` will have middleware applied in order:
+1. Rate Limiter (order=5)
+2. Auth (order=10)
+3. Handler
 
-func newContainer(ctx context.Context) (*container, error) {
-    container := &container{}
+## 🗄️ Database
 
-    // Topologically sorted - UserService initialized first!
-    container.userSerivce = services.NewUserSerivce()
-    container.postSerivce = services.NewPostSerivce(container.userSerivce)
+### Schema
 
-    return container, nil
-}
-```
+The demo uses SQLite with GORM for database operations. Tables are auto-migrated on startup:
 
-## Validation Errors Example
+- **users** - User accounts
+- **posts** - Blog posts
+- **comments** - Post comments
 
-The demo shows how to use ValidationErrors for structured field-level error responses:
+### Seed Data
 
-```go
-// In handler
-validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-    {Field: "title", Messages: []string{"must be at least 3 characters"}},
-    {Field: "body", Messages: []string{"field is required"}},
-})
+On first run, the database is automatically seeded with:
+- 3 demo users
+- 5 sample posts
+- 5 comments
 
-err := errs.B().
-    Code(errs.InvalidArgument).
-    Msg("Validation failed").
-    Details(validationErrs).
-    Err()
+### Reset Database
 
-return glib.Fail[*Post](err)
-```
-
-**Response (400 Bad Request):**
-
-```json
-{
-    "error": {
-        "code": "invalid_argument",
-        "message": "Validation failed",
-        "details": [
-            {
-                "field": "title",
-                "messages": ["must be at least 3 characters"]
-            },
-            {
-                "field": "body",
-                "messages": ["field is required"]
-            }
-        ]
-    }
-}
-```
-
-## Development Workflow
-
-### Hot Reload
+To start fresh:
 
 ```bash
-../../bin/glib dev
+rm demo.db
+# Database will be recreated on next startup
 ```
 
-Watches for changes and automatically:
+## 🧪 Testing the API
 
-1. Regenerates code
-2. Rebuilds application
-3. Restarts server
+### Option 1: VS Code REST Client
+
+1. Install the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension
+2. Open any `.http` file in `api-tests/`
+3. Click "Send Request" or press `Ctrl+Alt+R` / `Cmd+Alt+R`
+
+### Option 2: curl
+
+```bash
+# List all posts
+curl http://localhost:8091/api/v1/post
+
+# Login
+curl -X POST http://localhost:8091/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"john_doe","password":"password123"}'
+
+# Create post (requires auth)
+curl -X POST http://localhost:8091/api/v1/post \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "My Post",
+    "body": "Content here",
+    "slug": "my-post",
+    "published": true,
+    "author_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+    "tags": "golang,web"
+  }'
+```
+
+## 🛠️ Development Workflow
 
 ### Creating New Components
 
-**New controller:**
-
 ```bash
-../../bin/glib make controller users
-```
+# New controller
+../../glib make controller products
 
-**New provider:**
+# New provider
+../../glib make provider emailService
 
-```bash
-../../bin/glib make provider database
-```
-
-**New middleware:**
-
-```bash
-../../bin/glib make middleware auth
+# New middleware
+../../glib make middleware cors
 ```
 
 After creating components:
 
 ```bash
-../../bin/glib generate
+../../glib generate
 ```
 
 ### Validation
@@ -367,59 +376,21 @@ After creating components:
 Validate annotations without generating code:
 
 ```bash
-../../bin/glib validate
+../../glib validate
 ```
 
 Checks for:
-
 - Duplicate routes
 - Invalid HTTP methods
 - Malformed path parameters
 - Handler signature issues
 - Missing dependencies
 
-## Configuration
-
-Configuration is loaded from environment variables in `config.go`:
-
-```go
-type Config struct {
-    App struct {
-        Port int    `env:"APP_PORT" default:"8091"`
-        Env  string `env:"APP_ENV" default:"development"`
-    }
-}
-
-func LoadConfig() *Config {
-    // Load from environment
-}
-```
-
-**Environment Variables:**
-
-- `APP_PORT` - Server port (default: 8091)
-- `APP_ENV` - Environment (default: development)
-
-**Glib Configuration (`glib.json`):**
-
-```json
-{
-    "version": "2",
-    "generate": {
-        "output": "generated",
-        "package": "generated"
-    },
-    "dev": {
-        "port": 8091
-    }
-}
-```
-
-## Building for Production
+## 🏗️ Building for Production
 
 ```bash
 # Generate code
-../../bin/glib generate
+../../glib generate
 
 # Build binary
 go build -o demo .
@@ -428,63 +399,139 @@ go build -o demo .
 ./demo
 ```
 
-Or with custom port:
+Or with custom configuration:
 
 ```bash
 APP_PORT=3000 ./demo
 ```
 
-## Troubleshooting
+## ⚙️ Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+**Available variables:**
+
+| Variable      | Default      | Description           |
+|--------------|--------------|----------------------|
+| APP_PORT     | 8091         | Server port          |
+| APP_ENV      | development  | Environment mode     |
+| DB_FILENAME  | demo.db      | SQLite database file |
+| REDIS_HOST   | localhost    | Redis host           |
+| REDIS_PORT   | 6379         | Redis port           |
+
+### Glib Configuration (`glib.json`)
+
+```json
+{
+  "version": "2",
+  "generate": {
+    "output": "generated",
+    "package": "generated"
+  },
+  "dev": {
+    "port": 8091
+  }
+}
+```
+
+## 🐛 Troubleshooting
 
 ### Port Already in Use
 
-Change port in `glib.json` or use environment variable:
-
 ```bash
-APP_PORT=3000 ../../bin/glib dev
+# Change port in .env
+echo "APP_PORT=3000" > .env
+
+# Or use environment variable
+APP_PORT=3000 go run .
 ```
 
 ### Generated Code Not Updating
 
-Clean and regenerate:
-
 ```bash
+# Clean and regenerate
 rm -rf generated/
-../../bin/glib generate
+../../glib generate
 ```
 
 ### Build Errors
 
-Ensure dependencies are installed:
-
 ```bash
+# Ensure dependencies are installed
 go mod tidy
+
+# Verify glib binary is up to date
+cd ../.. && go build -o glib ./cmd/glib
 ```
 
-### Import Errors in Generated Code
+### Database Issues
 
-The generator automatically resolves cross-package imports. If you see import errors:
+```bash
+# Reset database
+rm demo.db
+# Will be recreated with seed data on next startup
+```
 
-1. Make sure types are exported (capitalized)
-2. Run `go mod tidy` to ensure packages exist
-3. Regenerate: `../../bin/glib generate`
+## 🎓 Learning Resources
 
-## Key Takeaways
+### Handler Patterns
+
+See `controllers/post/controller.go` for examples of:
+- Result[T] handlers (Show, Create, Update, Delete)
+- Raw HTTP handlers (Export, Stream, Health)
+
+### Dependency Injection
+
+See `services/` for examples of:
+- Singleton providers (database, services)
+- Transient providers (logger)
+- Dependencies between providers
+
+### Middleware
+
+See `middleware/middleware.go` for examples of:
+- JWT authentication
+- Rate limiting
+- Tag-based targeting
+
+### Error Handling
+
+See `controllers/auth/controller.go` for examples of:
+- Structured errors with `errs.Builder`
+- Validation errors
+- HTTP status mapping
+
+## 📚 Key Takeaways
 
 1. **Use Result[T] for APIs** - Type-safe responses for most endpoints (~95%)
 2. **Use Raw HTTP for streaming** - Full control when needed (~5%)
-3. **Providers are auto-sorted** - Dependencies initialized in correct order via topological sort
-4. **ValidationErrors for field errors** - Structured validation responses
-5. **Cross-package types work** - Generator resolves imports automatically
-6. **Generated code is in `generated/`** - Never edit these files (4 files: glib.gen.go, di.gen.go, routes.gen.go, parsers.gen.go)
+3. **Providers are auto-sorted** - Dependencies initialized in correct order
+4. **Middleware is tag-based** - Automatic application based on route tags
+5. **Generated code is read-only** - Never edit files in `generated/`
+6. **Database auto-seeds** - Fresh data on first run
 
-## Next Steps
+## 🔗 Next Steps
 
-- Read the specifications in `../../.spec/`
-- Explore handler patterns in `02-HANDLERS.md`
-- Learn error handling in `04-ERROR-HANDLING.md`
-- Understand code generation in `03-CODE-GENERATION.md`
+- Read the main [README](../../README.md) for framework overview
+- Explore specifications in `../../.spec/` for detailed documentation
+- Learn about [handler patterns](../../.spec/02-HANDLERS.md)
+- Understand [error handling](../../.spec/04-ERROR-HANDLING.md)
+- Study [code generation](../../.spec/03-CODE-GENERATION.md)
 
-## Need Help?
+## 💬 Need Help?
 
-Check the main README at the project root or open an issue on GitHub.
+- Check the main README at the project root
+- Review the specifications in `../../.spec/`
+- Open an issue on GitHub
+
+---
+
+**Status:** Production-Ready Demo  
+**Version:** Glib 0.2.1  
+**License:** MIT

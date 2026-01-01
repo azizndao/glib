@@ -16,11 +16,15 @@ type Comment struct {
 }
 
 type CreateCommentRequest struct {
-	Content string    `json:"content" binding:"required"`
-	PostID  uuid.UUID `json:"post_id" binding:"required"`
-	UserID  uuid.UUID `json:"user_id" binding:"required"`
+	Content string    `json:"content" validate:"required,min=1,max=1000"`
+	PostID  uuid.UUID `json:"post_id" validate:"required,uuid4"`
+	UserID  uuid.UUID `json:"user_id" validate:"required,uuid4"`
+}
+
+func (r CreateCommentRequest) Validate() bool {
+	return true
 }
 
 type UpdateCommentRequest struct {
-	Content string `json:"content"`
+	Content string `json:"content" validate:"omitempty,min=1,max=1000"`
 }

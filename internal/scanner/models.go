@@ -49,17 +49,19 @@ type Handler struct {
 
 // HandlerSignature represents a parsed handler signature
 type HandlerSignature struct {
-	Pattern          string         // "result" or "raw_http" - handler pattern type
-	Receiver         *Field         // Controller receiver
-	PathParams       []*PathParam   // Path parameters (e.g., id uuid.UUID)
-	QueryParams      []*QueryParam  // Query parameters (e.g., page int from ?page=1)
-	HeaderParams     []*HeaderParam // Header parameters (e.g., Authorization string)
-	ParamsStructType *TypeInfo      // Struct type containing query/header tags (e.g., SearchPostsRequest)
-	RequestType      *TypeInfo      // Request body type (if any)
-	ResponseType     *TypeInfo      // Response type (if any)
-	ReturnsError     bool           // Whether it returns error
-	HasContext       bool           // Whether it has context.Context param
-	HasRawHTTP       bool           // Whether it uses http.ResponseWriter/Request
+	Pattern               string         // "result" or "raw_http" - handler pattern type
+	Receiver              *Field         // Controller receiver
+	PathParams            []*PathParam   // Path parameters (e.g., id uuid.UUID)
+	QueryParams           []*QueryParam  // Query parameters (e.g., page int from ?page=1)
+	HeaderParams          []*HeaderParam // Header parameters (e.g., Authorization string)
+	ParamsStructType      *TypeInfo      // Struct type containing query/header tags (e.g., SearchPostsRequest)
+	RequestType           *TypeInfo      // Request body type (if any)
+	ResponseType          *TypeInfo      // Response type (if any)
+	ReturnsError          bool           // Whether it returns error
+	HasContext            bool           // Whether it has context.Context param
+	HasRawHTTP            bool           // Whether it uses http.ResponseWriter/Request
+	NeedsValidation       bool           // Whether request body has validate tags
+	NeedsParamsValidation bool           // Whether params struct (query/header) has validate tags
 }
 
 // PathParam represents a path parameter in handler signature

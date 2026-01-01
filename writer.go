@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/validator"
 )
 
 const (
@@ -15,17 +16,11 @@ const (
 	internalErrMsg  = "An internal error occurred"
 )
 
-// ErrorDetail represents a single error detail entry
-type ErrorDetail struct {
-	Field    string   `json:"field"`
-	Messages []string `json:"messages"`
-}
-
 // ErrorInfo contains the error information returned to clients
 type ErrorInfo struct {
-	Code    string        `json:"code"`
-	Message string        `json:"message"`
-	Details []ErrorDetail `json:"details,omitempty"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Details any    `json:"details,omitempty"`
 }
 
 // ErrorResponse is the top-level error response structure
@@ -81,9 +76,9 @@ func writeError(w http.ResponseWriter, err error) {
 			Message: glibErr.Message,
 		}
 
-		// Include details (validation errors) if present
+		// Include details if present (validation errors, etc)
 		if glibErr.Details != nil {
-			errorInfo.Details = convertDetails(glibErr.Details)
+			errorInfo.Details = glibErr.Details
 		}
 
 		response := ErrorResponse{Error: errorInfo}
@@ -104,41 +99,9 @@ func writeError(w http.ResponseWriter, err error) {
 // WriteParamError writes a parameter validation error
 // This is used by generated parsers for parameter parsing errors
 func WriteParamError(w http.ResponseWriter, paramName, reason string) {
-	response := ErrorResponse{
-		Error: ErrorInfo{
-			Code:    "invalid_argument",
-			Message: "Invalid request parameters",
-			Details: []ErrorDetail{
-				{
-					Field:    paramName,
-					Messages: []string{reason},
-				},
-			},
-		},
-	}
-	writeJSON(w, http.StatusBadRequest, response)
-}
+	// Create Goyave-style error for query params (most common case for param errors)
+	goyaveErr := validator.NewValidationErrors()
+	goyaveErr.AddQueryError([]string{paramName}, reason)
 
-// convertDetails converts errs.ErrDetails to our ErrorDetail format
-func convertDetails(details errs.ErrDetails) []ErrorDetail {
-	// If details is nil, return empty slice
-	if details == nil {
-		return nil
-	}
-
-	// Try to convert ValidationErrors
-	if validationErrs, ok := details.(*errs.ValidationErrors); ok {
-		result := make([]ErrorDetail, len(validationErrs.Errors))
-		for i, err := range validationErrs.Errors {
-			result[i] = ErrorDetail{
-				Field:    err.Field,
-				Messages: err.Messages,
-			}
-		}
-		return result
-	}
-
-	// For other ErrDetails types, return nil
-	// Users can extend this function to handle custom error detail types
-	return nil
+	writeJSON(w, http.StatusBadRequest, map[string]any{"error": goyaveErr})
 }

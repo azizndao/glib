@@ -9,6 +9,7 @@ Glib uses annotation-based code generation to eliminate boilerplate and let you 
 - **Annotation-Based**: Define routes, controllers, middleware, and DI providers using simple annotations
 - **Code Generation**: Generates optimized, type-safe HTTP handlers and routing code
 - **Result[T] Pattern**: Type-safe responses with explicit HTTP status control and fluent API
+- **Automatic Validation**: Request validation using `validate:` tags with auto-generated validation code
 - **Raw HTTP Support**: Full control for streaming, SSE, file uploads when needed
 - **Dependency Injection**: Built-in DI container with singleton and transient lifecycles
 - **Structured Errors**: Encore.dev-style error handling with HTTP status mapping and ValidationErrors support
@@ -99,8 +100,15 @@ func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*P
     return glib.OK(&post)
 }
 
+// Request model with automatic validation
+type CreatePostRequest struct {
+    Title   string `json:"title" validate:"required,min=3,max=200"`
+    Content string `json:"content" validate:"required,min=10"`
+}
+
 // @Route method=POST path=/
 func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
+    // Validation happens automatically before this handler is called!
     post := &Post{
         Title:   req.Title,
         Content: req.Content,
@@ -451,39 +459,73 @@ func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] 
 
 ### Validation Errors
 
-Structured validation errors with field-level details:
+Glib provides **automatic request validation** using `go-playground/validator`. Simply add `validate:` tags to your request structs, and validation code is auto-generated.
+
+**Define Request with Validation Tags:**
 
 ```go
-func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
-    // Validation errors are automatically formatted
-    validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-        {Field: "email", Messages: []string{"must be a valid email"}},
-        {Field: "password", Messages: []string{"must be at least 8 characters"}},
-    })
-
-    err := errs.B().
-        Code(errs.InvalidArgument).
-        Msg("Validation failed").
-        Details(validationErrs).
-        Err()
-
-    return glib.Fail[*Post](err)
+type CreatePostRequest struct {
+    Title    string    `json:"title" validate:"required,min=3,max=200"`
+    Body     string    `json:"body" validate:"required,min=10"`
+    Email    string    `json:"email" validate:"required,email"`
+    Age      int       `json:"age" validate:"gte=18,lte=120"`
+    Website  string    `json:"website" validate:"omitempty,url"`
+    AuthorID uuid.UUID `json:"author_id" validate:"required,uuid4"`
 }
 ```
 
-**Generated JSON Response:**
+**Validation is Automatic:**
+
+When you run `glib generate`, the parser code automatically validates request bodies before calling your handler. No manual validation code needed!
+
+**Common Validation Tags:**
+
+- `required` - Field must be present
+- `email` - Must be valid email
+- `min=N`, `max=N` - String length or numeric range
+- `gte=N`, `lte=N` - Greater/less than or equal
+- `url`, `uri` - Valid URL/URI
+- `uuid`, `uuid4` - Valid UUID
+- `oneof=a b c` - Value must be one of the options
+- `omitempty` - Skip validation if field is empty/nil
+
+**Generated JSON Response (on validation failure):**
 
 ```json
 {
     "error": {
         "code": "invalid_argument",
         "message": "Validation failed",
-        "details": {
-            "email": ["must be a valid email"],
-            "password": ["must be at least 8 characters"]
-        }
+        "details": [
+            {
+                "field": "email",
+                "messages": ["must be a valid email address"]
+            },
+            {
+                "field": "title",
+                "messages": ["must be at least 3 characters"]
+            }
+        ]
     }
 }
+```
+
+**Manual Validation (when needed):**
+
+You can also manually create validation errors:
+
+```go
+validationErrs := errs.NewValidationErrors([]errs.ValidationError{
+    {Field: "custom_field", Messages: []string{"custom validation message"}},
+})
+
+err := errs.B().
+    Code(errs.InvalidArgument).
+    Msg("Validation failed").
+    Details(validationErrs).
+    Err()
+
+return glib.Fail[*Post](err)
 ```
 
 ## CLI Commands

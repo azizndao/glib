@@ -8,5 +8,9 @@
         "controllers": "controllers",
         "providers": "providers",
         "middleware": "middleware"
+    },
+    "validation": {
+        "languages": ["es", "fr"],
+        "defaultLanguage": "fr"
     }
 }

@@ -29,6 +29,14 @@ func handleAuthControllerRegister(container *container) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*auth.UserResponse](err).Write(w)
+			return
+		}
+
 		result := container.controllers.authController.Register(ctx, req)
 		result.Write(w)
 
@@ -44,6 +52,14 @@ func handleAuthControllerLogin(container *container) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			glib.BadRequest[*auth.LoginResponse](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*auth.LoginResponse](err).Write(w)
 			return
 		}
 
@@ -174,6 +190,14 @@ func handleCommentControllerCreate(container *container) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*models.Comment](err).Write(w)
+			return
+		}
+
 		result := container.controllers.commentController.Create(ctx, req)
 		result.Write(w)
 
@@ -202,6 +226,14 @@ func handleCommentControllerUpdate(container *container) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*models.Comment](err).Write(w)
 			return
 		}
 
@@ -290,6 +322,14 @@ func handlePostControllerCreate(container *container) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*models.Post](err).Write(w)
+			return
+		}
+
 		result := container.controllers.postController.Create(ctx, req)
 		result.Write(w)
 
@@ -318,6 +358,14 @@ func handlePostControllerUpdate(container *container) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := container.validator.ValidateWithLang(req, lang); err != nil {
+			glib.Fail[*models.Post](err).Write(w)
 			return
 		}
 

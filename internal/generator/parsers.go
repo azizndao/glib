@@ -58,11 +58,14 @@ func (g *Generator) generateParsers() (string, error) {
 
 			// Check if query params are used (need strconv for type conversion)
 			if len(sig.QueryParams) > 0 {
-				needsStrconv = true
 				// Check for UUID in query params
 				for _, qp := range sig.QueryParams {
 					if qp.Type.PackageName == "uuid" {
 						needsUUID = true
+					}
+					// Check if strconv is needed (for primitive types other than string)
+					if qp.Type.IsPrimitive && qp.Type.Name != "string" {
+						needsStrconv = true
 					}
 					// Track package dependencies for query param types
 					g.trackTypePackage(qp.Type, usedPackages)
@@ -237,9 +240,10 @@ func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scann
 	}
 
 	data := map[string]any{
-		"Controller": ctrl,
-		"Handler":    handler,
-		"CtrlField":  ctrlField,
+		"Controller":        ctrl,
+		"Handler":           handler,
+		"CtrlField":         ctrlField,
+		"ValidationEnabled": g.validationCfg.Enabled,
 	}
 
 	// Use appropriate template based on pattern name

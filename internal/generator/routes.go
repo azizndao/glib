@@ -2,17 +2,17 @@ package generator
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/azizndao/glib/internal/scanner"
 )
 
-// ControllerGroup represents a controller with its routes organized by tag groups
 type ControllerGroup struct {
 	Controller       *scanner.Controller
 	Prefix           string
-	Middleware       []string // Controller-level middleware
+	Middleware       []string
 	TagGroups        []*TagGroup
 	StandaloneRoutes []*RouteData // Routes that don't fit into tag groups
 }
@@ -20,7 +20,7 @@ type ControllerGroup struct {
 // TagGroup represents routes grouped by common tags with shared middleware
 type TagGroup struct {
 	Tags       []string // Tags for this group (e.g., ["protected"])
-	Middleware []string // Middleware for this tag group
+	Middleware []string
 	Routes     []*RouteData
 }
 
@@ -33,9 +33,7 @@ type RouteData struct {
 	With        []string // Explicit middleware override
 }
 
-// generateRoutes generates the route registration code (routes.gen.go)
 func (g *Generator) generateRoutes() (string, error) {
-	// Organize routes by controller
 	controllerGroups := g.organizeControllerGroups()
 
 	data := map[string]any{
@@ -78,7 +76,6 @@ func (g *Generator) organizeControllerGroups() []*ControllerGroup {
 	return groups
 }
 
-// getControllerMiddleware returns middleware that applies to the entire controller
 func (g *Generator) getControllerMiddleware(ctrl *scanner.Controller) []string {
 	var middleware []string
 
@@ -104,10 +101,10 @@ func (g *Generator) middlewareAppliesToController(mw *scanner.Middleware, ctrl *
 	}
 
 	// Check if ALL controller tags match the middleware target
-	targets := strings.Split(mw.Target, ",")
-	for _, target := range targets {
+	targets := strings.SplitSeq(mw.Target, ",")
+	for target := range targets {
 		target = strings.TrimSpace(target)
-		if containsString(ctrl.Tags, target) {
+		if slices.Contains(ctrl.Tags, target) {
 			return true
 		}
 	}
@@ -173,10 +170,10 @@ func (g *Generator) getTagGroupMiddleware(tags []string) []string {
 	var middleware []string
 
 	for _, mw := range g.project.Middleware {
-		targets := strings.Split(mw.Target, ",")
-		for _, target := range targets {
+		targets := strings.SplitSeq(mw.Target, ",")
+		for target := range targets {
 			target = strings.TrimSpace(target)
-			if containsString(tags, target) {
+			if slices.Contains(tags, target) {
 				middleware = append(middleware, fmt.Sprintf("container.middleware.%sMiddleware", mw.Name))
 				break
 			}
@@ -221,19 +218,9 @@ func (g *Generator) handlerWrapperName(ctrl *scanner.Controller, handler *scanne
 func diffTags(a, b []string) []string {
 	var diff []string
 	for _, tag := range a {
-		if !containsString(b, tag) {
+		if !slices.Contains(b, tag) {
 			diff = append(diff, tag)
 		}
 	}
 	return diff
-}
-
-// containsString checks if a slice contains a string
-func containsString(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
