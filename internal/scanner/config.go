@@ -45,8 +45,7 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) ([]*C
 				PackageName: file.Name.Name,
 				PackagePath: packagePath,
 				FilePath:    filePath,
-				TypeSpec:    typeSpec,
-				Position:    s.fset.Position(typeSpec.Pos()),
+				SourceLine:  s.fset.Position(typeSpec.Pos()).Line,
 			}
 
 			// Parse struct fields with cycle detection
@@ -120,7 +119,7 @@ func (s *Scanner) scanConfigFields(structType *ast.StructType, envPrefix string,
 			EnvName:      strings.ToUpper(envName),
 			DefaultValue: defaultValue,
 			Required:     required,
-			Position:     s.fset.Position(field.Pos()),
+			SourceLine:   s.fset.Position(field.Pos()).Line,
 		}
 
 		// Check if field is a nested struct

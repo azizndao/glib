@@ -65,7 +65,7 @@ func (v *Validator) Warnings() []*ValidationError {
 }
 
 func (v *Validator) validateController(ctrl *scanner.Controller) {
-	location := fmt.Sprintf("%s:%d", ctrl.FilePath, ctrl.Position.Line)
+	location := fmt.Sprintf("%s:%d", ctrl.FilePath, ctrl.SourceLine)
 
 	// Check route prefix
 	if !strings.HasPrefix(ctrl.RoutePrefix, "/") {
@@ -84,7 +84,7 @@ func (v *Validator) validateController(ctrl *scanner.Controller) {
 
 // validateHandler validates a handler
 func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Controller) {
-	location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.Position.Line)
+	location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.SourceLine)
 
 	// Validate HTTP method
 	validMethods := map[string]bool{
@@ -322,7 +322,7 @@ func isValidHeaderParamType(typeInfo *scanner.TypeInfo) bool {
 
 // validateProvider validates a provider
 func (v *Validator) validateProvider(prov *scanner.Provider) {
-	location := fmt.Sprintf("%s:%d", prov.FilePath, prov.Position.Line)
+	location := fmt.Sprintf("%s:%d", prov.FilePath, prov.SourceLine)
 
 	// Validate lifecycle
 	if prov.Lifecycle != "singleton" && prov.Lifecycle != "transient" {
@@ -337,7 +337,7 @@ func (v *Validator) validateProvider(prov *scanner.Provider) {
 
 // validateMiddleware validates middleware
 func (v *Validator) validateMiddleware(mw *scanner.Middleware) {
-	location := fmt.Sprintf("%s:%d", mw.FilePath, mw.Position.Line)
+	location := fmt.Sprintf("%s:%d", mw.FilePath, mw.SourceLine)
 
 	// Validate name
 	if mw.Name == "" {
@@ -368,8 +368,8 @@ func (v *Validator) validateUniqueRoutes(controllers []*scanner.Controller) {
 		for _, handler := range ctrl.Handlers {
 			key := handler.Method + " " + handler.FullPath
 			if existing, ok := seen[key]; ok {
-				location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.Position.Line)
-				existingLoc := fmt.Sprintf("%s:%d", existing.Position.Filename, existing.Position.Line)
+				location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.SourceLine)
+				existingLoc := fmt.Sprintf("%s:%d", ctrl.FilePath, existing.SourceLine)
 				v.addError(location, fmt.Sprintf("duplicate route %s (also defined at %s)", key, existingLoc))
 			} else {
 				seen[key] = handler
@@ -392,7 +392,7 @@ func (v *Validator) validateDependencies(project *scanner.Project) {
 
 	// Check controller dependencies
 	for _, ctrl := range project.Controllers {
-		location := fmt.Sprintf("%s:%d", ctrl.FilePath, ctrl.Position.Line)
+		location := fmt.Sprintf("%s:%d", ctrl.FilePath, ctrl.SourceLine)
 		for _, field := range ctrl.Fields {
 			if field.Type != nil && !field.Type.IsPrimitive {
 				// Check if this type is provided
@@ -451,7 +451,7 @@ func (v *Validator) detectCircularDeps(prov *scanner.Provider, providersByType m
 			}
 
 			cyclePath := append(path[cycleStart:], depTypeName)
-			location := fmt.Sprintf("%s:%d", prov.FilePath, prov.Position.Line)
+			location := fmt.Sprintf("%s:%d", prov.FilePath, prov.SourceLine)
 			v.addError(location, fmt.Sprintf("circular dependency detected: %s", strings.Join(cyclePath, " -> ")))
 			recStack[typeName] = false
 			return true
@@ -513,7 +513,7 @@ func (v *Validator) validateMiddlewareReferences(project *scanner.Project) {
 
 	// Validate middleware target references
 	for _, mw := range project.Middleware {
-		location := fmt.Sprintf("%s:%d", mw.FilePath, mw.Position.Line)
+		location := fmt.Sprintf("%s:%d", mw.FilePath, mw.SourceLine)
 
 		// Skip "all" target
 		if mw.Target == "all" {
@@ -536,7 +536,7 @@ func (v *Validator) validateMiddlewareReferences(project *scanner.Project) {
 	// Check handler @With references
 	for _, ctrl := range project.Controllers {
 		for _, handler := range ctrl.Handlers {
-			handlerLocation := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.Position.Line)
+			handlerLocation := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.SourceLine)
 
 			// Skip if no explicit With annotation
 			if len(handler.With) == 0 {

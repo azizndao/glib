@@ -44,11 +44,10 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 		PackageName: packageName,
 		PackagePath: packagePath,
 		FilePath:    filePath,
+		SourceLine:  s.fset.Position(typeSpec.Pos()).Line,
 		RoutePrefix: routePrefix,
 		Tags:        tags,
 		Fields:      fields,
-		TypeSpec:    typeSpec,
-		Position:    s.fset.Position(typeSpec.Pos()),
 	}
 
 	return controller, nil
@@ -135,15 +134,14 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller, packag
 		fullPath := controller.RoutePrefix + path
 
 		handler := &Handler{
-			Name:      funcDecl.Name.Name,
-			Method:    method,
-			Path:      path,
-			FullPath:  fullPath,
-			Tags:      tags,
-			With:      with,
-			Signature: signature,
-			FuncDecl:  funcDecl,
-			Position:  s.fset.Position(funcDecl.Pos()),
+			Name:       funcDecl.Name.Name,
+			Method:     method,
+			Path:       path,
+			FullPath:   fullPath,
+			SourceLine: s.fset.Position(funcDecl.Pos()).Line,
+			Tags:       tags,
+			With:       with,
+			Signature:  signature,
 		}
 
 		controller.Handlers = append(controller.Handlers, handler)

@@ -1,10 +1,5 @@
 package scanner
 
-import (
-	"go/ast"
-	"go/token"
-)
-
 // Handler pattern types
 const (
 	PatternResult  = "result"   // Result[T] - Type-safe handlers with glib.Result[T] return type
@@ -22,29 +17,27 @@ type Project struct {
 
 // Controller represents a scanned controller
 type Controller struct {
-	Name        string         // e.g., "PostsController"
-	PackageName string         // e.g., "posts"
-	PackagePath string         // e.g., "myapp/controllers/posts"
-	FilePath    string         // e.g., "/path/to/controllers/posts/controller.go"
-	RoutePrefix string         // e.g., "/api/v1/posts"
-	Tags        []string       // e.g., ["protected", "api"] - for auto-targeting middleware
-	Handlers    []*Handler     // Handler methods
-	Fields      []*Field       // Injected dependencies
-	TypeSpec    *ast.TypeSpec  // Original AST node
-	Position    token.Position // Source position
+	Name        string     // e.g., "PostsController"
+	PackageName string     // e.g., "posts"
+	PackagePath string     // e.g., "myapp/controllers/posts"
+	FilePath    string     // e.g., "/path/to/controllers/posts/controller.go"
+	SourceLine  int        // Line number in source file
+	RoutePrefix string     // e.g., "/api/v1/posts"
+	Tags        []string   // e.g., ["protected", "api"] - for auto-targeting middleware
+	Handlers    []*Handler // Handler methods
+	Fields      []*Field   // Injected dependencies
 }
 
 // Handler represents a controller method annotated with @Route
 type Handler struct {
-	Name      string            // e.g., "Show"
-	Method    string            // e.g., "GET"
-	Path      string            // e.g., "/{id}"
-	FullPath  string            // e.g., "/api/v1/posts/{id}"
-	Tags      []string          // e.g., ["protected"] - for auto-targeting middleware
-	With      []string          // e.g., ["auth", "cache"] or ["none"] - explicit middleware override
-	Signature *HandlerSignature // Parsed signature
-	FuncDecl  *ast.FuncDecl     // Original AST node
-	Position  token.Position    // Source position
+	Name       string            // e.g., "Show"
+	Method     string            // e.g., "GET"
+	Path       string            // e.g., "/{id}"
+	FullPath   string            // e.g., "/api/v1/posts/{id}"
+	SourceLine int               // Line number in source file
+	Tags       []string          // e.g., ["protected"] - for auto-targeting middleware
+	With       []string          // e.g., ["auth", "cache"] or ["none"] - explicit middleware override
+	Signature  *HandlerSignature // Parsed signature
 }
 
 // HandlerSignature represents a parsed handler signature
@@ -89,31 +82,30 @@ type HeaderParam struct {
 
 // Provider represents a function annotated with @Provider
 type Provider struct {
-	Name         string         // e.g., "NewDatabase"
-	FunctionName string         // e.g., "NewDatabase"
-	PackageName  string         // e.g., "providers"
-	PackagePath  string         // e.g., "myapp/providers"
-	FilePath     string         // e.g., "/path/to/providers/database.go"
-	Lifecycle    string         // "singleton" or "transient"
-	ReturnType   *TypeInfo      // What it provides
-	Dependencies []*Field       // What it depends on
-	FuncDecl     *ast.FuncDecl  // Original AST node
-	Position     token.Position // Source position
+	Name         string    // e.g., "NewDatabase"
+	FunctionName string    // e.g., "NewDatabase"
+	PackageName  string    // e.g., "providers"
+	PackagePath  string    // e.g., "myapp/providers"
+	FilePath     string    // e.g., "/path/to/providers/database.go"
+	SourceLine   int       // Line number in source file
+	Lifecycle    string    // "singleton" or "transient"
+	ReturnType   *TypeInfo // What it provides
+	Dependencies []*Field  // What it depends on
+	ReturnsError bool      // Whether the provider returns (T, error) or just T
 }
 
 // Middleware represents a function annotated with @Middleware
 type Middleware struct {
-	Name         string         // e.g., "auth" - middleware identifier
-	FunctionName string         // e.g., "Auth" - Go function name
-	PackageName  string         // e.g., "middleware"
-	PackagePath  string         // e.g., "myapp/middleware"
-	FilePath     string         // e.g., "/path/to/middleware/auth.go"
-	Target       string         // e.g., "all", "protected", "public,admin" - targeting expression
-	Order        int            // Execution order (default: 100)
-	Signature    string         // "old" (http.Handler) or "new" (glib.Middleware)
-	Dependencies []*Field       // What it depends on
-	FuncDecl     *ast.FuncDecl  // Original AST node
-	Position     token.Position // Source position
+	Name         string   // e.g., "auth" - middleware identifier
+	FunctionName string   // e.g., "Auth" - Go function name
+	PackageName  string   // e.g., "middleware"
+	PackagePath  string   // e.g., "myapp/middleware"
+	FilePath     string   // e.g., "/path/to/middleware/auth.go"
+	SourceLine   int      // Line number in source file
+	Target       string   // e.g., "all", "protected", "public,admin" - targeting expression
+	Order        int      // Execution order (default: 100)
+	Signature    string   // "old" (http.Handler) or "new" (glib.Middleware)
+	Dependencies []*Field // What it depends on
 }
 
 // Config represents a scanned configuration struct (annotated with @Config)
@@ -122,9 +114,8 @@ type Config struct {
 	PackageName string         // e.g., "configs"
 	PackagePath string         // e.g., "myapp/configs"
 	FilePath    string         // e.g., "/path/to/configs/config.go"
+	SourceLine  int            // Line number in source file
 	Fields      []*ConfigField // Top-level config fields
-	TypeSpec    *ast.TypeSpec  // Original AST node
-	Position    token.Position // Source position
 }
 
 // ConfigField represents a field in the Config struct
@@ -136,7 +127,7 @@ type ConfigField struct {
 	Required     bool           // Whether field is required from `required:"true"` tag
 	IsNested     bool           // True if type is a nested struct (not primitive)
 	Fields       []*ConfigField // Nested fields (if IsNested is true)
-	Position     token.Position // Source position
+	SourceLine   int            // Line number in source file
 }
 
 // Field represents a struct field (for DI) or function parameter

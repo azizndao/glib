@@ -23,13 +23,14 @@ func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, p
 		dependencies = s.parseFields(funcDecl.Type.Params)
 	}
 
-	// Parse return type
+	// Parse return type and check if it returns error
 	var returnType *TypeInfo
+	returnsError := false
 	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
 		// First return value is what it provides
 		returnType = s.parseType(funcDecl.Type.Results.List[0].Type)
 
-		// Validate: must return (T, error) or (T)
+		// Count return values to determine if it returns error
 		returnCount := 0
 		for _, field := range funcDecl.Type.Results.List {
 			if len(field.Names) == 0 {
@@ -42,6 +43,9 @@ func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, p
 		if returnCount > 2 {
 			return nil, fmt.Errorf("provider must return (T, error) or (T), got %d return values", returnCount)
 		}
+
+		// If returnCount > 1, it returns (T, error)
+		returnsError = returnCount > 1
 	} else {
 		return nil, fmt.Errorf("provider must have return value")
 	}
@@ -52,11 +56,11 @@ func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, p
 		PackageName:  packageName,
 		PackagePath:  packagePath,
 		FilePath:     filePath,
+		SourceLine:   s.fset.Position(funcDecl.Pos()).Line,
 		Lifecycle:    lifecycle,
 		ReturnType:   returnType,
 		Dependencies: dependencies,
-		FuncDecl:     funcDecl,
-		Position:     s.fset.Position(funcDecl.Pos()),
+		ReturnsError: returnsError,
 	}
 
 	return provider, nil
@@ -118,12 +122,11 @@ func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation,
 		PackageName:  packageName,
 		PackagePath:  packagePath,
 		FilePath:     filePath,
+		SourceLine:   s.fset.Position(funcDecl.Pos()).Line,
 		Target:       target,
 		Order:        order,
 		Signature:    signature,
 		Dependencies: dependencies,
-		FuncDecl:     funcDecl,
-		Position:     s.fset.Position(funcDecl.Pos()),
 	}
 
 	return middleware, nil

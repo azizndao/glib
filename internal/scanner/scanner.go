@@ -8,7 +8,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
+
+// ScanStats tracks scanning statistics
+type ScanStats struct {
+	FilesScanned int // Total files scanned
+	CacheHits    int // Files loaded from cache
+	CacheMisses  int // Files parsed (not in cache)
+	Providers    int // Providers found
+	Controllers  int // Controllers found
+	Middleware   int // Middleware found
+	Handlers     int // Handlers found
+}
 
 // Scanner scans a Go project for Glib annotations
 type Scanner struct {
@@ -20,32 +32,77 @@ type Scanner struct {
 	currentImports     map[string]string        // Maps package name to import path for current file
 	currentFile        *ast.File                // Current file being scanned (for type lookups)
 	typeSpecs          map[string]*ast.TypeSpec // Maps type name to TypeSpec (for current file)
+	cache              *FileCache               // File cache for incremental scanning (Phase 2)
+	cacheEnabled       bool                     // Whether caching is enabled
+	parallel           bool                     // Whether parallel scanning is enabled (Phase 3)
+	workers            int                      // Number of workers (0 = auto)
+	mu                 sync.Mutex               // Protects mutable state for concurrent access (Phase 3)
+	stats              ScanStats                // Scanning statistics
 }
 
-// New creates a new scanner
-func New(projectDir string) (*Scanner, error) {
+// ScannerOption configures the scanner
+type ScannerOption func(*Scanner)
+
+// WithCache enables file caching for incremental scanning
+func WithCache(cacheDir string) ScannerOption {
+	return func(s *Scanner) {
+		s.cache = NewFileCache(cacheDir)
+		s.cacheEnabled = true
+	}
+}
+
+// WithParallel enables parallel file scanning with specified number of workers
+// If workers is 0, it will use runtime.NumCPU()/2
+func WithParallel(workers int) ScannerOption {
+	return func(s *Scanner) {
+		s.parallel = true
+		s.workers = workers
+	}
+}
+
+// New creates a new scanner with optional configurations
+func New(projectDir string, opts ...ScannerOption) (*Scanner, error) {
 	// Find module path from go.mod
 	modulePath, err := findModulePath(projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find module path: %w", err)
 	}
 
-	return &Scanner{
+	scanner := &Scanner{
 		fset:       token.NewFileSet(),
 		modulePath: modulePath,
 		projectDir: projectDir,
-	}, nil
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(scanner)
+	}
+
+	return scanner, nil
 }
 
 // Scan scans the project and returns the IR
 func (s *Scanner) Scan() (*Project, error) {
+	// Use parallel scanning if enabled
+	if s.parallel {
+		return s.ScanParallel()
+	}
+
 	project := &Project{
 		Module: s.modulePath,
 	}
 
-	// First pass: collect all controllers, providers, middleware
-	fileMap := make(map[string]*ast.File) // Track parsed files
+	// Track file paths and package structure (not AST files)
+	type fileInfo struct {
+		path        string
+		packagePath string
+	}
 
+	var allFiles []fileInfo
+	controllerFiles := make(map[string][]fileInfo) // packagePath -> files with controllers
+
+	// First pass: collect all controllers, providers, middleware
 	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -74,13 +131,41 @@ func (s *Scanner) Scan() (*Project, error) {
 			return fmt.Errorf("failed to parse %s: %w", path, err)
 		}
 
-		fileMap[path] = file
+		// Calculate package path
+		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		packagePath := s.modulePath
+		if relPath != "." {
+			packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
+		}
+
+		// Store file info (not AST)
+		fInfo := fileInfo{
+			path:        path,
+			packagePath: packagePath,
+		}
+		allFiles = append(allFiles, fInfo)
 
 		// Scan for annotations
 		if err := s.scanFile(file, path, project); err != nil {
 			return fmt.Errorf("failed to scan %s: %w", path, err)
 		}
 
+		// Track files that have controllers
+		hasController := false
+		for _, ctrl := range project.Controllers {
+			if ctrl.FilePath == path {
+				hasController = true
+				break
+			}
+		}
+		if hasController {
+			controllerFiles[packagePath] = append(controllerFiles[packagePath], fInfo)
+		}
+
+		// AST is now GC-able after this function returns
 		return nil
 	})
 
@@ -88,52 +173,69 @@ func (s *Scanner) Scan() (*Project, error) {
 		return nil, err
 	}
 
-	// Second pass: scan handlers for all controllers
-	// Group files by package path
-	packageFiles := make(map[string]map[string]*ast.File) // packagePath -> filePath -> file
-	for filePath, file := range fileMap {
-		// Calculate package path relative to module
-		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
-		if err != nil {
-			continue
-		}
-		packagePath := s.modulePath
-		if relPath != "." {
-			packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
-		}
-
-		if packageFiles[packagePath] == nil {
-			packageFiles[packagePath] = make(map[string]*ast.File)
-		}
-		packageFiles[packagePath][filePath] = file
-	}
-
-	// Scan handlers with all package files available
-	for filePath, file := range fileMap {
-		// Find controllers in this file
-		var fileControllers []*Controller
+	// Second pass: scan handlers for controllers
+	// Re-parse only files needed for handler scanning (files with controllers + their package files)
+	for packagePath, pkgFileInfos := range controllerFiles {
+		// Find all controllers in this package
+		var packageControllers []*Controller
 		for _, ctrl := range project.Controllers {
-			if ctrl.FilePath == filePath {
-				fileControllers = append(fileControllers, ctrl)
+			if ctrl.PackagePath == packagePath {
+				packageControllers = append(packageControllers, ctrl)
 			}
 		}
 
-		if len(fileControllers) > 0 {
-			// Get all files from the same package
-			var pkgFiles []*ast.File
-			for _, ctrl := range fileControllers {
-				if files, ok := packageFiles[ctrl.PackagePath]; ok {
-					for _, f := range files {
-						pkgFiles = append(pkgFiles, f)
-					}
-					break
+		if len(packageControllers) == 0 {
+			continue
+		}
+
+		// Re-parse all files in this package for type resolution
+		var packageAstFiles []*ast.File
+		filesInPackage := make(map[string]*ast.File)
+
+		// Get all files in this package (not just ones with controllers)
+		for _, fInfo := range allFiles {
+			if fInfo.packagePath == packagePath {
+				file, err := parser.ParseFile(s.fset, fInfo.path, nil, parser.ParseComments)
+				if err != nil {
+					continue // Skip files that can't be parsed
+				}
+				packageAstFiles = append(packageAstFiles, file)
+				filesInPackage[fInfo.path] = file
+			}
+		}
+
+		// Scan handlers for each file that has controllers
+		for _, fInfo := range pkgFileInfos {
+			file, ok := filesInPackage[fInfo.path]
+			if !ok {
+				continue
+			}
+
+			// Find controllers in this specific file
+			var fileControllers []*Controller
+			for _, ctrl := range packageControllers {
+				if ctrl.FilePath == fInfo.path {
+					fileControllers = append(fileControllers, ctrl)
 				}
 			}
 
-			if err := s.scanHandlers(file, fileControllers, pkgFiles); err != nil {
-				return nil, fmt.Errorf("failed to scan handlers in %s: %w", filePath, err)
+			if len(fileControllers) > 0 {
+				if err := s.scanHandlers(file, fileControllers, packageAstFiles); err != nil {
+					return nil, fmt.Errorf("failed to scan handlers in %s: %w", fInfo.path, err)
+				}
 			}
 		}
+
+		// AST files are now GC-able after processing this package
+	}
+
+	// Update statistics
+	s.stats.FilesScanned = len(allFiles)
+	s.stats.Providers = len(project.Providers)
+	s.stats.Controllers = len(project.Controllers)
+	s.stats.Middleware = len(project.Middleware)
+	for _, ctrl := range project.Controllers {
+		s.stats.Handlers += len(ctrl.Handlers)
 	}
 
 	return project, nil
@@ -141,6 +243,10 @@ func (s *Scanner) Scan() (*Project, error) {
 
 // scanFile scans a single file for annotations
 func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) error {
+	// Lock for thread-safe access to mutable scanner state
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	packageName := file.Name.Name
 
 	// Parse imports for type resolution
@@ -235,4 +341,9 @@ func findModulePath(projectDir string) (string, error) {
 	}
 
 	return "", fmt.Errorf("module directive not found in go.mod")
+}
+
+// Stats returns scanning statistics
+func (s *Scanner) Stats() ScanStats {
+	return s.stats
 }

@@ -183,19 +183,8 @@ func (g *Generator) buildProviderData(prov *scanner.Provider) ProviderData {
 		}
 	}
 
-	// Check if provider returns error (second return value)
-	returnsError := false
-	if prov.FuncDecl != nil && prov.FuncDecl.Type.Results != nil {
-		returnCount := 0
-		for _, field := range prov.FuncDecl.Type.Results.List {
-			if len(field.Names) == 0 {
-				returnCount++
-			} else {
-				returnCount += len(field.Names)
-			}
-		}
-		returnsError = returnCount > 1
-	}
+	// Check if provider returns error (use extracted field)
+	returnsError := prov.ReturnsError
 
 	return ProviderData{
 		FieldName:    g.providerFieldName(prov),

@@ -272,10 +272,10 @@ func compareMiddleware(a, b *scanner.Middleware) int {
 	}
 
 	// Third: compare line number
-	if a.Position.Line < b.Position.Line {
+	if a.SourceLine < b.SourceLine {
 		return -1
 	}
-	if a.Position.Line > b.Position.Line {
+	if a.SourceLine > b.SourceLine {
 		return 1
 	}
 
