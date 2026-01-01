@@ -54,3 +54,7 @@ build/
 
 # Built binary (root level only)
 /glib
+
+# Air configuration (not used - we have native watch mode)
+.air.toml
+air.toml

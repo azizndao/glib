@@ -26,7 +26,7 @@ func newInitCmd() *cobra.Command {
 Creates a new project with:
   - main.go (application entry point)
   - configs/config.go (configuration struct with @Config annotation)
-  - glib.json (Glib configuration)
+  - config.toml (Glib configuration)
   - .gitignore (Git ignore file)
 
 Optional:
@@ -185,8 +185,8 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 	// configs/config.go (in separate package to avoid import cycle)
 	files["configs/config.go"] = renderConfigGo(minimal)
 
-	// glib.json
-	files["glib.json"] = renderGlibRC()
+	// config.toml
+	files["config.toml"] = renderGlibRC()
 
 	// .gitignore
 	files[".gitignore"] = renderGitignore()
@@ -239,22 +239,31 @@ func renderConfigGo(minimal bool) string {
 }
 
 func renderGlibRC() string {
-	// glib.json is JSON, keeping it inline since it's simple and doesn't need templating
-	return `{
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "make": {
-    "controllers": "controllers",
-    "providers": "providers",
-    "middleware": "middleware"
-  },
-  "dev": {
-    "port": 8080
-  }
-}
+	// config.toml - TOML format with all Glib settings
+	return `version = "2"
+verbose = false
+
+[generate]
+output = "generated"
+package = "generated"
+workers = 4
+cache = true
+
+[make]
+controllers = "controllers"
+providers = "providers"
+middleware = "middleware"
+
+[watch]
+debounce = 300
+excludeDirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
+includeFiles = ["*.go", "config.toml"]
+excludeFiles = ["*_test.go", "*.gen.go"]
+
+[validation]
+enabled = false
+languages = []
+defaultLanguage = "en"
 `
 }
 

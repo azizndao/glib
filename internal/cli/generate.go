@@ -3,12 +3,8 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/azizndao/glib/internal/generator"
 	"github.com/azizndao/glib/internal/scanner"
 	"github.com/azizndao/glib/internal/validator"
 	"github.com/spf13/cobra"
@@ -43,12 +39,12 @@ Generates:
 	}
 
 	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Project root directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (from glib.json)")
-	cmd.Flags().StringVar(&opts.config, "config", "glib.json", "Config file")
-	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output")
+	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: from config.toml)")
+	cmd.Flags().StringVar(&opts.config, "config", "config.toml", "Config file")
+	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: from config.toml)")
 	cmd.Flags().BoolVar(&opts.watch, "watch", false, "Watch mode")
-	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (0 = auto, -1 = disable)")
-	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching")
+	cmd.Flags().IntVar(&opts.workers, "workers", 4, "Number of parallel workers (default: from config.toml or 4)")
+	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: use config.toml cache setting)")
 	cmd.Flags().BoolVar(&opts.clearCache, "clear-cache", false, "Clear cache before scanning")
 
 	return cmd
@@ -66,10 +62,28 @@ func runGenerate(opts *generateOptions) error {
 		}
 	}
 
-	// Load config
+	// Load config and merge with defaults
 	cfg, err := loadGlibrc()
 	if err != nil {
-		return fmt.Errorf("failed to load glib.json: %w", err)
+		return fmt.Errorf("failed to load config.toml: %w", err)
+	}
+	cfg = mergeWithDefaults(cfg)
+
+	// Priority resolution: CLI args > config.toml > defaults
+
+	// Verbose: CLI flag OR config value
+	if !opts.verbose {
+		opts.verbose = cfg.Verbose
+	}
+
+	// Workers: CLI flag (if not default) OR config value
+	if opts.workers == 4 { // CLI default
+		opts.workers = cfg.Generate.Workers
+	}
+
+	// Cache: CLI flag --no-cache OR config value
+	if !opts.noCache {
+		opts.noCache = !cfg.Generate.Cache
 	}
 
 	// Determine output directory
@@ -92,182 +106,19 @@ func runGenerate(opts *generateOptions) error {
 
 // runGenerateSimple performs code generation with simple output
 func runGenerateSimple(outputDir, pkgName string, cfg *glibConfig, opts *generateOptions) error {
-	start := time.Now()
-
-	// Clear cache if requested
-	if opts.clearCache {
-		cacheDir := filepath.Join(".glib", "cache")
-		if err := os.RemoveAll(cacheDir); err != nil && !os.IsNotExist(err) {
-			fmt.Println(ui.Warning(fmt.Sprintf("Failed to clear cache: %v", err)))
-		} else if opts.verbose {
-			fmt.Println(ui.Info("Cache cleared"))
-		}
+	codegenOpts := &CodegenOptions{
+		ProjectDir:   ".",
+		OutputDir:    outputDir,
+		PackageName:  pkgName,
+		Workers:      opts.workers,
+		NoCache:      opts.noCache,
+		Verbose:      opts.verbose,
+		ClearCache:   opts.clearCache,
+		ChangedFiles: nil,  // Always full scan for generate command
+		ShowProgress: true, // Generate command shows detailed output
 	}
 
-	// Configure scanner options
-	var scanOpts []scanner.ScannerOption
-
-	// Enable caching unless explicitly disabled
-	if !opts.noCache {
-		cacheDir := filepath.Join(".glib", "cache")
-		scanOpts = append(scanOpts, scanner.WithCache(cacheDir))
-		if opts.verbose {
-			fmt.Println(ui.Info("File caching enabled"))
-		}
-	}
-
-	// Enable parallel scanning if workers > 0 or auto (0)
-	if opts.workers != -1 {
-		workers := opts.workers
-		if workers == 0 {
-			workers = 4 // Default to 4 workers
-		}
-		scanOpts = append(scanOpts, scanner.WithParallel(workers))
-		if opts.verbose {
-			fmt.Printf("  %s Parallel scanning with %d workers\n", ui.IconBullet, workers)
-		}
-	}
-
-	// Scan
-	fmt.Println(ui.Info("Scanning project..."))
-	scan, err := scanner.New(".", scanOpts...)
-	if err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to create scanner: %v", err)))
-		return err
-	}
-
-	var project *scanner.Project
-	if opts.verbose {
-		// Use streaming for verbose mode to show progress
-		project, err = scanWithProgress(scan, opts)
-	} else {
-		project, err = scan.Scan()
-	}
-
-	if err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to scan project: %v", err)))
-		return err
-	}
-
-	// Validate with incremental validation if caching enabled
-	var valStats *validator.ValidationStats
-	if !opts.noCache {
-		cacheDir := filepath.Join(".glib", "cache")
-		incVal := validator.NewIncrementalValidator(cacheDir)
-		if err := incVal.ValidateIncremental(project); err != nil {
-			if validationErr, ok := err.(*validator.ValidationErrors); ok {
-				for _, verr := range validationErr.Errors {
-					fmt.Printf("  %s %s\n", ui.IconBullet, verr.Message)
-				}
-			}
-			fmt.Println(ui.Error("Validation failed"))
-			return err
-		}
-		stats := incVal.Stats()
-		valStats = &stats
-	} else {
-		// Use regular validator
-		val := validator.New()
-		if err := val.Validate(project); err != nil {
-			for _, verr := range val.Errors() {
-				fmt.Printf("  %s %s\n", ui.IconBullet, verr.Message)
-			}
-			fmt.Println(ui.Error("Validation failed"))
-			return err
-		}
-	}
-
-	// Display scan summary if verbose
-	if opts.verbose {
-		fmt.Println()
-		printScanSummary(scan.Stats(), valStats, !opts.noCache)
-	}
-
-	// Build validation config from glib.json
-	// Auto-enable if languages are specified
-	validationEnabled := cfg.Validation.Enabled || len(cfg.Validation.Languages) > 0
-	validationCfg := generator.ValidationConfig{
-		Enabled:         validationEnabled,
-		Languages:       cfg.Validation.Languages,
-		DefaultLanguage: cfg.Validation.DefaultLanguage,
-	}
-
-	gen := generator.NewWithValidation(project, outputDir, pkgName, validationCfg)
-	if err := gen.Generate(); err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to generate code: %v", err)))
-		return err
-	}
-
-	duration := time.Since(start)
-	fmt.Println(ui.Success(fmt.Sprintf("Generation complete (%dms)", duration.Milliseconds())))
-
-	// Format generated code
-	if err := formatGeneratedCode(outputDir, opts.verbose); err != nil {
-		fmt.Println(ui.Warning(fmt.Sprintf("Failed to format code: %v", err)))
-		// Don't return error, formatting is not critical
-	}
-
-	if opts.verbose {
-		fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("%d controllers, %d providers, %d middleware",
-			len(project.Controllers), len(project.Providers), len(project.Middleware))))
-	}
-
-	return nil
-}
-
-// formatGeneratedCode runs goimports and gofmt on generated files
-func formatGeneratedCode(outputDir string, verbose bool) error {
-	// Find all .go files in output directory
-	pattern := filepath.Join(outputDir, "*.gen.go")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		return fmt.Errorf("failed to find generated files: %w", err)
-	}
-
-	if len(files) == 0 {
-		return nil
-	}
-
-	if verbose {
-		fmt.Println(ui.Info("Formatting generated code..."))
-	}
-
-	// Try goimports first (removes unused imports and formats)
-	if err := runGoImports(files, verbose); err != nil {
-		// Fall back to gofmt if goimports is not available
-		if verbose {
-			fmt.Println(ui.Warning("goimports not found, using gofmt only"))
-		}
-		return runGoFmt(files, verbose)
-	}
-
-	return nil
-}
-
-// runGoImports runs goimports on the specified files
-func runGoImports(files []string, verbose bool) error {
-	args := append([]string{"-w"}, files...)
-	cmd := exec.Command("goimports", args...)
-
-	if verbose {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	return cmd.Run()
-}
-
-// runGoFmt runs gofmt on the specified files
-func runGoFmt(files []string, verbose bool) error {
-	args := append([]string{"-w"}, files...)
-	cmd := exec.Command("gofmt", args...)
-
-	if verbose {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	return cmd.Run()
+	return PerformCodeGeneration(cfg, codegenOpts)
 }
 
 // scanWithProgress runs scanner with streaming progress updates

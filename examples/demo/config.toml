@@ -1,0 +1,24 @@
+version = "2"
+verbose = false
+
+[generate]
+output = "generated"
+package = "generated"
+workers = 4
+cache = true
+
+[make]
+controllers = "controllers"
+providers = "providers"
+middleware = "middleware"
+
+[watch]
+debounce = 300
+excludeDirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
+includeFiles = ["*.go", "config.toml"]
+excludeFiles = ["*_test.go", "*.gen.go"]
+
+[validation]
+enabled = true
+languages = ["es", "fr"]
+defaultLanguage = "fr"

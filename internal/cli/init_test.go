@@ -18,7 +18,7 @@ func TestInitProject_Success(t *testing.T) {
 	// Verify expected files were created
 	expectedFiles := []string{
 		"go.mod",
-		"glib.json",
+		"config.toml",
 		".gitignore",
 		"README.md",
 		"main.go",
@@ -41,13 +41,13 @@ func TestInitProject_Success(t *testing.T) {
 		t.Error("go.mod is empty")
 	}
 
-	// Verify glib.json content
-	glibrcContent, err := os.ReadFile(filepath.Join(tmpDir, "glib.json"))
+	// Verify config.toml content
+	glibrcContent, err := os.ReadFile(filepath.Join(tmpDir, "config.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(glibrcContent) == 0 {
-		t.Error("glib.json is empty")
+		t.Error("config.toml is empty")
 	}
 }
 
@@ -79,7 +79,7 @@ func TestInitProject_Minimal(t *testing.T) {
 	// Verify basic files were created
 	expectedFiles := []string{
 		"go.mod",
-		"glib.json",
+		"config.toml",
 		"main.go",
 		"configs/config.go",
 	}
@@ -241,7 +241,7 @@ func TestInitProject_AllFiles(t *testing.T) {
 		required bool
 	}{
 		{"go.mod", true},
-		{"glib.json", true},
+		{"config.toml", true},
 		{".gitignore", true},
 		{"README.md", true},
 		{"main.go", true},

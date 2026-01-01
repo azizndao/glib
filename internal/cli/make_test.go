@@ -19,15 +19,13 @@ go 1.21
 		t.Fatal(err)
 	}
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "make": {
-    "controllers": "controllers"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[make]
+controllers = "controllers"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,7 +43,7 @@ go 1.21
 	// Load config
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load glib.json: %v", err)
+		t.Fatalf("Failed to load config.toml: %v", err)
 	}
 
 	// Make controller
@@ -86,15 +84,13 @@ go 1.21
 func TestMakeController_CustomPath(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "make": {
-    "controllers": "controllers"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[make]
+controllers = "controllers"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +107,7 @@ func TestMakeController_CustomPath(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load glib.json: %v", err)
+		t.Fatalf("Failed to load config.toml: %v", err)
 	}
 
 	// Make controller with custom path
@@ -138,15 +134,13 @@ func TestMakeController_CustomPath(t *testing.T) {
 func TestMakeController_NoExample(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "make": {
-    "controllers": "controllers"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[make]
+controllers = "controllers"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +157,7 @@ func TestMakeController_NoExample(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load glib.json: %v", err)
+		t.Fatalf("Failed to load config.toml: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -188,15 +182,13 @@ func TestMakeController_NoExample(t *testing.T) {
 func TestMakeProvider_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "make": {
-    "providers": "services"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[make]
+providers = "services"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +205,7 @@ func TestMakeProvider_Success(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load glib.json: %v", err)
+		t.Fatalf("Failed to load config.toml: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -246,15 +238,13 @@ func TestMakeProvider_Success(t *testing.T) {
 func TestMakeMiddleware_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "make": {
-    "middleware": "middleware"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[make]
+middleware = "middleware"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -271,7 +261,7 @@ func TestMakeMiddleware_Success(t *testing.T) {
 
 	cfg, err := loadGlibrc()
 	if err != nil {
-		t.Fatalf("Failed to load glib.json: %v", err)
+		t.Fatalf("Failed to load config.toml: %v", err)
 	}
 
 	opts := &makeOptions{
@@ -300,24 +290,22 @@ func TestMakeMiddleware_Success(t *testing.T) {
 	}
 }
 
-// TestLoadGlibrc_Success tests loading glib.json
+// TestLoadGlibrc_Success tests loading config.toml
 func TestLoadGlibrc_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	glibrcContent := `{
-  "version": "1.0",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "make": {
-    "controllers": "controllers",
-    "providers": "services",
-    "middleware": "middleware"
-  }
-}
+	glibrcContent := `version = "1.0"
+
+[generate]
+output = "generated"
+package = "generated"
+
+[make]
+controllers = "controllers"
+providers = "services"
+middleware = "middleware"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -348,11 +336,11 @@ func TestLoadGlibrc_Success(t *testing.T) {
 	}
 }
 
-// TestLoadGlibrc_NotFound tests error when glib.json is missing
+// TestLoadGlibrc_NotFound tests error when config.toml is missing
 func TestLoadGlibrc_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Change to temp directory without glib.json
+	// Change to temp directory without config.toml
 	originalDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -365,7 +353,7 @@ func TestLoadGlibrc_NotFound(t *testing.T) {
 
 	_, err = loadGlibrc()
 	if err == nil {
-		t.Error("Expected error when glib.json is missing")
+		t.Error("Expected error when config.toml is missing")
 	}
 }
 
@@ -373,12 +361,12 @@ func TestLoadGlibrc_NotFound(t *testing.T) {
 func TestLoadGlibrc_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create invalid JSON
-	invalidContent := `{
-  "version": "1.0",
-  "invalid json
+	// Create invalid TOML
+	invalidContent := `version = "1.0"
+invalid toml syntax here
+[generate
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(invalidContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -395,7 +383,7 @@ func TestLoadGlibrc_InvalidJSON(t *testing.T) {
 
 	_, err = loadGlibrc()
 	if err == nil {
-		t.Error("Expected error with invalid JSON")
+		t.Error("Expected error with invalid TOML")
 	}
 }
 

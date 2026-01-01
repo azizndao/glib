@@ -24,16 +24,14 @@ require (
 		t.Fatal(err)
 	}
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[generate]
+output = "generated"
+package = "generated"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +75,7 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   false,
 	}
@@ -107,16 +105,14 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 func TestRunGenerate_NoGoMod(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create glib.json but no go.mod
-	glibrcContent := `{
-  "version": "1.0",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  }
-}
+	// Create config.toml but no go.mod
+	glibrcContent := `version = "1.0"
+
+[generate]
+output = "generated"
+package = "generated"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -134,7 +130,7 @@ func TestRunGenerate_NoGoMod(t *testing.T) {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   false,
 	}
@@ -145,11 +141,11 @@ func TestRunGenerate_NoGoMod(t *testing.T) {
 	}
 }
 
-// TestRunGenerate_NoGlibrc tests error when glib.json is missing
+// TestRunGenerate_NoGlibrc tests error when config.toml is missing
 func TestRunGenerate_NoGlibrc(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create go.mod but no glib.json
+	// Create go.mod but no config.toml
 	goModContent := `module testproject
 
 go 1.21
@@ -172,14 +168,14 @@ go 1.21
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   false,
 	}
 
 	err = runGenerate(opts)
 	if err == nil {
-		t.Error("Expected error when glib.json is missing")
+		t.Error("Expected error when config.toml is missing")
 	}
 }
 
@@ -196,16 +192,14 @@ go 1.21
 		t.Fatal(err)
 	}
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[generate]
+output = "generated"
+package = "generated"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -261,7 +255,7 @@ type ServiceB struct {}
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   false,
 	}
@@ -277,7 +271,7 @@ func TestRunGenerate_WatchMode(t *testing.T) {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  "",
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   true,
 	}
@@ -308,16 +302,14 @@ require (
 		t.Fatal(err)
 	}
 
-	// Create glib.json
-	glibrcContent := `{
-  "version": "1.0",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  }
-}
+	// Create config.toml
+	glibrcContent := `version = "1.0"
+
+[generate]
+output = "generated"
+package = "generated"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "glib.json"), []byte(glibrcContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.toml"), []byte(glibrcContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -362,7 +354,7 @@ func (c *TestController) Get(ctx context.Context) glib.Result[string] {
 	opts := &generateOptions{
 		dir:     ".",
 		output:  customOutput,
-		config:  "glib.json",
+		config:  "config.toml",
 		verbose: false,
 		watch:   false,
 	}

@@ -11,10 +11,18 @@ import (
 	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/azizndao/glib/internal/generator"
 	"github.com/azizndao/glib/internal/scanner"
-	"github.com/azizndao/glib/internal/validator"
 	"github.com/spf13/cobra"
+)
+
+const (
+	// Process management timeouts
+	ProcessGracefulTimeout = 3 * time.Second        // Time to wait for SIGTERM to work
+	ProcessCleanupDelay    = 100 * time.Millisecond // Delay after process cleanup
+	PortReleaseDelay       = 200 * time.Millisecond // Wait for port to be released
+
+	// Shutdown timeout
+	ShutdownTimeout = 5 * time.Second // Maximum time to wait for graceful shutdown
 )
 
 // ProcessManager manages the running server process
@@ -86,7 +94,7 @@ func (pm *ProcessManager) Stop() error {
 		// If SIGTERM fails, force kill
 		_ = process.Kill()
 		// Wait for process to finish
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(ProcessCleanupDelay)
 		return nil
 	}
 
@@ -94,11 +102,11 @@ func (pm *ProcessManager) Stop() error {
 	select {
 	case <-done:
 		// Process exited cleanly
-	case <-time.After(3 * time.Second):
+	case <-time.After(ProcessGracefulTimeout):
 		// Timeout - force kill
 		_ = process.Kill()
 		// Give it a moment to die
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(ProcessCleanupDelay)
 	}
 
 	return nil
@@ -111,7 +119,7 @@ func (pm *ProcessManager) Restart(binaryPath string, port int) error {
 	}
 
 	// Give the OS a moment to release the port
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(PortReleaseDelay)
 
 	return pm.Start(binaryPath, port)
 }
@@ -146,38 +154,57 @@ Features:
 		},
 	}
 
-	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from glib.json or 8080)")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics")
-	cmd.Flags().IntVar(&workers, "workers", 4, "Number of parallel workers (0=auto, -1=disable)")
-	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching")
-	cmd.Flags().IntVar(&debounce, "debounce", 300, "Debounce duration in milliseconds")
+	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from config.toml)")
+	cmd.Flags().IntVar(&workers, "workers", 4, "Number of parallel workers (default: from config.toml or 4)")
+	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: use config.toml cache setting)")
+	cmd.Flags().IntVar(&debounce, "debounce", 300, "Debounce duration in milliseconds (default: from config.toml or 300)")
 
 	return cmd
 }
 
 func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
 	// Check if config exists
-	if _, err := os.Stat("glib.json"); os.IsNotExist(err) {
-		if _, err := os.Stat(".glibrc"); os.IsNotExist(err) {
-			fmt.Println(ui.Error("No glib.json or .glibrc found - run 'glib init' first"))
-			return fmt.Errorf("no glib.json or .glibrc found")
-		}
+	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
+		fmt.Println(ui.Error("No config.toml found - run 'glib init' first"))
+		return fmt.Errorf("no config.toml found")
 	}
 
-	// Load config
+	// Load config and merge with defaults
 	cfg, err := loadGlibrc()
 	if err != nil {
 		fmt.Println(ui.Error(fmt.Sprintf("Failed to load config: %v", err)))
 		return err
 	}
+	cfg = mergeWithDefaults(cfg)
 
-	// Determine port
+	// Priority resolution: CLI args > config.toml > defaults
+
+	// Verbose: CLI flag OR config value
+	if !verbose {
+		verbose = cfg.Verbose
+	}
+
+	// Workers: CLI flag (if not default) OR config value
+	if workers == 4 { // CLI default
+		workers = cfg.Generate.Workers
+	}
+
+	// Cache: CLI flag --no-cache OR config value
+	cache := !noCache
+	if !noCache {
+		cache = cfg.Generate.Cache
+	}
+	noCache = !cache
+
+	// Debounce: CLI flag (if not default) OR config value
+	if debounce == 300*time.Millisecond { // CLI default
+		debounce = time.Duration(cfg.Watch.Debounce) * time.Millisecond
+	}
+
+	// Port: CLI flag OR default (port is managed via .env, not config)
 	if port == 0 {
-		if cfg.Dev.Port != 0 {
-			port = cfg.Dev.Port
-		} else {
-			port = 8080
-		}
+		port = 8080
 	}
 
 	// Determine output directory
@@ -228,7 +255,13 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	fmt.Println(ui.Success(fmt.Sprintf("Server started on http://localhost:%d", port)))
 
 	// Create file watcher
-	watcher, err := NewFileWatcher(".", outputDir, debounce)
+	watchCfg := &WatchConfig{
+		Debounce:     debounce,
+		ExcludeDirs:  cfg.Watch.ExcludeDirs,
+		IncludeFiles: cfg.Watch.IncludeFiles,
+		ExcludeFiles: cfg.Watch.ExcludeFiles,
+	}
+	watcher, err := NewFileWatcher(".", outputDir, watchCfg)
 	if err != nil {
 		pm.Stop()
 		return fmt.Errorf("failed to create watcher: %w", err)
@@ -258,9 +291,21 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 		case <-sigChan:
 			fmt.Println()
 			fmt.Println(ui.Info("Shutting down..."))
-			watcher.Stop()
-			pm.Stop()
-			fmt.Println(ui.Success("Goodbye!"))
+
+			// Shutdown with timeout to prevent hanging
+			done := make(chan struct{})
+			go func() {
+				watcher.Stop()
+				pm.Stop()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				fmt.Println(ui.Success("Goodbye!"))
+			case <-time.After(ShutdownTimeout):
+				fmt.Println(ui.Warning("Shutdown timeout - forcing exit"))
+			}
 			return nil
 
 		case changedFiles := <-changes:
@@ -323,129 +368,19 @@ func handleReload(pm *ProcessManager, binaryPath string, port int, projectDir, o
 
 // performGeneration runs code generation (incremental or full)
 func performGeneration(projectDir, outputDir string, cfg *glibConfig, workers int, noCache bool, verbose bool, changedFiles []string) error {
-	// Determine package name
-	pkgName := cfg.Generate.Package
-	if pkgName == "" {
-		pkgName = "generated"
+	opts := &CodegenOptions{
+		ProjectDir:   projectDir,
+		OutputDir:    outputDir,
+		PackageName:  "", // Will use cfg.Generate.Package
+		Workers:      workers,
+		NoCache:      noCache,
+		Verbose:      verbose,
+		ClearCache:   false, // Dev mode doesn't clear cache
+		ChangedFiles: changedFiles,
+		ShowProgress: false, // Dev mode uses compact output
 	}
 
-	// Configure scanner options
-	var scanOpts []scanner.ScannerOption
-
-	// Enable caching unless explicitly disabled
-	if !noCache {
-		cacheDir := filepath.Join(".glib", "cache")
-		scanOpts = append(scanOpts, scanner.WithCache(cacheDir))
-	}
-
-	// Enable parallel scanning if workers > 0
-	if workers > 0 {
-		scanOpts = append(scanOpts, scanner.WithParallel(workers))
-	}
-
-	// Create scanner
-	scan, err := scanner.New(projectDir, scanOpts...)
-	if err != nil {
-		return fmt.Errorf("failed to create scanner: %w", err)
-	}
-
-	// Scan (incremental or full)
-	var project *scanner.Project
-	scanStart := time.Now()
-
-	if changedFiles != nil && len(changedFiles) > 0 && !noCache {
-		// Incremental scan
-		fmt.Println(ui.Info(fmt.Sprintf("Incremental scan (%d files)...", len(changedFiles))))
-		project, err = scan.ScanIncremental(changedFiles)
-	} else {
-		// Full scan
-		fmt.Println(ui.Info("Scanning..."))
-		project, err = scan.Scan()
-	}
-
-	if err != nil {
-		return fmt.Errorf("scan failed: %w", err)
-	}
-
-	scanDuration := time.Since(scanStart)
-
-	// Show statistics if verbose
-	stats := scan.Stats()
-	if verbose {
-		printDevScanStats(stats, scanDuration)
-	} else {
-		// Compact output
-		fmt.Printf("  %s Scanned: %d providers, %d controllers, %d middleware (%dms)\n",
-			ui.IconCheck,
-			stats.Providers,
-			stats.Controllers,
-			stats.Middleware,
-			scanDuration.Milliseconds())
-	}
-
-	// Validate with incremental validation
-	validationStart := time.Now()
-	if !noCache {
-		cacheDir := filepath.Join(".glib", "cache")
-		incVal := validator.NewIncrementalValidator(cacheDir)
-		if err := incVal.ValidateIncremental(project); err != nil {
-			if validationErr, ok := err.(*validator.ValidationErrors); ok {
-				for _, verr := range validationErr.Errors {
-					fmt.Printf("  %s %s\n", ui.IconBullet, verr.Message)
-				}
-			}
-			return fmt.Errorf("validation failed: %w", err)
-		}
-		validationDuration := time.Since(validationStart)
-
-		if verbose {
-			valStats := incVal.Stats()
-			fmt.Printf("  %s Validation: %d components (%dms)\n",
-				ui.IconCheck,
-				valStats.ComponentsValidated,
-				validationDuration.Milliseconds())
-		} else {
-			fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
-		}
-	} else {
-		// Regular validation
-		val := validator.New()
-		if err := val.Validate(project); err != nil {
-			for _, verr := range val.Errors() {
-				fmt.Printf("  %s %s\n", ui.IconBullet, verr.Message)
-			}
-			return fmt.Errorf("validation failed: %w", err)
-		}
-		validationDuration := time.Since(validationStart)
-		fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
-	}
-
-	// Generate code
-	genStart := time.Now()
-	validationEnabled := cfg.Validation.Enabled || len(cfg.Validation.Languages) > 0
-	validationCfg := generator.ValidationConfig{
-		Enabled:         validationEnabled,
-		Languages:       cfg.Validation.Languages,
-		DefaultLanguage: cfg.Validation.DefaultLanguage,
-	}
-
-	gen := generator.NewWithValidation(project, outputDir, pkgName, validationCfg)
-	if err := gen.Generate(); err != nil {
-		return fmt.Errorf("code generation failed: %w", err)
-	}
-	genDuration := time.Since(genStart)
-
-	// Format generated code
-	if err := formatGeneratedCode(outputDir, false); err != nil {
-		// Non-fatal - just warn
-		if verbose {
-			fmt.Println(ui.Warning(fmt.Sprintf("Failed to format code: %v", err)))
-		}
-	}
-
-	fmt.Printf("  %s Generation complete (%dms)\n", ui.IconCheck, genDuration.Milliseconds())
-
-	return nil
+	return PerformCodeGeneration(cfg, opts)
 }
 
 // buildApp builds the application

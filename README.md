@@ -49,7 +49,7 @@ This will:
 
 1. Run initial code generation
 2. Build and start your server
-3. Watch for file changes (`.go` files + `glib.json`)
+3. Watch for file changes (`.go` files + `config.toml`)
 4. Auto-regenerate code incrementally (fast!)
 5. Rebuild and restart server automatically
 
@@ -538,7 +538,7 @@ glib init my-app
 Creates:
 
 - Project structure
-- `glib.json` configuration
+- `config.toml` configuration
 - Sample `main.go`
 - Example controller
 
@@ -609,24 +609,22 @@ Features:
 
 ## Configuration
 
-### `glib.json`
+### `config.toml`
 
-```json
-{
-    "version": "2",
-    "generate": {
-        "output": "generated",
-        "package": "generated"
-    },
-    "make": {
-        "controllers": "controllers",
-        "providers": "providers",
-        "middleware": "middleware"
-    },
-    "dev": {
-        "port": 8080
-    }
-}
+```toml
+version = "2"
+
+[generate]
+output = "generated"
+package = "generated"
+
+[make]
+controllers = "controllers"
+providers = "providers"
+middleware = "middleware"
+
+[dev]
+port = 8080
 ```
 
 ## Project Structure
@@ -646,7 +644,7 @@ my-app/
 │   ├── routes.gen.go
 │   └── parsers.gen.go
 ├── main.go              # Your entry point
-├── glib.json              # Glib configuration
+├── config.toml          # Glib configuration
 └── go.mod
 ```
 

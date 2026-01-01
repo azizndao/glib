@@ -17,7 +17,7 @@ type Generator struct {
 	validationCfg ValidationConfig
 }
 
-// ValidationConfig holds validation settings from glib.json
+// ValidationConfig holds validation settings from config.toml
 type ValidationConfig struct {
 	Enabled         bool
 	Languages       []string

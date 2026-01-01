@@ -121,7 +121,7 @@ demo/
 │   └── redis.go          # Redis configuration
 ├── bootstrap.go          # Application bootstrap
 ├── main.go               # Entry point
-├── glib.json             # Glib configuration
+├── config.toml           # Glib configuration
 ├── .air.toml             # Hot reload config
 ├── .env.example          # Environment variables template
 └── demo.db               # SQLite database (auto-created)
@@ -425,19 +425,17 @@ cp .env.example .env
 | REDIS_HOST   | localhost    | Redis host           |
 | REDIS_PORT   | 6379         | Redis port           |
 
-### Glib Configuration (`glib.json`)
+### Glib Configuration (`config.toml`)
 
-```json
-{
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "dev": {
-    "port": 8091
-  }
-}
+```toml
+version = "2"
+
+[generate]
+output = "generated"
+package = "generated"
+
+[dev]
+port = 8091
 ```
 
 ## 🐛 Troubleshooting

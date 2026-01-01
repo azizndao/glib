@@ -3,17 +3,19 @@ module github.com/azizndao/glib
 go 1.25
 
 require (
+	github.com/BurntSushi/toml v1.4.0
+	github.com/fsnotify/fsnotify v1.7.0
+	github.com/go-playground/universal-translator v0.18.1
+	github.com/go-playground/validator/v10 v10.30.1
+	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.32.0
 )
 
 require (
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

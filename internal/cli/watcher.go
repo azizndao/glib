@@ -1,3 +1,8 @@
+// Package cli provides the command-line interface for Glib code generation.
+//
+// The FileWatcher provides native file watching with debouncing for development mode.
+// When files change, they are collected during the debounce period and emitted as a batch.
+// This prevents excessive rebuilds when multiple files are saved rapidly.
 package cli
 
 import (
@@ -13,38 +18,81 @@ import (
 
 // FileWatcher watches for file changes in the project directory
 type FileWatcher struct {
-	watcher     *fsnotify.Watcher
-	debounce    time.Duration
-	rootDir     string
-	excludeDirs []string
-	outputDir   string // Generated output directory to exclude
-	changes     chan []string
-	errors      chan error
-	done        chan struct{}
-	mu          sync.Mutex
-	pending     map[string]bool
+	watcher      *fsnotify.Watcher
+	debounce     time.Duration
+	rootDir      string
+	excludeDirs  []string
+	outputDir    string   // Generated output directory to exclude
+	includeFiles []string // File patterns to include (e.g., "*.go", "config.toml")
+	excludeFiles []string // File patterns to exclude (e.g., "*_test.go", "*.gen.go")
+	changes      chan []string
+	errors       chan error
+	done         chan struct{}
+	mu           sync.Mutex
+	pending      map[string]bool
+	wg           sync.WaitGroup // Track goroutines for clean shutdown
+	fileCount    int            // Cached file count for O(1) lookups
 }
 
-// NewFileWatcher creates a new file watcher
-func NewFileWatcher(rootDir string, outputDir string, debounce time.Duration) (*FileWatcher, error) {
+// WatchConfig holds configuration for the file watcher
+type WatchConfig struct {
+	Debounce     time.Duration
+	ExcludeDirs  []string
+	IncludeFiles []string
+	ExcludeFiles []string
+}
+
+// NewFileWatcher creates a new file watcher with the given configuration
+func NewFileWatcher(rootDir string, outputDir string, config *WatchConfig) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create watcher: %w", err)
 	}
 
 	fw := &FileWatcher{
-		watcher:     watcher,
-		debounce:    debounce,
-		rootDir:     rootDir,
-		outputDir:   outputDir,
-		excludeDirs: []string{"vendor", "node_modules", ".git", ".glib", "tmp"},
-		changes:     make(chan []string, 10),
-		errors:      make(chan error, 10),
-		done:        make(chan struct{}),
-		pending:     make(map[string]bool),
+		watcher:      watcher,
+		debounce:     config.Debounce,
+		rootDir:      rootDir,
+		outputDir:    outputDir,
+		excludeDirs:  config.ExcludeDirs,
+		includeFiles: config.IncludeFiles,
+		excludeFiles: config.ExcludeFiles,
+		changes:      make(chan []string, 10),
+		errors:       make(chan error, 10),
+		done:         make(chan struct{}),
+		pending:      make(map[string]bool),
+	}
+
+	// Pre-count files for O(1) CountWatchedFiles()
+	err = fw.countFiles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to count files: %w", err)
 	}
 
 	return fw, nil
+}
+
+// countFiles walks the directory tree and counts matching files
+func (fw *FileWatcher) countFiles() error {
+	fw.fileCount = 0
+	return filepath.Walk(fw.rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			if fw.shouldExcludeDir(path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if fw.shouldIncludeFile(path) {
+			fw.fileCount++
+		}
+
+		return nil
+	})
 }
 
 // Start begins watching for file changes
@@ -56,8 +104,15 @@ func (fw *FileWatcher) Start() (<-chan []string, <-chan error, error) {
 	}
 
 	// Start goroutines for event processing
-	go fw.watchEvents()
-	go fw.debounceChanges()
+	fw.wg.Add(2)
+	go func() {
+		defer fw.wg.Done()
+		fw.watchEvents()
+	}()
+	go func() {
+		defer fw.wg.Done()
+		fw.debounceChanges()
+	}()
 
 	return fw.changes, fw.errors, nil
 }
@@ -65,7 +120,9 @@ func (fw *FileWatcher) Start() (<-chan []string, <-chan error, error) {
 // Stop stops the file watcher
 func (fw *FileWatcher) Stop() error {
 	close(fw.done)
-	return fw.watcher.Close()
+	err := fw.watcher.Close()
+	fw.wg.Wait() // Wait for goroutines to finish
+	return err
 }
 
 // addRecursive adds a directory and all its subdirectories to the watcher
@@ -116,27 +173,41 @@ func (fw *FileWatcher) shouldExcludeDir(path string) bool {
 	return false
 }
 
-// shouldIncludeFile checks if a file should trigger a rebuild
+// shouldIncludeFile checks if a file should trigger a rebuild based on configured patterns
 func (fw *FileWatcher) shouldIncludeFile(path string) bool {
-	// Only watch .go files and glib.json
-	if strings.HasSuffix(path, ".go") {
-		// Exclude generated files
-		if strings.HasSuffix(path, ".gen.go") {
+	filename := filepath.Base(path)
+
+	// First check exclude patterns (exclude takes precedence)
+	for _, pattern := range fw.excludeFiles {
+		if matchPattern(filename, pattern) {
 			return false
 		}
-		// Exclude test files (they don't affect the server)
-		if strings.HasSuffix(path, "_test.go") {
-			return false
-		}
-		return true
 	}
 
-	// Watch glib.json for config changes
-	if filepath.Base(path) == "glib.json" || filepath.Base(path) == ".glibrc" {
-		return true
+	// Then check include patterns
+	for _, pattern := range fw.includeFiles {
+		if matchPattern(filename, pattern) {
+			return true
+		}
 	}
 
 	return false
+}
+
+// matchPattern checks if a filename matches a pattern (supports * wildcard)
+func matchPattern(filename, pattern string) bool {
+	// Simple pattern matching: exact match or wildcard suffix
+	if pattern == filename {
+		return true
+	}
+
+	// Handle wildcard patterns like "*.go", "*_test.go", "*.gen.go"
+	if after, ok := strings.CutPrefix(pattern, "*"); ok {
+		return strings.HasSuffix(filename, after)
+	}
+
+	// Handle exact filename matches like "config.toml"
+	return pattern == filename
 }
 
 // watchEvents processes fsnotify events
@@ -163,7 +234,12 @@ func (fw *FileWatcher) watchEvents() {
 				if event.Has(fsnotify.Create) {
 					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 						if !fw.shouldExcludeDir(event.Name) {
-							_ = fw.addRecursive(event.Name)
+							if err := fw.addRecursive(event.Name); err != nil {
+								select {
+								case fw.errors <- fmt.Errorf("failed to watch new directory %s: %w", event.Name, err):
+								case <-fw.done:
+								}
+							}
 						}
 					}
 				}
@@ -182,7 +258,11 @@ func (fw *FileWatcher) watchEvents() {
 	}
 }
 
-// debounceChanges collects pending changes and emits them after debounce period
+// debounceChanges collects pending changes and emits them after debounce period.
+//
+// Note: If the changes channel is full and blocks during send, new events can still
+// be added to the pending map. This is intentional - we want to capture all changes
+// even if processing is slow. The next debounce cycle will include any new changes.
 func (fw *FileWatcher) debounceChanges() {
 	ticker := time.NewTicker(fw.debounce)
 	defer ticker.Stop()
@@ -218,27 +298,7 @@ func (fw *FileWatcher) debounceChanges() {
 	}
 }
 
-// CountWatchedFiles returns the number of .go files being watched
+// CountWatchedFiles returns the number of .go files being watched (cached, O(1))
 func (fw *FileWatcher) CountWatchedFiles() (int, error) {
-	count := 0
-	err := filepath.Walk(fw.rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if fw.shouldExcludeDir(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if fw.shouldIncludeFile(path) {
-			count++
-		}
-
-		return nil
-	})
-
-	return count, err
+	return fw.fileCount, nil
 }

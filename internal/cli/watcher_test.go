@@ -3,9 +3,20 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
+
+// getDefaultWatchConfig returns default watch config for tests
+func getDefaultWatchConfig(debounce time.Duration) *WatchConfig {
+	return &WatchConfig{
+		Debounce:     debounce,
+		ExcludeDirs:  []string{"vendor", "node_modules", ".git", ".glib", "tmp"},
+		IncludeFiles: []string{"*.go", "config.toml"},
+		ExcludeFiles: []string{"*_test.go", "*.gen.go"},
+	}
+}
 
 func TestFileWatcher_FilterFiles(t *testing.T) {
 	tests := []struct {
@@ -17,15 +28,17 @@ func TestFileWatcher_FilterFiles(t *testing.T) {
 		{"Go file in subdir", "controllers/auth.go", true},
 		{"Test file", "main_test.go", false},
 		{"Generated file", "routes.gen.go", false},
-		{"Glib config", "glib.json", true},
-		{"Glibrc config", ".glibrc", true},
+		{"Config file", "config.toml", true},
+		{"Other TOML", "other.toml", false},
 		{"Other JSON", "package.json", false},
 		{"Markdown", "README.md", false},
 	}
 
 	fw := &FileWatcher{
-		rootDir:   ".",
-		outputDir: "generated",
+		rootDir:      ".",
+		outputDir:    "generated",
+		includeFiles: []string{"*.go", "config.toml"},
+		excludeFiles: []string{"*_test.go", "*.gen.go"},
 	}
 
 	for _, tt := range tests {
@@ -78,12 +91,12 @@ func TestFileWatcher_DetectChanges(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create watcher with short debounce for testing
-	fw, err := NewFileWatcher(tmpDir, "generated", 100*time.Millisecond)
+	fw, err := NewFileWatcher(tmpDir, "generated", getDefaultWatchConfig(100*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,20 +109,14 @@ func TestFileWatcher_DetectChanges(t *testing.T) {
 
 	// Modify the file
 	time.Sleep(50 * time.Millisecond) // Let watcher initialize
-	if err := os.WriteFile(testFile, []byte("package main\n\n// Modified"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n\n// Modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait for change event (with timeout)
 	select {
 	case changedFiles := <-changes:
-		found := false
-		for _, path := range changedFiles {
-			if path == testFile {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(changedFiles, testFile)
 		if !found {
 			t.Errorf("Expected change to %s, but got changes to: %v", testFile, changedFiles)
 		}
@@ -126,15 +133,15 @@ func TestFileWatcher_Debouncing(t *testing.T) {
 	// Create test files
 	file1 := filepath.Join(tmpDir, "file1.go")
 	file2 := filepath.Join(tmpDir, "file2.go")
-	if err := os.WriteFile(file1, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file2, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create watcher with 200ms debounce
-	fw, err := NewFileWatcher(tmpDir, "generated", 200*time.Millisecond)
+	fw, err := NewFileWatcher(tmpDir, "generated", getDefaultWatchConfig(200*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,11 +154,11 @@ func TestFileWatcher_Debouncing(t *testing.T) {
 
 	// Modify both files rapidly
 	time.Sleep(50 * time.Millisecond) // Let watcher initialize
-	if err := os.WriteFile(file1, []byte("package main\n// Modified"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("package main\n// Modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(50 * time.Millisecond)
-	if err := os.WriteFile(file2, []byte("package main\n// Modified"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("package main\n// Modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -181,17 +188,17 @@ func TestFileWatcher_IgnoreGeneratedFiles(t *testing.T) {
 
 	// Create a generated file
 	generatedFile := filepath.Join(tmpDir, "routes.gen.go")
-	if err := os.WriteFile(generatedFile, []byte("package generated"), 0644); err != nil {
+	if err := os.WriteFile(generatedFile, []byte("package generated"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a normal file
 	normalFile := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(normalFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(normalFile, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	fw, err := NewFileWatcher(tmpDir, "generated", 100*time.Millisecond)
+	fw, err := NewFileWatcher(tmpDir, "generated", getDefaultWatchConfig(100*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,12 +212,12 @@ func TestFileWatcher_IgnoreGeneratedFiles(t *testing.T) {
 	time.Sleep(50 * time.Millisecond) // Let watcher initialize
 
 	// Modify the generated file (should be ignored)
-	if err := os.WriteFile(generatedFile, []byte("package generated\n// Modified"), 0644); err != nil {
+	if err := os.WriteFile(generatedFile, []byte("package generated\n// Modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Modify the normal file (should trigger)
-	if err := os.WriteFile(normalFile, []byte("package main\n// Modified"), 0644); err != nil {
+	if err := os.WriteFile(normalFile, []byte("package main\n// Modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,22 +246,22 @@ func TestFileWatcher_CountFiles(t *testing.T) {
 		"controllers/a.go": "package controllers",
 		"services/b.go":    "package services",
 		"vendor/vendor.go": "package vendor", // Should be excluded
-		"glib.json":        "{}",
+		"config.toml":      "version = \"2\"",
 		"README.md":        "# README", // Should be excluded
 	}
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	fw, err := NewFileWatcher(tmpDir, "generated", 100*time.Millisecond)
+	fw, err := NewFileWatcher(tmpDir, "generated", getDefaultWatchConfig(100*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +272,7 @@ func TestFileWatcher_CountFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Should count: main.go (1) + controllers/a.go (1) + services/b.go (1) + glib.json (1) = 4
+	// Should count: main.go (1) + controllers/a.go (1) + services/b.go (1) + config.toml (1) = 4
 	// Should exclude: main_test.go, routes.gen.go, vendor/vendor.go, README.md
 	expected := 4
 	if count != expected {
