@@ -10,14 +10,14 @@ import (
 	"github.com/azizndao/glib/internal/scanner"
 )
 
-//go:embed templates/*.tmpl templates/parsers/*.tmpl
+//go:embed templates/*.templ templates/parsers/*.templ
 var templatesFS embed.FS
 
 var templates *template.Template
 
 func init() {
 	var err error
-	templates, err = template.New("").Funcs(templateFuncs()).ParseFS(templatesFS, "templates/*.tmpl", "templates/parsers/*.tmpl")
+	templates, err = template.New("").Funcs(templateFuncs()).ParseFS(templatesFS, "templates/*.templ", "templates/parsers/*.templ")
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse templates: %v", err))
 	}

@@ -65,7 +65,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 
 	// Generate single file with all configs
 	var buf bytes.Buffer
-	err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]any{
+	err := templates.ExecuteTemplate(&buf, "config.templ", map[string]any{
 		"PackageName":      g.targetPackage,
 		"ConfigImportPath": configPackagePath,
 		"Configs":          configs,

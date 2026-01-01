@@ -205,9 +205,9 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 }
 
 func renderMainGo(module string, minimal bool) string {
-	tmplName := "main.go.tmpl"
+	tmplName := "main.go.templ"
 	if minimal {
-		tmplName = "main_minimal.go.tmpl"
+		tmplName = "main_minimal.go.templ"
 	}
 
 	result, err := executeTemplate(tmplName, map[string]any{"Module": module})
@@ -218,7 +218,7 @@ func renderMainGo(module string, minimal bool) string {
 }
 
 func renderBootstrapGo(module string) string {
-	result, err := executeTemplate("bootstrap.go.tmpl", map[string]any{"Module": module})
+	result, err := executeTemplate("bootstrap.go.templ", map[string]any{"Module": module})
 	if err != nil {
 		panic(err) // Should never happen with valid templates
 	}
@@ -226,9 +226,9 @@ func renderBootstrapGo(module string) string {
 }
 
 func renderConfigGo(minimal bool) string {
-	tmplName := "config.go.tmpl"
+	tmplName := "config.go.templ"
 	if minimal {
-		tmplName = "config_minimal.go.tmpl"
+		tmplName = "config_minimal.go.templ"
 	}
 
 	result, err := executeTemplate(tmplName, nil)
@@ -259,7 +259,7 @@ func renderGlibRC() string {
 }
 
 func renderGitignore() string {
-	result, err := executeTemplate("gitignore.tmpl", nil)
+	result, err := executeTemplate("gitignore.templ", nil)
 	if err != nil {
 		panic(err) // Should never happen with valid templates
 	}
@@ -267,7 +267,7 @@ func renderGitignore() string {
 }
 
 func renderReadme(module string) string {
-	result, err := executeTemplate("readme.md.tmpl", map[string]any{"Module": module})
+	result, err := executeTemplate("readme.md.templ", map[string]any{"Module": module})
 	if err != nil {
 		panic(err) // Should never happen with valid templates
 	}
@@ -275,7 +275,7 @@ func renderReadme(module string) string {
 }
 
 func renderHealthController() string {
-	result, err := executeTemplate("health_controller.go.tmpl", nil)
+	result, err := executeTemplate("health_controller.go.templ", nil)
 	if err != nil {
 		panic(err) // Should never happen with valid templates
 	}

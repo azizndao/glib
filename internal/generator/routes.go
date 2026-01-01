@@ -41,7 +41,7 @@ func (g *Generator) generateRoutes() (string, error) {
 		"ControllerGroups": controllerGroups,
 		"AllMiddleware":    g.project.Middleware,
 	}
-	return g.executeTemplate("routes.tmpl", data)
+	return g.executeTemplate("routes.templ", data)
 }
 
 // organizeControllerGroups organizes routes by controller and tag groups

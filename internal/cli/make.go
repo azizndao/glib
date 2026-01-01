@@ -247,9 +247,9 @@ func runMake(spec makeSpec) error {
 }
 
 func renderController(pkgName, routePrefix string, withExample bool) string {
-	tmplName := "controller.go.tmpl"
+	tmplName := "controller.go.templ"
 	if !withExample {
-		tmplName = "controller_minimal.go.tmpl"
+		tmplName = "controller_minimal.go.templ"
 	}
 
 	// Capitalize first letter for type names
@@ -279,7 +279,7 @@ func renderModels(pkgName string, withExample bool) string {
 	caser := cases.Title(language.English)
 	typeName := caser.String(pkgName)
 
-	result, err := executeTemplate("models.go.tmpl", map[string]any{
+	result, err := executeTemplate("models.go.templ", map[string]any{
 		"PkgName":  pkgName,
 		"TypeName": typeName,
 	})

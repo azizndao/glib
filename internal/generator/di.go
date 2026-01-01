@@ -197,7 +197,7 @@ func (g *Generator) generateDI() (string, error) {
 		"ValidationEnabled":     g.validationCfg.Enabled,
 	}
 
-	return g.executeTemplate("di.tmpl", data)
+	return g.executeTemplate("di.templ", data)
 }
 
 // buildProviderData builds ProviderData for a given provider

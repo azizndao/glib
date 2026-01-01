@@ -170,5 +170,5 @@ func (g *Generator) generateValidator() (string, error) {
 		"DefaultLanguage": defaultLang,
 	}
 
-	return g.executeTemplate("validator.tmpl", data)
+	return g.executeTemplate("validator.templ", data)
 }
