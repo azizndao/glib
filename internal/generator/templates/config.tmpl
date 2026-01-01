@@ -16,6 +16,8 @@ import (
 	"{{ .ConfigImportPath }}"
 )
 
+{{- range .Configs }}
+
 func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) {
 	cfg := &{{ .ConfigPackageName }}.{{ .ConfigName }}{}
 
@@ -35,6 +37,7 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 
 	return cfg, nil
 }
+{{- end }}
 
 {{ define "parseField" }}
 {{- if .IsNested }}

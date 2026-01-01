@@ -28,16 +28,24 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 		return "", nil
 	}
 
-	var buf bytes.Buffer
+	// Collect all configs with their processed data
+	type configData struct {
+		ConfigPackageName string
+		ConfigName        string
+		FunctionName      string
+		Fields            []map[string]interface{}
+	}
 
-	// Generate loader function for each config
+	var configs []configData
+	needsTime := false
+	needsURL := false
+
+	// Process each config
 	for _, cfg := range g.project.Configs {
 		// Flatten nested fields for easier template processing
 		fields := g.flattenFields(cfg.Fields, "")
 
 		// Detect if we need special imports
-		needsTime := false
-		needsURL := false
 		for _, field := range fields {
 			typeInfo := field["Type"].(*scanner.TypeInfo)
 			if typeInfo.FullName == "time.Duration" {
@@ -48,20 +56,25 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 			}
 		}
 
-		// Use the config.tmpl file from templates
-		err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]interface{}{
-			"PackageName":       g.targetPackage,
-			"ConfigImportPath":  configPackagePath, // Full import path: "glib/demo/configs"
-			"ConfigPackageName": cfg.PackageName,   // Just package name: "configs"
-			"ConfigName":        cfg.Name,          // Config struct name: "AppConfig", "DatabaseConfig"
-			"FunctionName":      "load" + cfg.Name, // Function name: "loadAppConfig"
-			"Fields":            fields,
-			"NeedsTime":         needsTime,
-			"NeedsURL":          needsURL,
+		configs = append(configs, configData{
+			ConfigPackageName: cfg.PackageName,
+			ConfigName:        cfg.Name,
+			FunctionName:      "load" + cfg.Name,
+			Fields:            fields,
 		})
-		if err != nil {
-			return "", err
-		}
+	}
+
+	// Generate single file with all configs
+	var buf bytes.Buffer
+	err := templates.ExecuteTemplate(&buf, "config.tmpl", map[string]interface{}{
+		"PackageName":      g.targetPackage,
+		"ConfigImportPath": configPackagePath,
+		"Configs":          configs,
+		"NeedsTime":        needsTime,
+		"NeedsURL":         needsURL,
+	})
+	if err != nil {
+		return "", err
 	}
 
 	return buf.String(), nil

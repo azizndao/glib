@@ -69,7 +69,34 @@ func loadConfig() (*configs.Config, error) {
 		cfg.CORS.MaxAge = 300
 	}
 
-	cfg.Database.Filename = getEnvHelper("DB_FILENAME", "db.sqlite")
+	cfg.Database.Filename = getEnvHelper("DB_FILENAME", "data.db")
+
+	var validationErrors []string
+
+	if len(validationErrors) > 0 {
+		return nil, fmt.Errorf("config validation failed:\n  - %s",
+			validationErrors[0])
+	}
+
+	return cfg, nil
+}
+
+func loadRedisConfig() (*configs.RedisConfig, error) {
+	cfg := &configs.RedisConfig{}
+
+	cfg.Host = getEnvHelper("REDIS_HOST", "localhost")
+
+	if v := os.Getenv("REDIS_PORT"); v != "" {
+		val, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("REDIS_PORT: invalid integer: %w", err)
+		}
+		cfg.Port = val
+	} else {
+		cfg.Port = 6379
+	}
+
+	cfg.Password = getEnvHelper("REDIS_PASSWORD", "")
 
 	var validationErrors []string
 
