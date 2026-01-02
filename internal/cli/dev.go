@@ -139,8 +139,9 @@ func newDevCmd() *cobra.Command {
 	var debounce int
 
 	cmd := &cobra.Command{
-		Use:   "dev",
-		Short: "Start development server with hot reload",
+		Use:     "dev",
+		Aliases: []string{"serve"},
+		Short:   "Start development server with hot reload",
 		Long: `Start development server with automatic code generation and hot reload.
 
 Features:
@@ -149,44 +150,34 @@ Features:
   - Native file watching (no external dependencies)
   - Process management with graceful restart
   - Press Ctrl+C to stop`,
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDev(port, verbose, workers, noCache, time.Duration(debounce)*time.Millisecond)
 		},
 	}
 
 	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from config.toml)")
-	cmd.Flags().IntVar(&workers, "workers", 4, "Number of parallel workers (default: from config.toml or 4)")
-	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: use config.toml cache setting)")
-	cmd.Flags().IntVar(&debounce, "debounce", 300, "Debounce duration in milliseconds (default: from config.toml or 300)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: false, override via GLIB_VERBOSE)")
+	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: 4, override via GLIB_WORKERS)")
+	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled, override via GLIB_CACHE)")
+	cmd.Flags().IntVar(&debounce, "debounce", 0, "Debounce duration in milliseconds (default: 300, override via GLIB_WATCH_DEBOUNCE)")
 
 	return cmd
 }
 
 func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
-	// Check if config exists
-	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
-		fmt.Println(ui.Error("No config.toml found - run 'glib init' first"))
-		return fmt.Errorf("no config.toml found")
-	}
+	// Load config from environment variables and defaults
+	cfg := getDefaultConfig()
 
-	// Load config and merge with defaults
-	cfg, err := loadGlibrc()
-	if err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to load config: %v", err)))
-		return err
-	}
-	cfg = mergeWithDefaults(cfg)
-
-	// Priority resolution: CLI args > config.toml > defaults
+	// Priority resolution: CLI args > environment variables > defaults
 
 	// Verbose: CLI flag OR config value
 	if !verbose {
 		verbose = cfg.Verbose
 	}
 
-	// Workers: CLI flag (if not default) OR config value
-	if workers == 4 { // CLI default
+	// Workers: CLI flag (if not default/0) OR config value
+	if workers == 0 {
 		workers = cfg.Generate.Workers
 	}
 
@@ -197,8 +188,8 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	}
 	noCache = !cache
 
-	// Debounce: CLI flag (if not default) OR config value
-	if debounce == 300*time.Millisecond { // CLI default
+	// Debounce: CLI flag (if not default/0) OR config value
+	if debounce == 0 {
 		debounce = time.Duration(cfg.Watch.Debounce) * time.Millisecond
 	}
 
@@ -214,13 +205,13 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	}
 
 	// Ensure tmp directory exists
-	if err := os.MkdirAll("tmp", 0755); err != nil {
+	if err := os.MkdirAll("tmp", 0o755); err != nil {
 		return fmt.Errorf("failed to create tmp directory: %w", err)
 	}
 
 	// Ensure cache directory exists
 	cacheDir := filepath.Join(".glib", "cache")
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
 

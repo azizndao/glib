@@ -16,7 +16,6 @@ import (
 
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
-	"github.com/azizndao/glib/validator"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
@@ -31,13 +30,13 @@ type App struct {
 }
 
 type ProviderContainer struct {
-	Validator      *validator.Validator
 	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
+	StorageConfig  *configs.StorageConfig
 	Database       *gorm.DB
 	CommentService *services.CommentService
-	UserSerivce    *services.UserSerivce
 	JWTService     *services.JWTService
+	UserSerivce    *services.UserSerivce
 	PostSerivce    *services.PostSerivce
 	AuditorFactory func() *services.Auditor
 	LoggerFactory  func() *services.Logger
@@ -45,8 +44,8 @@ type ProviderContainer struct {
 
 type ControllerContainer struct {
 	CommentController *comment.Controller
-	AuthController    *auth.Controller
 	PostController    *post.Controller
+	AuthController    *auth.Controller
 }
 
 type MiddlewareContainer struct {
@@ -77,8 +76,6 @@ func InitContainer(ctx context.Context) (*App, error) {
 
 func (c *App) initProviders(ctx context.Context) error {
 	var err error
-	// Initialize validator (generated in validator.gen.go)
-	c.Validator = initValidator()
 	c.RedisConfig, err = loadRedisConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load RedisConfig: %w", err)
@@ -86,6 +83,10 @@ func (c *App) initProviders(ctx context.Context) error {
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
+	}
+	c.StorageConfig, err = loadStorageConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load StorageConfig: %w", err)
 	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
@@ -95,8 +96,8 @@ func (c *App) initProviders(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
 	c.CommentService = services.NewCommentService(c.Database)
-	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.JWTService = services.NewJWTService()
+	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
 	c.LoggerFactory = func() *services.Logger {
 		return services.NewLogger()
@@ -110,15 +111,15 @@ func (c *App) initControllers() error {
 		Logger:         c.LoggerFactory(),
 		CommentService: c.CommentService,
 	}
-	c.controllers.AuthController = &auth.Controller{
-		UserService: c.UserSerivce,
-		JWTService:  c.JWTService,
-		Auditor:     c.AuditorFactory(),
-	}
 	c.controllers.PostController = &post.Controller{
 		UserSerivce: c.UserSerivce,
 		PostSerivce: c.PostSerivce,
 		Logger:      c.LoggerFactory(),
+	}
+	c.controllers.AuthController = &auth.Controller{
+		UserService: c.UserSerivce,
+		JWTService:  c.JWTService,
+		Auditor:     c.AuditorFactory(),
 	}
 
 	return nil

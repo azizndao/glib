@@ -58,3 +58,21 @@ func loadConfig() (*configs.Config, error) {
 
 	return cfg, nil
 }
+
+func loadStorageConfig() (*configs.StorageConfig, error) {
+	cfg := &configs.StorageConfig{}
+	var err error
+
+	cfg.Driver = utils.GetEnvOr("STORAGE_DRIVER", "local")
+
+	cfg.Local.Root = utils.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
+
+	var validationErrors []string
+
+	if len(validationErrors) > 0 {
+		return nil, fmt.Errorf("config validation failed:\n  - %s",
+			validationErrors[0])
+	}
+
+	return cfg, nil
+}

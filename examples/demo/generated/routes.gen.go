@@ -21,19 +21,6 @@ func (app *App) RegisterRoutes() error {
 			r.Delete("/{id}", handleCommentControllerDelete(app))
 		})
 	})
-	// Controller - /api/v1/auth
-	app.Router.Route("/api/v1/auth", func(r chi.Router) {
-		r.Post("/register", handleAuthControllerRegister(app))
-		r.Post("/login", handleAuthControllerLogin(app))
-		r.Get("/users/{id}", handleAuthControllerGetUser(app))
-		// Routes with tags: protected
-		r.Group(func(r chi.Router) {
-			r.Use(app.middleware.AuthMiddleware)
-			r.Get("/me", handleAuthControllerGetMe(app))
-			r.Put("/me", handleAuthControllerUpdateProfile(app))
-			r.Delete("/logout", handleAuthControllerLogout(app))
-		})
-	})
 	// Controller - /api/v1/post
 	app.Router.Route("/api/v1/post", func(r chi.Router) {
 		// Controller-level middleware
@@ -50,6 +37,19 @@ func (app *App) RegisterRoutes() error {
 			r.Post("/", handlePostControllerCreate(app))
 			r.Put("/{id}", handlePostControllerUpdate(app))
 			r.Delete("/{id}", handlePostControllerDelete(app))
+		})
+	})
+	// Controller - /api/v1/auth
+	app.Router.Route("/api/v1/auth", func(r chi.Router) {
+		r.Post("/register", handleAuthControllerRegister(app))
+		r.Post("/login", handleAuthControllerLogin(app))
+		r.Get("/users/{id}", handleAuthControllerGetUser(app))
+		// Routes with tags: protected
+		r.Group(func(r chi.Router) {
+			r.Use(app.middleware.AuthMiddleware)
+			r.Get("/me", handleAuthControllerGetMe(app))
+			r.Put("/me", handleAuthControllerUpdateProfile(app))
+			r.Delete("/logout", handleAuthControllerLogout(app))
 		})
 	})
 

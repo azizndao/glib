@@ -26,8 +26,9 @@ func newInitCmd() *cobra.Command {
 Creates a new project with:
   - main.go (application entry point)
   - configs/config.go (configuration struct with @Config annotation)
-  - config.toml (Glib configuration)
   - .gitignore (Git ignore file)
+
+Configuration is managed via CLI flags and environment variables (see 'glib --help').
 
 Optional:
   --example  Include example health check controller
@@ -185,9 +186,6 @@ func buildProjectFiles(module string, example, minimal bool) map[string]string {
 	// configs/config.go (in separate package to avoid import cycle)
 	files["configs/config.go"] = renderConfigGo(minimal)
 
-	// config.toml
-	files["config.toml"] = renderGlibRC()
-
 	// .gitignore
 	files[".gitignore"] = renderGitignore()
 
@@ -236,35 +234,6 @@ func renderConfigGo(minimal bool) string {
 		panic(err) // Should never happen with valid templates
 	}
 	return result
-}
-
-func renderGlibRC() string {
-	// config.toml - TOML format with all Glib settings
-	return `version = "2"
-verbose = false
-
-[generate]
-output = "generated"
-package = "generated"
-workers = 4
-cache = true
-
-[make]
-controllers = "controllers"
-providers = "providers"
-middleware = "middleware"
-
-[watch]
-debounce = 300
-excludeDirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
-includeFiles = ["*.go", "config.toml"]
-excludeFiles = ["*_test.go", "*.gen.go"]
-
-[validation]
-enabled = false
-languages = []
-defaultLanguage = "en"
-`
 }
 
 func renderGitignore() string {

@@ -186,7 +186,7 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		}
 	}
 
-	// Build validation config from config.toml
+	// Build validation config from environment/CLI settings
 	validationEnabled := cfg.Validation.Enabled || len(cfg.Validation.Languages) > 0
 	validationCfg := generator.ValidationConfig{
 		Enabled:         validationEnabled,

@@ -13,7 +13,6 @@ import (
 type generateOptions struct {
 	dir        string
 	output     string
-	config     string
 	verbose    bool
 	watch      bool
 	workers    int
@@ -39,12 +38,11 @@ Generates:
 	}
 
 	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Project root directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: from config.toml)")
-	cmd.Flags().StringVar(&opts.config, "config", "config.toml", "Config file")
-	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: from config.toml)")
+	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: generated, override via GLIB_OUTPUT)")
+	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: false, override via GLIB_VERBOSE)")
 	cmd.Flags().BoolVar(&opts.watch, "watch", false, "Watch mode")
-	cmd.Flags().IntVar(&opts.workers, "workers", 4, "Number of parallel workers (default: from config.toml or 4)")
-	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: use config.toml cache setting)")
+	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (default: 4, override via GLIB_WORKERS)")
+	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: cache enabled, override via GLIB_CACHE)")
 	cmd.Flags().BoolVar(&opts.clearCache, "clear-cache", false, "Clear cache before scanning")
 
 	return cmd
@@ -62,22 +60,18 @@ func runGenerate(opts *generateOptions) error {
 		}
 	}
 
-	// Load config and merge with defaults
-	cfg, err := loadGlibrc()
-	if err != nil {
-		return fmt.Errorf("failed to load config.toml: %w", err)
-	}
-	cfg = mergeWithDefaults(cfg)
+	// Load config from environment variables and defaults
+	cfg := getDefaultConfig()
 
-	// Priority resolution: CLI args > config.toml > defaults
+	// Priority resolution: CLI args > environment variables > defaults
 
 	// Verbose: CLI flag OR config value
 	if !opts.verbose {
 		opts.verbose = cfg.Verbose
 	}
 
-	// Workers: CLI flag (if not default) OR config value
-	if opts.workers == 4 { // CLI default
+	// Workers: CLI flag (if not default/0) OR config value
+	if opts.workers == 0 {
 		opts.workers = cfg.Generate.Workers
 	}
 

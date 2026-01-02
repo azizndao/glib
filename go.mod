@@ -3,7 +3,6 @@ module github.com/azizndao/glib
 go 1.25
 
 require (
-	github.com/BurntSushi/toml v1.4.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.30.1

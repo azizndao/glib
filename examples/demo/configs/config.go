@@ -22,3 +22,11 @@ type Config struct {
 func (c *Config) Addr() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
 }
+
+// @Config
+type StorageConfig struct {
+	Driver string `env:"STORAGE_DRIVER" default:"local"`
+	Local  struct {
+		Root string `env:"STORAGE_LOCAL_ROOT" default:"storage"`
+	} `env:"STORAGE_LOCAL"`
+}

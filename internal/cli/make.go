@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/azizndao/glib/internal/cli/ui"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
@@ -38,11 +36,8 @@ Types:
 			componentType := args[0]
 			name := args[1]
 
-			// Load config.toml to get configuration
-			cfg, err := loadGlibrc()
-			if err != nil {
-				return fmt.Errorf("failed to load config.toml: %w (run 'glib init' first)", err)
-			}
+			// Load config from environment variables and defaults
+			cfg := getDefaultConfig()
 
 			switch componentType {
 			case "controller":
@@ -62,26 +57,6 @@ Types:
 	cmd.Flags().BoolVar(&opts.noExample, "no-example", false, "Skip example code")
 
 	return cmd
-}
-
-func loadGlibrc() (*glibConfig, error) {
-	// Load config.toml
-	data, err := os.ReadFile("config.toml")
-	if err != nil {
-		return nil, fmt.Errorf("config.toml not found: %w", err)
-	}
-
-	var cfg glibConfig
-	if err := toml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config.toml: %w", err)
-	}
-
-	// Expand environment variables
-	if err := expandEnvVars(reflect.ValueOf(&cfg).Elem()); err != nil {
-		return nil, fmt.Errorf("env var expansion failed: %w", err)
-	}
-
-	return &cfg, nil
 }
 
 // makeSpec holds the specification for creating a component

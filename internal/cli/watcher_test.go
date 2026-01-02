@@ -13,7 +13,7 @@ func getDefaultWatchConfig(debounce time.Duration) *WatchConfig {
 	return &WatchConfig{
 		Debounce:     debounce,
 		ExcludeDirs:  []string{"vendor", "node_modules", ".git", ".glib", "tmp"},
-		IncludeFiles: []string{"*.go", "config.toml"},
+		IncludeFiles: []string{"*.go"},
 		ExcludeFiles: []string{"*_test.go", "*.gen.go"},
 	}
 }
@@ -28,7 +28,6 @@ func TestFileWatcher_FilterFiles(t *testing.T) {
 		{"Go file in subdir", "controllers/auth.go", true},
 		{"Test file", "main_test.go", false},
 		{"Generated file", "routes.gen.go", false},
-		{"Config file", "config.toml", true},
 		{"Other TOML", "other.toml", false},
 		{"Other JSON", "package.json", false},
 		{"Markdown", "README.md", false},
@@ -37,7 +36,7 @@ func TestFileWatcher_FilterFiles(t *testing.T) {
 	fw := &FileWatcher{
 		rootDir:      ".",
 		outputDir:    "generated",
-		includeFiles: []string{"*.go", "config.toml"},
+		includeFiles: []string{"*.go"},
 		excludeFiles: []string{"*_test.go", "*.gen.go"},
 	}
 
@@ -246,8 +245,7 @@ func TestFileWatcher_CountFiles(t *testing.T) {
 		"controllers/a.go": "package controllers",
 		"services/b.go":    "package services",
 		"vendor/vendor.go": "package vendor", // Should be excluded
-		"config.toml":      "version = \"2\"",
-		"README.md":        "# README", // Should be excluded
+		"README.md":        "# README",       // Should be excluded
 	}
 
 	for path, content := range files {
@@ -272,9 +270,9 @@ func TestFileWatcher_CountFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Should count: main.go (1) + controllers/a.go (1) + services/b.go (1) + config.toml (1) = 4
+	// Should count: main.go (1) + controllers/a.go (1) + services/b.go (1) = 3
 	// Should exclude: main_test.go, routes.gen.go, vendor/vendor.go, README.md
-	expected := 4
+	expected := 3
 	if count != expected {
 		t.Errorf("Expected %d watched files, got %d", expected, count)
 	}

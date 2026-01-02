@@ -23,7 +23,7 @@ type FileWatcher struct {
 	rootDir      string
 	excludeDirs  []string
 	outputDir    string   // Generated output directory to exclude
-	includeFiles []string // File patterns to include (e.g., "*.go", "config.toml")
+	includeFiles []string // File patterns to include (e.g., "*.go")
 	excludeFiles []string // File patterns to exclude (e.g., "*_test.go", "*.gen.go")
 	changes      chan []string
 	errors       chan error
@@ -206,7 +206,7 @@ func matchPattern(filename, pattern string) bool {
 		return strings.HasSuffix(filename, after)
 	}
 
-	// Handle exact filename matches like "config.toml"
+	// Handle exact filename matches
 	return pattern == filename
 }
 
