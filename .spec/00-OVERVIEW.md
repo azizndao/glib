@@ -88,7 +88,7 @@ Final Binary
 | **Handler Signatures** | 2 patterns          | Result[T] and Raw HTTP               |
 | **Middleware**         | Standard `net/http` | `func(http.Handler) http.Handler`    |
 | **Build System**       | Standard `go build` | No custom tooling                    |
-| **Hot Reload**         | Air integration     | Industry standard                    |
+| **Hot Reload**         | Built-in watcher    | Native file watching with debounce   |
 
 ## Comparison: Glib 1.0 vs 2.0
 

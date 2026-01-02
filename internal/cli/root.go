@@ -2,11 +2,13 @@
 package cli
 
 import (
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
 // Execute runs the root command.
 func Execute(version string) error {
+	_ = godotenv.Load(".env", ".env.local")
 	rootCmd := newRootCmd(version)
 	return rootCmd.Execute()
 }

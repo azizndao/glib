@@ -49,7 +49,7 @@ This will:
 
 1. Run initial code generation
 2. Build and start your server
-3. Watch for file changes (`.go` files + `config.toml`)
+3. Watch for file changes (`.go` files)
 4. Auto-regenerate code incrementally (fast!)
 5. Rebuild and restart server automatically
 
@@ -538,9 +538,15 @@ glib init my-app
 Creates:
 
 - Project structure
-- `config.toml` configuration
-- Sample `main.go`
-- Example controller
+- Sample `main.go` and `bootstrap.go`
+- Configuration struct with `@Config` annotation
+- Example controller (with `--example` flag)
+
+**Options:**
+
+- `--example` - Include example health check controller
+- `--minimal` - Minimal setup without examples or comments
+- `--module` - Specify Go module name (auto-detected if omitted)
 
 ### `glib make controller <name>`
 
@@ -607,24 +613,81 @@ Features:
 - Debouncing for rapid file changes (default: 300ms)
 - Press Ctrl+C to stop
 
+**Options:**
+
+- `--port` - Server port (default: 8080, or from PORT env var)
+- `--verbose` - Show detailed statistics
+- `--workers` - Number of parallel workers (default: 4)
+- `--no-cache` - Disable incremental caching
+- `--debounce` - File watch debounce in ms (default: 300)
+
 ## Configuration
 
-### `config.toml`
+Glib uses a **CLI-first configuration approach**. Configuration is resolved in this priority order:
 
-```toml
-version = "2"
+1. **CLI flags** (highest priority)
+2. **Environment variables** (prefixed with `GLIB_`)
+3. **Hardcoded defaults** (fallback)
 
-[generate]
-output = "generated"
-package = "generated"
+No configuration file is needed! This makes Glib more portable and 12-factor app compliant.
 
-[make]
-controllers = "controllers"
-providers = "providers"
-middleware = "middleware"
+### Environment Variables
 
-[dev]
-port = 8080
+You can configure Glib using these environment variables:
+
+**Generation:**
+
+- `GLIB_OUTPUT` - Output directory (default: `generated`)
+- `GLIB_PACKAGE` - Package name (default: `generated`)
+- `GLIB_WORKERS` - Number of parallel workers (default: `4`)
+- `GLIB_CACHE` - Enable caching (default: `true`)
+
+**Make Command:**
+
+- `GLIB_MAKE_CONTROLLERS` - Controllers directory (default: `controllers`)
+- `GLIB_MAKE_PROVIDERS` - Providers directory (default: `providers`)
+- `GLIB_MAKE_MIDDLEWARE` - Middleware directory (default: `middleware`)
+
+**Dev/Watch:**
+
+- `GLIB_WATCH_DEBOUNCE` - Watch debounce in ms (default: `300`)
+- `GLIB_WATCH_EXCLUDE_DIRS` - Comma-separated excluded directories (default: `vendor,node_modules,.git,.glib,tmp`)
+- `GLIB_WATCH_INCLUDE_FILES` - Comma-separated file patterns (default: `*.go`)
+- `GLIB_WATCH_EXCLUDE_FILES` - Comma-separated excluded patterns (default: `*_test.go,*.gen.go`)
+
+**Validation:**
+
+- `GLIB_VALIDATION_ENABLED` - Enable validation (default: `false`)
+- `GLIB_VALIDATION_LANGUAGES` - Comma-separated supported languages (default: `""`)
+- `GLIB_VALIDATION_DEFAULT_LANGUAGE` - Default language (default: `""`)
+
+### Example Configuration
+
+Using environment variables:
+
+```bash
+# Set custom output directory and enable verbose mode
+export GLIB_OUTPUT=gen
+export GLIB_VERBOSE=true
+export GLIB_WORKERS=8
+
+# Run generation
+glib generate
+
+# Or use CLI flags to override
+glib generate --output custom-gen --workers 16
+```
+
+Using a `.env` file (for your application config, not Glib):
+
+```env
+# Application config
+PORT=3000
+DATABASE_URL=postgres://localhost/mydb
+
+# Glib config (optional)
+GLIB_OUTPUT=generated
+GLIB_WORKERS=8
 ```
 
 ## Project Structure
@@ -638,13 +701,16 @@ my-app/
 │   └── database.go
 ├── middleware/           # Your middleware
 │   └── auth.go
+├── configs/              # Your app configuration
+│   └── config.go
 ├── generated/            # Generated code (don't edit)
-│   ├── glib.gen.go
+│   ├── config.gen.go
 │   ├── di.gen.go
 │   ├── routes.gen.go
 │   └── parsers.gen.go
 ├── main.go              # Your entry point
-├── config.toml          # Glib configuration
+├── bootstrap.go         # Your bootstrap logic
+├── .env                 # App environment variables
 └── go.mod
 ```
 

@@ -30,9 +30,9 @@ type App struct {
 }
 
 type ProviderContainer struct {
-	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
+	RedisConfig    *configs.RedisConfig
 	Database       *gorm.DB
 	CommentService *services.CommentService
 	JWTService     *services.JWTService
@@ -43,9 +43,9 @@ type ProviderContainer struct {
 }
 
 type ControllerContainer struct {
+	AuthController    *auth.Controller
 	CommentController *comment.Controller
 	PostController    *post.Controller
-	AuthController    *auth.Controller
 }
 
 type MiddlewareContainer struct {
@@ -76,10 +76,6 @@ func InitContainer(ctx context.Context) (*App, error) {
 
 func (c *App) initProviders(ctx context.Context) error {
 	var err error
-	c.RedisConfig, err = loadRedisConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load RedisConfig: %w", err)
-	}
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -87,6 +83,10 @@ func (c *App) initProviders(ctx context.Context) error {
 	c.StorageConfig, err = loadStorageConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load StorageConfig: %w", err)
+	}
+	c.RedisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
 	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
@@ -107,6 +107,11 @@ func (c *App) initProviders(ctx context.Context) error {
 }
 
 func (c *App) initControllers() error {
+	c.controllers.AuthController = &auth.Controller{
+		UserService: c.UserSerivce,
+		JWTService:  c.JWTService,
+		Auditor:     c.AuditorFactory(),
+	}
 	c.controllers.CommentController = &comment.Controller{
 		Logger:         c.LoggerFactory(),
 		CommentService: c.CommentService,
@@ -115,11 +120,6 @@ func (c *App) initControllers() error {
 		UserSerivce: c.UserSerivce,
 		PostSerivce: c.PostSerivce,
 		Logger:      c.LoggerFactory(),
-	}
-	c.controllers.AuthController = &auth.Controller{
-		UserService: c.UserSerivce,
-		JWTService:  c.JWTService,
-		Auditor:     c.AuditorFactory(),
 	}
 
 	return nil

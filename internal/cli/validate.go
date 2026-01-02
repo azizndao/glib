@@ -20,8 +20,9 @@ func newValidateCmd() *cobra.Command {
 	opts := &validateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "validate",
-		Short: "Validate project structure and annotations",
+		Use:     "validate",
+		Aliases: []string{"check"},
+		Short:   "Validate project structure and annotations",
 		Long: `Validate project structure and annotations without generating code.
 
 Checks:

@@ -7,6 +7,19 @@ import "github.com/go-chi/chi/v5"
 // RegisterRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are organized by controller using chi's Route/Group/Use for clean code structure.
 func (app *App) RegisterRoutes() error {
+	// Controller - /api/v1/auth
+	app.Router.Route("/api/v1/auth", func(r chi.Router) {
+		r.Post("/register", handleAuthControllerRegister(app))
+		r.Post("/login", handleAuthControllerLogin(app))
+		r.Get("/users/{id}", handleAuthControllerGetUser(app))
+		// Routes with tags: protected
+		r.Group(func(r chi.Router) {
+			r.Use(app.middleware.AuthMiddleware)
+			r.Get("/me", handleAuthControllerGetMe(app))
+			r.Put("/me", handleAuthControllerUpdateProfile(app))
+			r.Delete("/logout", handleAuthControllerLogout(app))
+		})
+	})
 	// Controller - /api/v1/comment
 	app.Router.Route("/api/v1/comment", func(r chi.Router) {
 		// Controller-level middleware
@@ -37,19 +50,6 @@ func (app *App) RegisterRoutes() error {
 			r.Post("/", handlePostControllerCreate(app))
 			r.Put("/{id}", handlePostControllerUpdate(app))
 			r.Delete("/{id}", handlePostControllerDelete(app))
-		})
-	})
-	// Controller - /api/v1/auth
-	app.Router.Route("/api/v1/auth", func(r chi.Router) {
-		r.Post("/register", handleAuthControllerRegister(app))
-		r.Post("/login", handleAuthControllerLogin(app))
-		r.Get("/users/{id}", handleAuthControllerGetUser(app))
-		// Routes with tags: protected
-		r.Group(func(r chi.Router) {
-			r.Use(app.middleware.AuthMiddleware)
-			r.Get("/me", handleAuthControllerGetMe(app))
-			r.Put("/me", handleAuthControllerUpdateProfile(app))
-			r.Delete("/logout", handleAuthControllerLogout(app))
 		})
 	})
 

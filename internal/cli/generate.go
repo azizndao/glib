@@ -24,8 +24,9 @@ func newGenerateCmd() *cobra.Command {
 	opts := &generateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate code from annotations",
+		Use:     "generate",
+		Aliases: []string{"gen"},
+		Short:   "Generate code from annotations",
 		Long: `Scan Go source code for annotations and generate code.
 
 Generates:

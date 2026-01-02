@@ -25,7 +25,7 @@ The Glib CLI is a **development tool only** - users can build and deploy their a
 
 1. **Development tool** - Not required for production builds
 2. **Code generation** - Generates standard Go code
-3. **Hot reload** - Integrated with Air for development
+3. **Hot reload** - Built-in file watcher for development
 4. **Scaffolding** - Helps create boilerplate quickly
 5. **Standard Go** - Works with `go generate`, `go build`, etc.
 
@@ -63,7 +63,6 @@ glib version
 ### System Requirements
 
 - Go 1.22+ (requires `net/http` routing with `{param}` support)
-- Air (optional, for hot reload)
 
 ---
 
@@ -103,8 +102,6 @@ my-api/
 ├── go.sum
 ├── main.go                    # Application entry point
 ├── config.go                  # Config struct
-├── .air.toml                  # Air configuration (optional)
-├── glib.json                    # Glib configuration
 └── controllers/
     └── health.go              # Example health check controller
 ```
@@ -150,7 +147,6 @@ glib generate [flags]
 **Options:**
 - `--dir <path>` - Project root directory (default: current directory)
 - `--output <path>` - Output directory (default: `generated/`)
-- `--config <file>` - Config file (default: `glib.json`)
 - `--verbose` - Verbose output
 - `--watch` - Watch mode (regenerate on file changes)
 
@@ -202,8 +198,10 @@ glib dev [flags]
 
 **Options:**
 - `--port <port>` - Server port (default: 8080)
-- `--air-config <file>` - Air config file (default: `.air.toml`)
-- `--no-air` - Disable Air, use basic file watcher
+- `--debounce <ms>` - File watcher debounce in milliseconds (default: 300)
+- `--exclude-dirs <dirs>` - Comma-separated directories to exclude (default: vendor,node_modules,.git,.glib,tmp)
+- `--include-files <patterns>` - File patterns to watch (default: *.go)
+- `--exclude-files <patterns>` - File patterns to ignore (default: *_test.go,*.gen.go)
 
 **Examples:**
 
@@ -214,40 +212,29 @@ glib dev
 # Start on custom port
 glib dev --port 3000
 
-# Use custom Air config
-glib dev --air-config .air.dev.toml
+# Custom file watcher settings
+glib dev --debounce 500 --exclude-dirs vendor,tmp,node_modules
 ```
 
 **How it works:**
 
 1. Runs `glib generate` to create initial code
-2. Starts Air with custom config
-3. Air watches for `.go` file changes
+2. Starts built-in file watcher
+3. Watches for `.go` file changes (excludes test and generated files)
 4. On change: runs `glib generate` → rebuilds → restarts server
 
-**Generated `.air.toml`:**
+**Configuration:**
 
-```toml
-root = "."
-tmp_dir = "tmp"
+All settings can be configured via CLI flags or environment variables:
 
-[build]
-  pre_cmd = ["glib generate"]
-  cmd = "go build -o ./tmp/main ."
-  bin = "tmp/main"
-  include_ext = ["go"]
-  exclude_dir = ["tmp", "vendor", "node_modules", "generated"]
-  include_file = ["generated/glib.gen.go"]
-  delay = 1000
+```bash
+# Using environment variables
+export GLIB_WATCH_DEBOUNCE=500
+export GLIB_WATCH_EXCLUDE_DIRS=vendor,tmp,node_modules
+export GLIB_WATCH_INCLUDE_FILES=*.go
+export GLIB_WATCH_EXCLUDE_FILES=*_test.go,*.gen.go
 
-[log]
-  time = true
-
-[color]
-  main = "magenta"
-  watcher = "cyan"
-  build = "yellow"
-  runner = "green"
+glib dev
 ```
 
 ---
@@ -533,131 +520,60 @@ glib help make
 
 ## Configuration
 
-### `glib.json` File
+### Configuration Priority
 
-Project-level configuration file (optional).
+Glib uses a **CLI-first configuration approach** with the following priority order:
 
-**Location:** Project root (`glib.json`)
+1. **CLI flags** (highest priority)
+2. **Environment variables** (middle priority)
+3. **Hardcoded defaults** (fallback)
 
-**Format:** JSON
-
-**Default Configuration:**
-
-```json
-{
-  "version": "2",
-  "generate": {
-    "output": "generated",
-    "package": "generated"
-  },
-  "make": {
-    "controllers": "controllers",
-    "providers": "providers",
-    "middleware": "middleware"
-  },
-  "dev": {
-    "port": 8080,
-    "air": true
-  }
-}
-```
-
-### Configuration Options
-
-#### `generate.output`
-
-Output directory for generated code.
-
-```json
-{
-  "generate": {
-    "output": "internal/generated"
-  }
-}
-```
-
-#### `generate.package`
-
-Package name for generated code.
-
-```json
-{
-  "generate": {
-    "package": "gen"
-  }
-}
-```
-
-#### `make.controllers`
-
-Default directory for new controllers.
-
-```json
-{
-  "make": {
-    "controllers": "internal/controllers"
-  }
-}
-```
-
-#### `make.providers`
-
-Default directory for new providers.
-
-```json
-{
-  "make": {
-    "providers": "internal/providers"
-  }
-}
-```
-
-#### `make.middleware`
-
-Default directory for new middleware.
-
-```json
-{
-  "make": {
-    "middleware": "internal/middleware"
-  }
-}
-```
-
-#### `dev.port`
-
-Default development server port.
-
-```json
-{
-  "dev": {
-    "port": 3000
-  }
-}
-```
-
-#### `dev.air`
-
-Enable/disable Air for hot reload.
-
-```json
-{
-  "dev": {
-    "air": false
-  }
-}
-```
+This follows the 12-factor app methodology and eliminates the need for config files.
 
 ### Environment Variables
 
-Override config via environment variables:
+Override defaults via environment variables:
 
 ```bash
+# Generation settings
 GLIB_OUTPUT=generated
-GLIB_PORT=3000
-GLIB_VERBOSE=true
+GLIB_PACKAGE=generated
+GLIB_WORKERS=4
+GLIB_CACHE=true
 
+# Make command settings
+GLIB_MAKE_CONTROLLERS=controllers
+GLIB_MAKE_PROVIDERS=providers
+GLIB_MAKE_MIDDLEWARE=middleware
+
+# Dev/Watch settings
+GLIB_WATCH_DEBOUNCE=300
+GLIB_WATCH_EXCLUDE_DIRS=vendor,node_modules,.git,.glib,tmp
+GLIB_WATCH_INCLUDE_FILES=*.go
+GLIB_WATCH_EXCLUDE_FILES=*_test.go,*.gen.go
+
+# Validation settings
+GLIB_VALIDATION_ENABLED=false
+GLIB_VALIDATION_LANGUAGES=""
+GLIB_VALIDATION_DEFAULT_LANGUAGE=""
+
+# Run with custom settings
 glib generate
+```
+
+### Example Usage
+
+```bash
+# Use custom output directory and more workers
+export GLIB_OUTPUT=internal/generated
+export GLIB_WORKERS=8
+glib generate
+
+# Custom dev server port with different debounce
+GLIB_WATCH_DEBOUNCE=500 glib dev --port 3000
+
+# Override via CLI flags (highest priority)
+glib generate --output custom_gen --workers 16
 ```
 
 ---
@@ -794,7 +710,7 @@ go build -o bin/api .
 ```
 Edit posts.go
     ↓
-Air detects change
+Glib watcher detects change
     ↓
 Run: glib generate
     ↓
@@ -1076,7 +992,7 @@ glib generate --verbose
 
 1. **Development tool only** - Production uses `go build`
 2. **Generate standard Go** - No runtime dependencies
-3. **Hot reload built-in** - Air integration
+3. **Hot reload built-in** - Built-in file watcher for development
 4. **Flexible structure** - No enforced conventions
 5. **Standard tooling** - Works with `go generate`, Docker, etc.
 

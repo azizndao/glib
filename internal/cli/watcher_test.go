@@ -28,8 +28,7 @@ func TestFileWatcher_FilterFiles(t *testing.T) {
 		{"Go file in subdir", "controllers/auth.go", true},
 		{"Test file", "main_test.go", false},
 		{"Generated file", "routes.gen.go", false},
-		{"Other TOML", "other.toml", false},
-		{"Other JSON", "package.json", false},
+		{"JSON file", "package.json", false},
 		{"Markdown", "README.md", false},
 	}
 

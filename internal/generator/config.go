@@ -33,25 +33,41 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 		ConfigName        string
 		FunctionName      string
 		Fields            []map[string]any
+		NeedsErrorVar     bool
+		HasRequiredFields bool
 	}
 
 	var configs []configData
 	needsTime := false
 	needsURL := false
 
-	// Process each config
 	for _, cfg := range g.project.Configs {
 		// Flatten nested fields for easier template processing
 		fields := g.flattenFields(cfg.Fields, "")
 
-		// Detect if we need special imports
+		// Detect if we need special imports and variables
+		needsErrorVar := false
+		hasRequiredFields := false
+
 		for _, field := range fields {
 			typeInfo := field["Type"].(*scanner.TypeInfo)
+
+			// Check for special imports
 			if typeInfo.FullName == "time.Duration" {
 				needsTime = true
 			}
 			if typeInfo.FullName == "url.URL" || typeInfo.FullName == "*url.URL" {
 				needsURL = true
+			}
+
+			// Check if this field needs error handling
+			if g.needsErrorHandling(typeInfo) {
+				needsErrorVar = true
+			}
+
+			// Check if any field is required
+			if required, ok := field["Required"].(bool); ok && required {
+				hasRequiredFields = true
 			}
 		}
 
@@ -60,6 +76,8 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 			ConfigName:        cfg.Name,
 			FunctionName:      "load" + cfg.Name,
 			Fields:            fields,
+			NeedsErrorVar:     needsErrorVar,
+			HasRequiredFields: hasRequiredFields,
 		})
 	}
 
@@ -102,6 +120,23 @@ func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPat
 	}
 
 	return result
+}
+
+// needsErrorHandling returns true if the type requires error handling in env parsing
+func (g *ConfigGenerator) needsErrorHandling(typeInfo *scanner.TypeInfo) bool {
+	// These types use functions that return (value, error)
+	switch typeInfo.Name {
+	case "int", "int64", "uint64", "bool", "float64":
+		return true
+	}
+
+	// Check for special types
+	switch typeInfo.FullName {
+	case "time.Duration", "url.URL", "*url.URL":
+		return true
+	}
+
+	return false
 }
 
 // GenerateEnvExample generates a .env.example file

@@ -51,7 +51,7 @@ This document provides a **phase-by-phase implementation plan** for building Gli
 | **Phase 2** | Week 1-2 (4-7 days) | AST scanner + annotation parser |
 | **Phase 3** | Week 2 (2-3 days) | Validation (DI, routes, types) |
 | **Phase 4** | Week 2-3 (5-7 days) | Code generators + templates |
-| **Phase 5** | Week 3 (2-3 days) | Hot reload + Air integration |
+| **Phase 5** | Week 3 (2-3 days) | Hot reload with file watcher |
 | **Phase 6** | Week 3-4 (5-7 days) | Testing + docs + examples |
 
 ### Milestones
@@ -204,7 +204,6 @@ func initProject(dir, module string, example, minimal bool) error {
     files := map[string]string{
         "main.go":    renderMainGo(module),
         "config.go":  renderConfigGo(module),
-        "glib.json":    renderGlibRC(),
         ".gitignore": renderGitignore(),
     }
     
@@ -310,7 +309,6 @@ func TestInitCommand(t *testing.T) {
     // Check files created
     assert.FileExists(t, filepath.Join(tmpDir, "main.go"))
     assert.FileExists(t, filepath.Join(tmpDir, "config.go"))
-    assert.FileExists(t, filepath.Join(tmpDir, "glib.json"))
 }
 ```
 
@@ -1047,60 +1045,26 @@ func runDevServer(port int) error {
         return err
     }
     
-    // Check if Air is installed
-    if !isAirInstalled() {
-        fmt.Println("Air not found, using basic file watcher")
-        return runBasicWatcher(port)
-    }
-    
-    // Generate .air.toml
-    if err := generateAirConfig(port); err != nil {
-        return err
-    }
-    
-    // Run Air
-    return runAir()
+    // Start built-in file watcher
+    return runFileWatcher(port)
 }
 ```
 
-#### 5.2 Air Configuration Generator
+#### 5.2 File Watcher Implementation
 
 ```go
-func generateAirConfig(port int) error {
-    config := fmt.Sprintf(`
-root = "."
-tmp_dir = "tmp"
-
-[build]
-  pre_cmd = ["glib generate"]
-  cmd = "go build -o ./tmp/main ."
-  bin = "tmp/main"
-  include_ext = ["go"]
-  exclude_dir = ["tmp", "vendor", "node_modules", "generated"]
-  include_file = ["generated/glib.gen.go"]
-  delay = 1000
-
-[log]
-  time = true
-`, port)
-    
-    return os.WriteFile(".air.toml", []byte(config), 0644)
-}
-```
-
-#### 5.3 Basic File Watcher (Fallback)
-
-```go
-func runBasicWatcher(port int) error {
+func runFileWatcher(port int) error {
     watcher, err := fsnotify.NewWatcher()
     if err != nil {
         return err
     }
     defer watcher.Close()
     
-    // Watch all .go files
+    // Watch all .go files (excluding test and generated)
     filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-        if strings.HasSuffix(path, ".go") && !strings.Contains(path, "generated") {
+        if strings.HasSuffix(path, ".go") && 
+           !strings.Contains(path, "generated") &&
+           !strings.HasSuffix(path, "_test.go") {
             watcher.Add(path)
         }
         return nil
@@ -1108,30 +1072,63 @@ func runBasicWatcher(port int) error {
     
     // Start server
     cmd := exec.Command("go", "run", ".")
+    cmd.Env = append(os.Environ(), fmt.Sprintf("APP_PORT=%d", port))
     cmd.Start()
+    
+    debounce := time.NewTimer(300 * time.Millisecond)
+    debounce.Stop()
     
     for {
         select {
         case event := <-watcher.Events:
             if event.Op&fsnotify.Write == fsnotify.Write {
-                // Regenerate
-                generate()
-                
-                // Restart server
-                cmd.Process.Kill()
-                cmd = exec.Command("go", "run", ".")
-                cmd.Start()
+                // Debounce: reset timer
+                debounce.Reset(300 * time.Millisecond)
             }
+        case <-debounce.C:
+            // Regenerate
+            generate()
+            
+            // Restart server
+            cmd.Process.Kill()
+            cmd = exec.Command("go", "run", ".")
+            cmd.Env = append(os.Environ(), fmt.Sprintf("APP_PORT=%d", port))
+            cmd.Start()
         }
     }
+}
+```
+
+#### 5.3 Configuration Support
+
+Support configuration via CLI flags and environment variables:
+
+```go
+type DevConfig struct {
+    Port         int
+    Debounce     int
+    ExcludeDirs  []string
+    IncludeFiles []string
+    ExcludeFiles []string
+}
+
+func loadDevConfig() *DevConfig {
+    cfg := &DevConfig{
+        Port:         getEnvInt("GLIB_WATCH_PORT", 8080),
+        Debounce:     getEnvInt("GLIB_WATCH_DEBOUNCE", 300),
+        ExcludeDirs:  getEnvSlice("GLIB_WATCH_EXCLUDE_DIRS", "vendor,node_modules,.git,.glib,tmp"),
+        IncludeFiles: getEnvSlice("GLIB_WATCH_INCLUDE_FILES", "*.go"),
+        ExcludeFiles: getEnvSlice("GLIB_WATCH_EXCLUDE_FILES", "*_test.go,*.gen.go"),
+    }
+    return cfg
 }
 ```
 
 ### Deliverables
 
 - ✅ `glib dev` command working
-- ✅ Air integration
-- ✅ Basic file watcher fallback
+- ✅ Built-in file watcher with debounce
+- ✅ Configuration via CLI flags and environment variables
 - ✅ Auto-regeneration on file changes
 
 ---

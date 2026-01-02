@@ -25,7 +25,7 @@ func (c *Config) Addr() string {
 
 // @Config
 type StorageConfig struct {
-	Driver string `env:"STORAGE_DRIVER" default:"local"`
+	Driver string `env:"STORAGE_DRIVER"`
 	Local  struct {
 		Root string `env:"STORAGE_LOCAL_ROOT" default:"storage"`
 	} `env:"STORAGE_LOCAL"`

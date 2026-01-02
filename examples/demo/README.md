@@ -17,7 +17,6 @@ A complete reference implementation demonstrating Glib's annotation-based code g
 
 - **Go 1.21+** ([install](https://golang.org/doc/install))
 - **glib CLI** (built from project root)
-- **Optional:** [Air](https://github.com/cosmtrek/air) for hot reload
 - **Optional:** [VS Code REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) for API testing
 
 ## 🏗️ Quick Start
@@ -49,7 +48,7 @@ cd examples/demo
 go run .
 ```
 
-The server will start on **http://localhost:8091**
+The server will start on **<http://localhost:8091>**
 
 ### 3. Test the API
 
@@ -74,10 +73,28 @@ For automatic code regeneration and server restart on file changes:
 ```
 
 This will:
+
 1. Run initial code generation
-2. Start Air file watcher (if installed)
+2. Start built-in file watcher
 3. Auto-regenerate code on changes
 4. Rebuild and restart server automatically
+
+**Configuration:**
+
+You can customize the file watcher behavior:
+
+```bash
+# Custom debounce delay
+../../glib dev --debounce 500
+
+# Custom excluded directories
+../../glib dev --exclude-dirs vendor,tmp,node_modules
+
+# Using environment variables
+export GLIB_WATCH_DEBOUNCE=500
+export GLIB_WATCH_EXCLUDE_DIRS=vendor,tmp,node_modules
+../../glib dev
+```
 
 ## 📁 Project Structure
 
@@ -121,8 +138,6 @@ demo/
 │   └── redis.go          # Redis configuration
 ├── bootstrap.go          # Application bootstrap
 ├── main.go               # Entry point
-├── config.toml           # Glib configuration
-├── .air.toml             # Hot reload config
 ├── .env.example          # Environment variables template
 └── demo.db               # SQLite database (auto-created)
 ```
@@ -135,11 +150,11 @@ The demo includes a complete JWT-based authentication system.
 
 The database is pre-seeded with 3 users (password: `password123`):
 
-| Username      | Email              | UUID                                 |
-|---------------|-------------------|--------------------------------------|
-| john_doe      | john@example.com  | a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d |
-| jane_smith    | jane@example.com  | b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e |
-| bob_wilson    | bob@example.com   | c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f |
+| Username   | Email              | UUID                                 |
+| ---------- | ------------------ | ------------------------------------ |
+| john_doe   | <john@example.com> | a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d |
+| jane_smith | <jane@example.com> | b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e |
+| bob_wilson | <bob@example.com>  | c3d4e5f6-a7b8-4c5d-0e1f-2a3b4c5d6e7f |
 
 ### Authentication Flow
 
@@ -164,37 +179,37 @@ curl http://localhost:8091/api/v1/auth/me \
 
 ### Authentication (`/api/v1/auth`)
 
-| Method | Path          | Auth      | Description           |
-|--------|--------------|-----------|----------------------|
-| POST   | /register    | Public    | Register new user    |
-| POST   | /login       | Public    | Login and get JWT    |
-| GET    | /me          | Protected | Get current user     |
-| PUT    | /me          | Protected | Update profile       |
-| GET    | /users/{id}  | Public    | Get user by ID       |
-| DELETE | /logout      | Protected | Logout               |
+| Method | Path        | Auth      | Description       |
+| ------ | ----------- | --------- | ----------------- |
+| POST   | /register   | Public    | Register new user |
+| POST   | /login      | Public    | Login and get JWT |
+| GET    | /me         | Protected | Get current user  |
+| PUT    | /me         | Protected | Update profile    |
+| GET    | /users/{id} | Public    | Get user by ID    |
+| DELETE | /logout     | Protected | Logout            |
 
 ### Posts (`/api/v1/post`)
 
-| Method | Path        | Auth      | Description              |
-|--------|-----------|-----------|-------------------------|
-| GET    | /         | Public    | List all posts          |
-| GET    | /{id}     | Public    | Get single post         |
-| POST   | /         | Protected | Create post             |
-| PUT    | /{id}     | Protected | Update post             |
-| DELETE | /{id}     | Protected | Delete post             |
-| GET    | /export   | Public    | Export posts as CSV     |
-| GET    | /stream   | Public    | Stream posts (SSE)      |
-| GET    | /health   | Public    | Health check (no middleware) |
+| Method | Path    | Auth      | Description                  |
+| ------ | ------- | --------- | ---------------------------- |
+| GET    | /       | Public    | List all posts               |
+| GET    | /{id}   | Public    | Get single post              |
+| POST   | /       | Protected | Create post                  |
+| PUT    | /{id}   | Protected | Update post                  |
+| DELETE | /{id}   | Protected | Delete post                  |
+| GET    | /export | Public    | Export posts as CSV          |
+| GET    | /stream | Public    | Stream posts (SSE)           |
+| GET    | /health | Public    | Health check (no middleware) |
 
 ### Comments (`/api/v1/comment`)
 
-| Method | Path      | Auth      | Description         |
-|--------|---------|-----------|-------------------|
-| GET    | /       | Public    | List all comments |
-| GET    | /{id}   | Public    | Get single comment |
-| POST   | /       | Protected | Create comment    |
-| PUT    | /{id}   | Protected | Update comment    |
-| DELETE | /{id}   | Protected | Delete comment    |
+| Method | Path  | Auth      | Description        |
+| ------ | ----- | --------- | ------------------ |
+| GET    | /     | Public    | List all comments  |
+| GET    | /{id} | Public    | Get single comment |
+| POST   | /     | Protected | Create comment     |
+| PUT    | /{id} | Protected | Update comment     |
+| DELETE | /{id} | Protected | Delete comment     |
 
 ## 💡 Handler Examples
 
@@ -220,6 +235,7 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
 ```
 
 **Available Result[T] Helpers:**
+
 - `glib.OK[T](data)` - 200 OK
 - `glib.Created[T](data)` - 201 Created
 - `glib.NoContent[T]()` - 204 No Content
@@ -238,7 +254,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/csv")
     w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
     w.WriteHeader(http.StatusOK)
-    
+
     fmt.Fprintln(w, "id,title,created_at")
     // Write CSV data...
 }
@@ -247,7 +263,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
     flusher := w.(http.Flusher)
-    
+
     for event := range c.Events {
         fmt.Fprintf(w, "data: %s\n\n", event)
         flusher.Flush()
@@ -281,12 +297,14 @@ func RateLimit() middleware.Middleware {
 ```
 
 **Middleware Targeting:**
+
 - `target=all` - Applies to all routes
 - `target=api` - Applies to routes/controllers tagged with `tags=api`
 - `target=protected` - Applies to routes tagged with `tags=protected`
 
 **Execution Order:**
 Routes with `tags=api,protected` will have middleware applied in order:
+
 1. Rate Limiter (order=5)
 2. Auth (order=10)
 3. Handler
@@ -304,6 +322,7 @@ The demo uses SQLite with GORM for database operations. Tables are auto-migrated
 ### Seed Data
 
 On first run, the database is automatically seeded with:
+
 - 3 demo users
 - 5 sample posts
 - 5 comments
@@ -380,6 +399,7 @@ Validate annotations without generating code:
 ```
 
 Checks for:
+
 - Duplicate routes
 - Invalid HTTP methods
 - Malformed path parameters
@@ -415,27 +435,40 @@ Copy `.env.example` to `.env` and customize:
 cp .env.example .env
 ```
 
-**Available variables:**
+**Application Configuration:**
 
-| Variable      | Default      | Description           |
-|--------------|--------------|----------------------|
-| APP_PORT     | 8091         | Server port          |
-| APP_ENV      | development  | Environment mode     |
-| DB_FILENAME  | demo.db      | SQLite database file |
-| REDIS_HOST   | localhost    | Redis host           |
-| REDIS_PORT   | 6379         | Redis port           |
+| Variable    | Default     | Description          |
+| ----------- | ----------- | -------------------- |
+| APP_PORT    | 8091        | Server port          |
+| APP_ENV     | development | Environment mode     |
+| DB_FILENAME | demo.db     | SQLite database file |
+| REDIS_HOST  | localhost   | Redis host           |
+| REDIS_PORT  | 6379        | Redis port           |
 
-### Glib Configuration (`config.toml`)
+**Glib CLI Configuration:**
 
-```toml
-version = "2"
+Glib uses environment variables for configuration (no config.toml needed):
 
-[generate]
-output = "generated"
-package = "generated"
+| Variable                 | Default                            | Description            |
+| ------------------------ | ---------------------------------- | ---------------------- |
+| GLIB_OUTPUT              | generated                          | Output directory       |
+| GLIB_PACKAGE             | generated                          | Package name           |
+| GLIB_WORKERS             | 4                                  | Parallel workers       |
+| GLIB_CACHE               | true                               | Enable caching         |
+| GLIB_WATCH_DEBOUNCE      | 300                                | Watch debounce (ms)    |
+| GLIB_WATCH_EXCLUDE_DIRS  | vendor,node_modules,.git,.glib,tmp | Excluded directories   |
+| GLIB_WATCH_INCLUDE_FILES | \*.go                              | Included file patterns |
+| GLIB_WATCH_EXCLUDE_FILES | _\_test.go,_.gen.go                | Excluded file patterns |
 
-[dev]
-port = 8091
+Example:
+
+```bash
+# Set custom output directory
+export GLIB_OUTPUT=gen
+export GLIB_WORKERS=8
+
+# Run generation
+../../glib generate
 ```
 
 ## 🐛 Troubleshooting
@@ -481,12 +514,14 @@ rm demo.db
 ### Handler Patterns
 
 See `controllers/post/controller.go` for examples of:
+
 - Result[T] handlers (Show, Create, Update, Delete)
 - Raw HTTP handlers (Export, Stream, Health)
 
 ### Dependency Injection
 
 See `services/` for examples of:
+
 - Singleton providers (database, services)
 - Transient providers (logger)
 - Dependencies between providers
@@ -494,6 +529,7 @@ See `services/` for examples of:
 ### Middleware
 
 See `middleware/middleware.go` for examples of:
+
 - JWT authentication
 - Rate limiting
 - Tag-based targeting
@@ -501,6 +537,7 @@ See `middleware/middleware.go` for examples of:
 ### Error Handling
 
 See `controllers/auth/controller.go` for examples of:
+
 - Structured errors with `errs.Builder`
 - Validation errors
 - HTTP status mapping
