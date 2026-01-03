@@ -15,112 +15,6 @@ import (
 	"glib/demo/models"
 )
 
-func handleAuthControllerRegister(app *App) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.RegisterRequest](r)
-		if err != nil {
-			glib.BadRequest[*auth.UserResponse](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		result := app.controllers.AuthController.Register(ctx, req)
-		result.Write(w)
-
-	}
-}
-
-func handleAuthControllerLogin(app *App) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.LoginRequest](r)
-		if err != nil {
-			glib.BadRequest[*auth.LoginResponse](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		result := app.controllers.AuthController.Login(ctx, req)
-		result.Write(w)
-
-	}
-}
-
-func handleAuthControllerGetMe(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		result := app.controllers.AuthController.GetMe(ctx)
-		result.Write(w)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerUpdateProfile(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.UpdateProfileRequest](r)
-		if err != nil {
-			glib.BadRequest[*auth.UserResponse](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		result := app.controllers.AuthController.UpdateProfile(ctx, req)
-		result.Write(w)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerLogout(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		result := app.controllers.AuthController.Logout(ctx)
-		result.Write(w)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handleAuthControllerGetUser(app *App) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
-		if err != nil {
-			glib.BadRequest[*auth.UserResponse](
-				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
-			return
-		}
-
-		result := app.controllers.AuthController.GetUser(ctx, id)
-		result.Write(w)
-
-	}
-}
-
 func handleCommentControllerIndex(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -234,29 +128,122 @@ func handleCommentControllerDelete(app *App) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
+func handleAuthControllerRegister(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.RegisterRequest](r)
+		if err != nil {
+			glib.BadRequest[*auth.UserResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := app.controllers.AuthController.Register(ctx, req)
+		result.Write(w)
+
+	}
+}
+
+func handleAuthControllerLogin(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.LoginRequest](r)
+		if err != nil {
+			glib.BadRequest[*auth.LoginResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := app.controllers.AuthController.Login(ctx, req)
+		result.Write(w)
+
+	}
+}
+
+func handleAuthControllerGetMe(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		result := app.controllers.AuthController.GetMe(ctx)
+		result.Write(w)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerUpdateProfile(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[auth.UpdateProfileRequest](r)
+		if err != nil {
+			glib.BadRequest[*auth.UserResponse](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
+		}
+
+		result := app.controllers.AuthController.UpdateProfile(ctx, req)
+		result.Write(w)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerLogout(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		result := app.controllers.AuthController.Logout(ctx)
+		result.Write(w)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handleAuthControllerGetUser(app *App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		// Parse path parameters
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		if err != nil {
+			glib.BadRequest[*auth.UserResponse](
+				fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
+			return
+		}
+
+		result := app.controllers.AuthController.GetUser(ctx, id)
+		result.Write(w)
+
+	}
+}
+
 func handlePostControllerIndex(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse query parameters and headers into struct
-		var req post.PostPaginationParams
-		// Parse query parameters
-		// Required parameter: page
-		if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-			req.Page = utils.ParseIntOrZero(pageStr)
-		}
-		// Required parameter: per_page
-		if per_pageStr := r.URL.Query().Get("per_page"); per_pageStr != "" {
-			req.PerPage = utils.ParseIntOrZero(per_pageStr)
-		}
-		// Required parameter: sort
-		if sortStr := r.URL.Query().Get("sort"); sortStr != "" {
-			req.Sort = sortStr
-		}
-		// Parse headers
-		// Required header: Accept-Language
-		if LanguageVal := r.Header.Get("Accept-Language"); LanguageVal != "" {
-			req.Language = LanguageVal
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[post.PostPaginationParams](r)
+		if err != nil {
+			glib.BadRequest[[]models.Post](
+				fmt.Sprintf("invalid request body: %v", err)).Write(w)
+			return
 		}
 
 		result := app.controllers.PostController.Index(ctx, req)

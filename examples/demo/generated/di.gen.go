@@ -16,6 +16,7 @@ import (
 
 	"github.com/azizndao/glib"
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
+	"github.com/azizndao/glib/validator"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
@@ -30,21 +31,22 @@ type App struct {
 }
 
 type ProviderContainer struct {
+	Validator      *validator.Validator
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
 	RedisConfig    *configs.RedisConfig
 	Database       *gorm.DB
 	CommentService *services.CommentService
-	JWTService     *services.JWTService
 	UserSerivce    *services.UserSerivce
 	PostSerivce    *services.PostSerivce
+	JWTService     *services.JWTService
 	AuditorFactory func() *services.Auditor
 	LoggerFactory  func() *services.Logger
 }
 
 type ControllerContainer struct {
-	AuthController    *auth.Controller
 	CommentController *comment.Controller
+	AuthController    *auth.Controller
 	PostController    *post.Controller
 }
 
@@ -76,6 +78,8 @@ func InitContainer(ctx context.Context) (*App, error) {
 
 func (c *App) initProviders(ctx context.Context) error {
 	var err error
+	// Initialize validator (generated in validator.gen.go)
+	c.Validator = initValidator()
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -96,9 +100,9 @@ func (c *App) initProviders(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
 	c.CommentService = services.NewCommentService(c.Database)
-	c.JWTService = services.NewJWTService()
 	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
+	c.JWTService = services.NewJWTService()
 	c.LoggerFactory = func() *services.Logger {
 		return services.NewLogger()
 	}
@@ -107,14 +111,14 @@ func (c *App) initProviders(ctx context.Context) error {
 }
 
 func (c *App) initControllers() error {
+	c.controllers.CommentController = &comment.Controller{
+		Logger:         c.LoggerFactory(),
+		CommentService: c.CommentService,
+	}
 	c.controllers.AuthController = &auth.Controller{
 		UserService: c.UserSerivce,
 		JWTService:  c.JWTService,
 		Auditor:     c.AuditorFactory(),
-	}
-	c.controllers.CommentController = &comment.Controller{
-		Logger:         c.LoggerFactory(),
-		CommentService: c.CommentService,
 	}
 	c.controllers.PostController = &post.Controller{
 		UserSerivce: c.UserSerivce,

@@ -5,12 +5,10 @@ package generated
 import (
 	"github.com/azizndao/glib/utils"
 	glib "github.com/azizndao/glib/validator"
-	locales_es "github.com/go-playground/locales/es"
-	locales_fr "github.com/go-playground/locales/fr"
+	locales_en "github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	trans_es "github.com/go-playground/validator/v10/translations/es"
-	trans_fr "github.com/go-playground/validator/v10/translations/fr"
+	trans_en "github.com/go-playground/validator/v10/translations/en"
 )
 
 // initValidator initializes the validator with configured locales
@@ -18,35 +16,29 @@ func initValidator() *glib.Validator {
 	v := validator.New()
 
 	// Create locale instances
-	locale_es := locales_es.New()
-	locale_fr := locales_fr.New()
+	locale_en := locales_en.New()
 
-	// Initialize UniversalTranslator with fr as fallback
-	uni := ut.New(locale_fr, locale_es, locale_fr)
+	// Initialize UniversalTranslator with en as fallback
+	uni := ut.New(locale_en, locale_en)
 
 	// Register translations for each language
-	if trans, _ := uni.GetTranslator("es"); trans != nil {
-		_ = trans_es.RegisterDefaultTranslations(v, trans)
-	}
-	if trans, _ := uni.GetTranslator("fr"); trans != nil {
-		_ = trans_fr.RegisterDefaultTranslations(v, trans)
+	if trans, _ := uni.GetTranslator("en"); trans != nil {
+		_ = trans_en.RegisterDefaultTranslations(v, trans)
 	}
 
-	return glib.NewValidatorWithTranslator(v, uni, "fr")
+	return glib.NewValidatorWithTranslator(v, uni, "en")
 }
 
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
-// Falls back to "fr" if no language specified or no match found
+// Falls back to "en" if no language specified or no match found
 func DetectLanguageOrDefault(acceptLanguage string) string {
-	lang := utils.DetectLanguage(acceptLanguage, "fr")
+	lang := utils.DetectLanguage(acceptLanguage, "en")
 
 	// Validate that the detected language is in our supported list
 	switch lang {
-	case "es":
-		return lang
-	case "fr":
+	case "en":
 		return lang
 	}
 
-	return "fr" // Fallback to configured default
+	return "en" // Fallback to configured default
 }
