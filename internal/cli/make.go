@@ -37,7 +37,10 @@ Types:
 			name := args[1]
 
 			// Load config from environment variables and defaults
-			cfg := getDefaultConfig()
+			cfg, err := loadConfigs()
+			if err != nil {
+				return err
+			}
 
 			switch componentType {
 			case "controller":
@@ -215,9 +218,9 @@ func runMake(spec makeSpec) error {
 	}
 
 	duration := time.Since(start)
-	fmt.Println(ui.Success(fmt.Sprintf("%s created (%dms)", cases.Title(language.English).String(spec.componentType), duration.Milliseconds())))
+	fmt.Println(ui.Successf("%s created (%dms)", cases.Title(language.English).String(spec.componentType), duration.Milliseconds()))
 	for _, file := range result.files {
-		fmt.Printf("  %s\n", ui.Muted(file))
+		fmt.Println(ui.Mutedf(" %s", file))
 	}
 
 	return nil

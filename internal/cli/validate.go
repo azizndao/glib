@@ -55,23 +55,23 @@ func runValidate(opts *validateOptions) error {
 func runValidateSimple(verbose bool) error {
 	start := time.Now()
 
-	fmt.Println(ui.Info("Scanning project..."))
+	fmt.Println(ui.Infof("Scanning project..."))
 
 	scan, err := scanner.New(".")
 	if err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to create scanner: %v", err)))
+		fmt.Println(ui.Errorf("Failed to create scanner: %v", err))
 		return err
 	}
 
 	project, err := scan.Scan()
 	if err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to scan project: %v", err)))
+		fmt.Println(ui.Errorf("Failed to scan project: %v", err))
 		return err
 	}
 
 	v := validator.New()
 	if err := v.Validate(project); err != nil {
-		fmt.Println(ui.Error("Validation failed"))
+		fmt.Println(ui.Errorf("Validation failed"))
 		for i, verr := range v.Errors() {
 			fmt.Printf("  %d. %s\n", i+1, verr.Message)
 		}
@@ -82,24 +82,24 @@ func runValidateSimple(verbose bool) error {
 	warnings := v.Warnings()
 
 	if len(warnings) > 0 {
-		fmt.Println(ui.Success(fmt.Sprintf("Validation passed (%dms)", duration.Milliseconds())))
-		fmt.Println(ui.Warning(fmt.Sprintf("%d warnings", len(warnings))))
+		fmt.Println(ui.Successf("Validation passed (%dms)", duration.Milliseconds()))
+		fmt.Println(ui.Warningf("%d warnings", len(warnings)))
 		if verbose {
 			for i, warn := range warnings {
 				fmt.Printf("  %d. %s\n", i+1, warn.Message)
 			}
 		}
 	} else {
-		fmt.Println(ui.Success(fmt.Sprintf("Validation passed (%dms)", duration.Milliseconds())))
+		fmt.Println(ui.Successf("Validation passed (%dms)", duration.Milliseconds()))
 	}
 
 	if verbose {
-		fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf(
+		fmt.Printf("  %s\n", ui.Mutedf(
 			"%d controllers, %d providers, %d middleware",
 			len(project.Controllers),
 			len(project.Providers),
 			len(project.Middleware),
-		)))
+		))
 	}
 
 	return nil

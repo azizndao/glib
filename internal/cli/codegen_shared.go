@@ -36,10 +36,10 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		cacheDir := filepath.Join(opts.ProjectDir, ".glib", "cache")
 		if err := os.RemoveAll(cacheDir); err != nil && !os.IsNotExist(err) {
 			if opts.Verbose {
-				fmt.Println(ui.Warning(fmt.Sprintf("Failed to clear cache: %v", err)))
+				fmt.Println(ui.Warningf("Failed to clear cache: %v", err))
 			}
 		} else if opts.Verbose {
-			fmt.Println(ui.Info("Cache cleared"))
+			fmt.Println(ui.Infof("Cache cleared"))
 		}
 	}
 
@@ -60,7 +60,7 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		cacheDir := filepath.Join(opts.ProjectDir, ".glib", "cache")
 		scanOpts = append(scanOpts, scanner.WithCache(cacheDir))
 		if opts.Verbose && opts.ShowProgress {
-			fmt.Println(ui.Info("File caching enabled"))
+			fmt.Println(ui.Infof("File caching enabled"))
 		}
 	}
 
@@ -87,17 +87,17 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 	if isIncremental {
 		// Incremental scan
 		if opts.ShowProgress {
-			fmt.Println(ui.Info(fmt.Sprintf("Incremental scan (%d files)...", len(opts.ChangedFiles))))
+			fmt.Println(ui.Infof("Incremental scan (%d files)...", len(opts.ChangedFiles)))
 		} else {
-			fmt.Println(ui.Info(fmt.Sprintf("Incremental scan (%d files)...", len(opts.ChangedFiles))))
+			fmt.Println(ui.Infof("Incremental scan (%d files)...", len(opts.ChangedFiles)))
 		}
 		project, err = scan.ScanIncremental(opts.ChangedFiles)
 	} else {
 		// Full scan
 		if opts.ShowProgress {
-			fmt.Println(ui.Info("Scanning project..."))
+			fmt.Println(ui.Infof("Scanning project..."))
 		} else {
-			fmt.Println(ui.Info("Scanning..."))
+			fmt.Println(ui.Infof("Scanning..."))
 		}
 		project, err = scan.Scan()
 	}
@@ -206,13 +206,13 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 	if err := FormatGeneratedCode(opts.OutputDir, opts.Verbose && opts.ShowProgress); err != nil {
 		// Non-fatal - just warn
 		if opts.Verbose {
-			fmt.Println(ui.Warning(fmt.Sprintf("Failed to format code: %v", err)))
+			fmt.Println(ui.Warningf("Failed to format code: %v", err))
 		}
 	}
 
 	if opts.ShowProgress {
 		duration := time.Since(start)
-		fmt.Println(ui.Success(fmt.Sprintf("Generation complete (%dms)", duration.Milliseconds())))
+		fmt.Println(ui.Successf("Generation complete (%dms)", duration.Milliseconds()))
 	} else {
 		fmt.Printf("  %s Generation complete (%dms)\n", ui.IconCheck, genDuration.Milliseconds())
 	}
@@ -235,14 +235,14 @@ func FormatGeneratedCode(outputDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Println(ui.Info("Formatting generated code..."))
+		fmt.Println(ui.Infof("Formatting generated code..."))
 	}
 
 	// Try goimports first (removes unused imports and formats)
 	if err := runGoImports(files, verbose); err != nil {
 		// Fall back to gofmt if goimports is not available
 		if verbose {
-			fmt.Println(ui.Warning("goimports not found, using gofmt only"))
+			fmt.Println(ui.Warningf("goimports not found, using gofmt only"))
 		}
 		return runGoFmt(files, verbose)
 	}
