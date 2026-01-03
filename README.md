@@ -540,6 +540,7 @@ Creates:
 - Project structure
 - Sample `main.go` and `bootstrap.go`
 - Configuration struct with `@Config` annotation
+- `.glib.toml` configuration file
 - Example controller (with `--example` flag)
 
 **Options:**
@@ -623,71 +624,92 @@ Features:
 
 ## Configuration
 
-Glib uses a **CLI-first configuration approach**. Configuration is resolved in this priority order:
+Glib uses `.glib.toml` for project configuration. Configuration is resolved in this priority order:
 
 1. **CLI flags** (highest priority)
-2. **Environment variables** (prefixed with `GLIB_`)
+2. **`.glib.toml` file** (project configuration)
 3. **Hardcoded defaults** (fallback)
 
-No configuration file is needed! This makes Glib more portable and 12-factor app compliant.
+### `.glib.toml` Configuration
 
-### Environment Variables
+Create a `.glib.toml` file in your project root:
 
-You can configure Glib using these environment variables:
+```toml
+version = "2"
+verbose = false
+
+[generate]
+output = "generated"
+package = "generated"
+workers = 4
+cache = true
+
+[make]
+controllers = "controllers"
+providers = "providers"
+middleware = "middleware"
+
+[watch]
+debounce = 300
+exclude_dirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
+include_files = ["*.go"]
+exclude_files = ["*_test.go", "*.gen.go"]
+
+[validation]
+enabled = false
+languages = ["en"]
+default_language = "en"
+```
+
+### Configuration Options
 
 **Generation:**
 
-- `GLIB_OUTPUT` - Output directory (default: `generated`)
-- `GLIB_PACKAGE` - Package name (default: `generated`)
-- `GLIB_WORKERS` - Number of parallel workers (default: `4`)
-- `GLIB_CACHE` - Enable caching (default: `true`)
+- `generate.output` - Output directory (default: `generated`)
+- `generate.package` - Package name (default: `generated`)
+- `generate.workers` - Number of parallel workers (default: `4`)
+- `generate.cache` - Enable caching (default: `true`)
 
 **Make Command:**
 
-- `GLIB_MAKE_CONTROLLERS` - Controllers directory (default: `controllers`)
-- `GLIB_MAKE_PROVIDERS` - Providers directory (default: `providers`)
-- `GLIB_MAKE_MIDDLEWARE` - Middleware directory (default: `middleware`)
+- `make.controllers` - Controllers directory (default: `controllers`)
+- `make.providers` - Providers directory (default: `providers`)
+- `make.middleware` - Middleware directory (default: `middleware`)
 
 **Dev/Watch:**
 
-- `GLIB_WATCH_DEBOUNCE` - Watch debounce in ms (default: `300`)
-- `GLIB_WATCH_EXCLUDE_DIRS` - Comma-separated excluded directories (default: `vendor,node_modules,.git,.glib,tmp`)
-- `GLIB_WATCH_INCLUDE_FILES` - Comma-separated file patterns (default: `*.go`)
-- `GLIB_WATCH_EXCLUDE_FILES` - Comma-separated excluded patterns (default: `*_test.go,*.gen.go`)
+- `watch.debounce` - Watch debounce in ms (default: `300`)
+- `watch.exclude_dirs` - Excluded directories (default: `["vendor", "node_modules", ".git", ".glib", "tmp"]`)
+- `watch.include_files` - File patterns to watch (default: `["*.go"]`)
+- `watch.exclude_files` - Excluded file patterns (default: `["*_test.go", "*.gen.go"]`)
 
 **Validation:**
 
-- `GLIB_VALIDATION_ENABLED` - Enable validation (default: `false`)
-- `GLIB_VALIDATION_LANGUAGES` - Comma-separated supported languages (default: `""`)
-- `GLIB_VALIDATION_DEFAULT_LANGUAGE` - Default language (default: `""`)
+- `validation.enabled` - Enable validation (default: `false`)
+- `validation.languages` - Supported languages (default: `["en"]`)
+- `validation.default_language` - Default language (default: `"en"`)
 
 ### Example Configuration
 
-Using environment variables:
+Using `.glib.toml`:
 
-```bash
-# Set custom output directory and enable verbose mode
-export GLIB_OUTPUT=gen
-export GLIB_VERBOSE=true
-export GLIB_WORKERS=8
+```toml
+version = "2"
+verbose = true
 
-# Run generation
-glib generate
+[generate]
+output = "gen"
+workers = 8
 
-# Or use CLI flags to override
-glib generate --output custom-gen --workers 16
+[make]
+controllers = "internal/controllers"
+providers = "internal/providers"
 ```
 
-Using a `.env` file (for your application config, not Glib):
+Override with CLI flags:
 
-```env
-# Application config
-PORT=3000
-DATABASE_URL=postgres://localhost/mydb
-
-# Glib config (optional)
-GLIB_OUTPUT=generated
-GLIB_WORKERS=8
+```bash
+glib generate --output custom-gen --workers 16
 ```
 
 ## Project Structure

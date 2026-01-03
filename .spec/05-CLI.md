@@ -100,6 +100,7 @@ glib init
 my-api/
 ├── go.mod
 ├── go.sum
+├── .glib.toml                 # Glib configuration
 ├── main.go                    # Application entry point
 ├── config.go                  # Config struct
 └── controllers/
@@ -225,16 +226,20 @@ glib dev --debounce 500 --exclude-dirs vendor,tmp,node_modules
 
 **Configuration:**
 
-All settings can be configured via CLI flags or environment variables:
+All settings can be configured via CLI flags or `.glib.toml`:
+
+```toml
+# .glib.toml
+[watch]
+debounce = 500
+exclude_dirs = ["vendor", "tmp", "node_modules"]
+include_files = ["*.go"]
+exclude_files = ["*_test.go", "*.gen.go"]
+```
 
 ```bash
-# Using environment variables
-export GLIB_WATCH_DEBOUNCE=500
-export GLIB_WATCH_EXCLUDE_DIRS=vendor,tmp,node_modules
-export GLIB_WATCH_INCLUDE_FILES=*.go
-export GLIB_WATCH_EXCLUDE_FILES=*_test.go,*.gen.go
-
-glib dev
+# Or override with CLI flags
+glib dev --debounce 500 --exclude-dirs vendor,tmp,node_modules
 ```
 
 ---
@@ -522,58 +527,88 @@ glib help make
 
 ### Configuration Priority
 
-Glib uses a **CLI-first configuration approach** with the following priority order:
+Glib uses `.glib.toml` for project configuration with the following priority order:
 
 1. **CLI flags** (highest priority)
-2. **Environment variables** (middle priority)
+2. **`.glib.toml` file** (project configuration)
 3. **Hardcoded defaults** (fallback)
 
-This follows the 12-factor app methodology and eliminates the need for config files.
+This approach provides both flexibility through CLI overrides and project-specific defaults through the configuration file.
 
-### Environment Variables
+### `.glib.toml` Configuration File
 
-Override defaults via environment variables:
+Create a `.glib.toml` file in your project root:
 
-```bash
-# Generation settings
-GLIB_OUTPUT=generated
-GLIB_PACKAGE=generated
-GLIB_WORKERS=4
-GLIB_CACHE=true
+```toml
+version = "2"
+verbose = false
 
-# Make command settings
-GLIB_MAKE_CONTROLLERS=controllers
-GLIB_MAKE_PROVIDERS=providers
-GLIB_MAKE_MIDDLEWARE=middleware
+[generate]
+output = "generated"
+package = "generated"
+workers = 4
+cache = true
 
-# Dev/Watch settings
-GLIB_WATCH_DEBOUNCE=300
-GLIB_WATCH_EXCLUDE_DIRS=vendor,node_modules,.git,.glib,tmp
-GLIB_WATCH_INCLUDE_FILES=*.go
-GLIB_WATCH_EXCLUDE_FILES=*_test.go,*.gen.go
+[make]
+controllers = "controllers"
+providers = "providers"
+middleware = "middleware"
 
-# Validation settings
-GLIB_VALIDATION_ENABLED=false
-GLIB_VALIDATION_LANGUAGES=""
-GLIB_VALIDATION_DEFAULT_LANGUAGE=""
+[watch]
+debounce = 300
+exclude_dirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
+include_files = ["*.go"]
+exclude_files = ["*_test.go", "*.gen.go"]
 
-# Run with custom settings
-glib generate
+[validation]
+enabled = false
+languages = ["en"]
+default_language = "en"
 ```
+
+### Configuration Options
+
+**Global Settings:**
+- `version` - Config file version (current: "2")
+- `verbose` - Enable verbose output (default: false)
+
+**Generation Settings (`[generate]`):**
+- `output` - Output directory (default: "generated")
+- `package` - Package name (default: "generated")
+- `workers` - Number of parallel workers (default: 4)
+- `cache` - Enable incremental caching (default: true)
+
+**Make Command Settings (`[make]`):**
+- `controllers` - Controllers directory (default: "controllers")
+- `providers` - Providers directory (default: "providers")
+- `middleware` - Middleware directory (default: "middleware")
+
+**Dev/Watch Settings (`[watch]`):**
+- `debounce` - File watch debounce in milliseconds (default: 300)
+- `exclude_dirs` - Directories to exclude from watching
+- `include_files` - File patterns to watch (default: ["*.go"])
+- `exclude_files` - File patterns to ignore (default: ["*_test.go", "*.gen.go"])
+
+**Validation Settings (`[validation]`):**
+- `enabled` - Enable validation error translation (default: false)
+- `languages` - Supported languages (default: ["en"])
+- `default_language` - Default language (default: "en")
 
 ### Example Usage
 
 ```bash
-# Use custom output directory and more workers
-export GLIB_OUTPUT=internal/generated
-export GLIB_WORKERS=8
+# Use custom output directory from .glib.toml
 glib generate
 
-# Custom dev server port with different debounce
-GLIB_WATCH_DEBOUNCE=500 glib dev --port 3000
-
-# Override via CLI flags (highest priority)
+# Override with CLI flags (highest priority)
 glib generate --output custom_gen --workers 16
+
+# Custom project structure
+# .glib.toml:
+# [generate]
+# output = "internal/generated"
+# [make]
+# controllers = "internal/handlers"
 ```
 
 ---
@@ -588,6 +623,7 @@ Glib 2.0 **doesn't enforce** any particular structure. Here are common patterns:
 my-api/
 ├── main.go
 ├── config.go
+├── .glib.toml                 # Glib configuration
 ├── posts.go                   # PostsController
 ├── comments.go                # CommentsController
 ├── providers.go               # All providers
@@ -604,6 +640,7 @@ my-api/
 my-api/
 ├── main.go
 ├── config.go
+├── .glib.toml                 # Glib configuration
 ├── posts/
 │   ├── controller.go          # @Controller
 │   ├── models.go
@@ -628,6 +665,7 @@ my-api/
 ├── cmd/
 │   └── api/
 │       └── main.go
+├── .glib.toml                 # Glib configuration
 ├── internal/
 │   ├── config/
 │   │   └── config.go
@@ -655,16 +693,20 @@ my-api/
 
 ```
 monorepo/
+├── .glib.toml                 # Root config (can be overridden per service)
 ├── services/
 │   ├── api/
+│   │   ├── .glib.toml         # Service-specific config (optional)
 │   │   ├── main.go
 │   │   ├── controllers/
 │   │   └── generated/
 │   ├── admin/
+│   │   ├── .glib.toml
 │   │   ├── main.go
 │   │   ├── controllers/
 │   │   └── generated/
 │   └── worker/
+│       ├── .glib.toml
 │       ├── main.go
 │       └── generated/
 └── shared/

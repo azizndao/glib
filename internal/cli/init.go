@@ -26,9 +26,10 @@ func newInitCmd() *cobra.Command {
 Creates a new project with:
   - main.go (application entry point)
   - configs/config.go (configuration struct with @Config annotation)
+  - .glib.toml (Glib CLI configuration)
   - .gitignore (Git ignore file)
 
-Configuration is managed via CLI flags and environment variables (see 'glib --help').
+Configuration is managed via .glib.toml and can be overridden with CLI flags.
 
 Optional:
   --example  Include example health check controller
@@ -151,9 +152,9 @@ func runInit(spec initSpec) error {
 	}
 
 	duration := time.Since(start)
-	fmt.Println(ui.Success(fmt.Sprintf("Project initialized (%dms)", duration.Milliseconds())))
-	fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("Module: %s", spec.module)))
-	fmt.Printf("  %s\n", ui.Muted(fmt.Sprintf("Files: %d", len(result.createdFiles))))
+	fmt.Println(ui.Successf("Project initialized (%dms)", duration.Milliseconds()))
+	fmt.Println(ui.Mutedf("  Module: %s", spec.module))
+	fmt.Println(ui.Mutedf("  Files: %d", len(result.createdFiles)))
 
 	return nil
 }

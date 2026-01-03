@@ -39,11 +39,11 @@ Generates:
 	}
 
 	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Project root directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: generated, override via GLIB_OUTPUT)")
-	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: false, override via GLIB_VERBOSE)")
+	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: from .glib.toml or 'generated')")
+	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: from .glib.toml or false)")
 	cmd.Flags().BoolVar(&opts.watch, "watch", false, "Watch mode")
-	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (default: 4, override via GLIB_WORKERS)")
-	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: cache enabled, override via GLIB_CACHE)")
+	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (default: from .glib.toml or 4)")
+	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: cache enabled from .glib.toml)")
 	cmd.Flags().BoolVar(&opts.clearCache, "clear-cache", false, "Clear cache before scanning")
 
 	return cmd
@@ -62,7 +62,10 @@ func runGenerate(opts *generateOptions) error {
 	}
 
 	// Load config from environment variables and defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		return err
+	}
 
 	// Priority resolution: CLI args > environment variables > defaults
 
@@ -129,27 +132,27 @@ func scanWithProgress(scan *scanner.Scanner, opts *generateOptions) (*scanner.Pr
 			case scanner.EventProvider:
 				fmt.Printf("  %s %s %s\n",
 					ui.Cyan+ui.IconProvider+ui.Reset,
-					ui.Muted("Provider:"),
-					ui.Primary(event.Provider.PackageName+"."+event.Provider.Name))
+					ui.Mutedf("Provider:"),
+					ui.Primaryf("%s.%s", event.Provider.PackageName, event.Provider.Name))
 			case scanner.EventController:
 				fmt.Printf("  %s %s %s\n",
 					ui.Blue+ui.IconController+ui.Reset,
-					ui.Muted("Controller:"),
-					ui.Primary(event.Controller.PackageName+"."+event.Controller.Name))
+					ui.Mutedf("Controller:"),
+					ui.Primaryf("%s.%s", event.Controller.PackageName, event.Controller.Name))
 			case scanner.EventMiddleware:
 				fmt.Printf("  %s %s %s\n",
 					ui.Yellow+ui.IconMiddleware+ui.Reset,
-					ui.Muted("Middleware:"),
-					ui.Primary(event.Middleware.PackageName+"."+event.Middleware.Name))
+					ui.Mutedf("Middleware:"),
+					ui.Primaryf("%s.%s", event.Middleware.PackageName, event.Middleware.Name))
 			case scanner.EventConfig:
 				fmt.Printf("  %s %s %s\n",
 					ui.Gray+ui.IconConfig+ui.Reset,
-					ui.Muted("Config:"),
-					ui.Primary(event.Config.PackageName))
+					ui.Mutedf("Config:"),
+					ui.Primaryf("%s", event.Config.PackageName))
 			case scanner.EventProgress:
 				// Could add progress bar here
 			case scanner.EventError:
-				fmt.Println(ui.Warning(fmt.Sprintf("Warning: %v", event.Error)))
+				fmt.Println(ui.Warningf("Warning: %v", event.Error))
 			}
 		}
 	}()
@@ -163,45 +166,45 @@ func scanWithProgress(scan *scanner.Scanner, opts *generateOptions) (*scanner.Pr
 
 // printScanSummary prints a formatted summary table of scan statistics
 func printScanSummary(scanStats scanner.ScanStats, valStats *validator.ValidationStats, cacheEnabled bool) {
-	fmt.Println(ui.BoldText("  Scan Summary:"))
-	fmt.Println(ui.Muted("  ┌────────────────────────┬──────────────┐"))
+	fmt.Println(ui.BoldTextf("  Scan Summary:"))
+	fmt.Println(ui.Mutedf("  ┌────────────────────────┬──────────────┐"))
 
 	// Components found
-	fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12s "+ui.Muted("│")+"\n",
+	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
 		"Providers", ui.Cyan+fmt.Sprintf("%d", scanStats.Providers)+ui.Reset)
-	fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12s "+ui.Muted("│")+"\n",
+	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
 		"Controllers", ui.Blue+fmt.Sprintf("%d", scanStats.Controllers)+ui.Reset)
-	fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12s "+ui.Muted("│")+"\n",
+	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
 		"Middleware", ui.Yellow+fmt.Sprintf("%d", scanStats.Middleware)+ui.Reset)
-	fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12s "+ui.Muted("│")+"\n",
+	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
 		"Handlers", ui.Green+fmt.Sprintf("%d", scanStats.Handlers)+ui.Reset)
 
 	if cacheEnabled && scanStats.FilesScanned > 0 {
-		fmt.Println(ui.Muted("  ├────────────────────────┼──────────────┤"))
+		fmt.Println(ui.Mutedf("  ├────────────────────────┼──────────────┤"))
 
 		hitRate := float64(scanStats.CacheHits) * 100 / float64(scanStats.FilesScanned)
-		fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12d "+ui.Muted("│")+"\n",
+		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12d "+ui.Mutedf("│")+"\n",
 			"Files Scanned", scanStats.FilesScanned)
 
 		cacheHitStr := fmt.Sprintf("%d", scanStats.CacheHits)
-		fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Muted("│")+"\n",
+		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Mutedf("│")+"\n",
 			"Cache Hits", fmt.Sprintf("%s (%.1f%%)", cacheHitStr, hitRate))
 
-		fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" "+ui.Yellow+"%-12d"+ui.Reset+" "+ui.Muted("│")+"\n",
+		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Yellow+"%-12d"+ui.Reset+" "+ui.Mutedf("│")+"\n",
 			"Cache Misses", scanStats.CacheMisses)
 	}
 
 	if valStats != nil && cacheEnabled {
-		fmt.Println(ui.Muted("  ├────────────────────────┼──────────────┤"))
+		fmt.Println(ui.Mutedf("  ├────────────────────────┼──────────────┤"))
 
 		valHitRate := float64(valStats.CacheHits) * 100 / float64(valStats.ComponentsValidated)
-		fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" %12d "+ui.Muted("│")+"\n",
+		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12d "+ui.Mutedf("│")+"\n",
 			"Components Validated", valStats.ComponentsValidated)
 
 		valCacheStr := fmt.Sprintf("%d", valStats.CacheHits)
-		fmt.Printf(ui.Muted("  │")+" %-22s "+ui.Muted("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Muted("│")+"\n",
+		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Mutedf("│")+"\n",
 			"Validation Cached", fmt.Sprintf("%s (%.1f%%)", valCacheStr, valHitRate))
 	}
 
-	fmt.Println(ui.Muted("  └────────────────────────┴──────────────┘"))
+	fmt.Println(ui.Mutedf("  └────────────────────────┴──────────────┘"))
 }

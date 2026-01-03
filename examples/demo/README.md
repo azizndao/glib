@@ -81,7 +81,18 @@ This will:
 
 **Configuration:**
 
-You can customize the file watcher behavior:
+You can customize the file watcher behavior using `.glib.toml`:
+
+```toml
+# .glib.toml
+[watch]
+debounce = 500
+exclude_dirs = ["vendor", "tmp", "node_modules"]
+include_files = ["*.go"]
+exclude_files = ["*_test.go", "*.gen.go"]
+```
+
+Or override with CLI flags:
 
 ```bash
 # Custom debounce delay
@@ -89,17 +100,13 @@ You can customize the file watcher behavior:
 
 # Custom excluded directories
 ../../glib dev --exclude-dirs vendor,tmp,node_modules
-
-# Using environment variables
-export GLIB_WATCH_DEBOUNCE=500
-export GLIB_WATCH_EXCLUDE_DIRS=vendor,tmp,node_modules
-../../glib dev
 ```
 
 ## 📁 Project Structure
 
 ```
 demo/
+├── .glib.toml            # Glib configuration
 ├── controllers/          # HTTP controllers
 │   ├── auth/
 │   │   ├── controller.go # Auth endpoints (register, login, profile)
@@ -427,6 +434,50 @@ APP_PORT=3000 ./demo
 
 ## ⚙️ Configuration
 
+### Glib Configuration
+
+The demo includes a `.glib.toml` file for Glib CLI configuration:
+
+```toml
+version = "2"
+verbose = false
+
+[generate]
+output = "generated"
+package = "generated"
+workers = 4
+cache = true
+
+[make]
+controllers = "controllers"
+providers = "services"
+middleware = "middleware"
+
+[watch]
+debounce = 300
+exclude_dirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
+include_files = ["*.go"]
+exclude_files = ["*_test.go", "*.gen.go"]
+```
+
+You can customize these settings:
+
+```toml
+# Custom output directory
+[generate]
+output = "internal/generated"
+
+# More workers for faster generation
+[generate]
+workers = 8
+
+# Faster debounce for quicker hot reload
+[watch]
+debounce = 200
+```
+
+### Application Configuration
+
 ### Environment Variables
 
 Copy `.env.example` to `.env` and customize:
@@ -447,28 +498,17 @@ cp .env.example .env
 
 **Glib CLI Configuration:**
 
-Glib uses environment variables for configuration (no config.toml needed):
-
-| Variable                 | Default                            | Description            |
-| ------------------------ | ---------------------------------- | ---------------------- |
-| GLIB_OUTPUT              | generated                          | Output directory       |
-| GLIB_PACKAGE             | generated                          | Package name           |
-| GLIB_WORKERS             | 4                                  | Parallel workers       |
-| GLIB_CACHE               | true                               | Enable caching         |
-| GLIB_WATCH_DEBOUNCE      | 300                                | Watch debounce (ms)    |
-| GLIB_WATCH_EXCLUDE_DIRS  | vendor,node_modules,.git,.glib,tmp | Excluded directories   |
-| GLIB_WATCH_INCLUDE_FILES | \*.go                              | Included file patterns |
-| GLIB_WATCH_EXCLUDE_FILES | _\_test.go,_.gen.go                | Excluded file patterns |
-
-Example:
+Override Glib settings with CLI flags:
 
 ```bash
-# Set custom output directory
-export GLIB_OUTPUT=gen
-export GLIB_WORKERS=8
+# Custom output directory
+../../glib generate --output custom-gen
 
-# Run generation
-../../glib generate
+# More workers
+../../glib generate --workers 8
+
+# Custom watch settings
+../../glib dev --debounce 200
 ```
 
 ## 🐛 Troubleshooting

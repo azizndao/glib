@@ -16,13 +16,10 @@ import (
 )
 
 const (
-	// Process management timeouts
-	ProcessGracefulTimeout = 3 * time.Second        // Time to wait for SIGTERM to work
-	ProcessCleanupDelay    = 100 * time.Millisecond // Delay after process cleanup
-	PortReleaseDelay       = 200 * time.Millisecond // Wait for port to be released
-
-	// Shutdown timeout
-	ShutdownTimeout = 5 * time.Second // Maximum time to wait for graceful shutdown
+	ProcessGracefulTimeout = 3 * time.Second
+	ProcessCleanupDelay    = 100 * time.Millisecond
+	PortReleaseDelay       = 200 * time.Millisecond
+	ShutdownTimeout        = 5 * time.Second
 )
 
 // ProcessManager manages the running server process
@@ -157,17 +154,20 @@ Features:
 	}
 
 	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: false, override via GLIB_VERBOSE)")
-	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: 4, override via GLIB_WORKERS)")
-	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled, override via GLIB_CACHE)")
-	cmd.Flags().IntVar(&debounce, "debounce", 0, "Debounce duration in milliseconds (default: 300, override via GLIB_WATCH_DEBOUNCE)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from .glib.toml or false)")
+	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: from .glib.toml or 4)")
+	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled from .glib.toml)")
+	cmd.Flags().IntVar(&debounce, "debounce", 0, "Debounce duration in milliseconds (default: from .glib.toml or 300)")
 
 	return cmd
 }
 
 func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
 	// Load config from environment variables and defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		return err
+	}
 
 	// Priority resolution: CLI args > environment variables > defaults
 
@@ -217,33 +217,33 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 
 	binaryPath := "./tmp/main"
 
-	fmt.Println(ui.Info(fmt.Sprintf("Starting Glib dev server on port %d", port)))
+	fmt.Println(ui.Infof("Starting Glib dev server on port %d", port))
 	fmt.Println()
 
 	// Initial generation
-	fmt.Println(ui.Info("Initial generation..."))
+	fmt.Println(ui.Infof("Initial generation..."))
 	if err := performGeneration(".", outputDir, cfg, workers, noCache, verbose, nil); err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Initial generation failed: %v", err)))
+		fmt.Println(ui.Errorf("Initial generation failed: %v", err))
 		return err
 	}
 
 	// Initial build
 	fmt.Println()
-	fmt.Println(ui.Info("Building application..."))
+	fmt.Println(ui.Infof("Building application..."))
 	if err := buildApp(binaryPath, verbose); err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Build failed: %v", err)))
+		fmt.Println(ui.Errorf("Build failed: %v", err))
 		return err
 	}
-	fmt.Println(ui.Success("Build complete"))
+	fmt.Println(ui.Successf("Build complete"))
 
 	// Start server
 	fmt.Println()
 	pm := &ProcessManager{}
 	if err := pm.Start(binaryPath, port); err != nil {
-		fmt.Println(ui.Error(fmt.Sprintf("Failed to start server: %v", err)))
+		fmt.Println(ui.Errorf("Failed to start server: %v", err))
 		return err
 	}
-	fmt.Println(ui.Success(fmt.Sprintf("Server started on http://localhost:%d", port)))
+	fmt.Println(ui.Successf("Server started on http://localhost:%d", port))
 
 	// Create file watcher
 	watchCfg := &WatchConfig{
@@ -270,7 +270,7 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	fmt.Printf("%s Watching %d files... %s\n",
 		ui.Cyan+ui.IconWatch+ui.Reset,
 		fileCount,
-		ui.Muted("(Press Ctrl+C to stop)"))
+		ui.Mutedf("(Press Ctrl+C to stop)"))
 
 	// Set up signal handling
 	sigChan := make(chan os.Signal, 1)
@@ -281,7 +281,7 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 		select {
 		case <-sigChan:
 			fmt.Println()
-			fmt.Println(ui.Info("Shutting down..."))
+			fmt.Println(ui.Infof("Shutting down..."))
 
 			// Shutdown with timeout to prevent hanging
 			done := make(chan struct{})
@@ -293,9 +293,9 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 
 			select {
 			case <-done:
-				fmt.Println(ui.Success("Goodbye!"))
+				fmt.Println(ui.Successf("Goodbye!"))
 			case <-time.After(ShutdownTimeout):
-				fmt.Println(ui.Warning("Shutdown timeout - forcing exit"))
+				fmt.Println(ui.Warningf("Shutdown timeout - forcing exit"))
 			}
 			return nil
 
@@ -304,22 +304,22 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 			printSeparator()
 			fmt.Printf("%s %s Changes detected:\n",
 				ui.Yellow+ui.IconGenerate+ui.Reset,
-				ui.Muted(time.Now().Format("15:04:05")))
+				ui.Mutedf("%s", time.Now().Format("15:04:05")))
 			for _, file := range changedFiles {
 				relPath, _ := filepath.Rel(".", file)
-				fmt.Printf("  %s %s\n", ui.IconBullet, ui.Muted(relPath))
+				fmt.Printf("  %s %s\n", ui.IconBullet, ui.Mutedf("%s", relPath))
 			}
 			fmt.Println()
 
 			if err := handleReload(pm, binaryPath, port, ".", outputDir, cfg, workers, noCache, verbose, changedFiles); err != nil {
-				fmt.Println(ui.Error(fmt.Sprintf("Reload failed: %v", err)))
+				fmt.Println(ui.Errorf("Reload failed: %v", err))
 				if pm.IsRunning() {
-					fmt.Println(ui.Warning("Previous server still running"))
+					fmt.Println(ui.Warningf("Previous server still running"))
 				}
 			}
 
 		case err := <-watchErrors:
-			fmt.Println(ui.Warning(fmt.Sprintf("Watch error: %v", err)))
+			fmt.Println(ui.Warningf("Watch error: %v", err))
 		}
 	}
 }
@@ -334,7 +334,7 @@ func handleReload(pm *ProcessManager, binaryPath string, port int, projectDir, o
 	}
 
 	// Build
-	fmt.Println(ui.Info("Building..."))
+	fmt.Println(ui.Infof("Building..."))
 	buildStart := time.Now()
 	if err := buildApp(binaryPath, verbose); err != nil {
 		return fmt.Errorf("build failed: %w", err)
@@ -348,11 +348,11 @@ func handleReload(pm *ProcessManager, binaryPath string, port int, projectDir, o
 	}
 
 	totalDuration := time.Since(start)
-	fmt.Println(ui.Success(fmt.Sprintf("Server restarted (%dms total)", totalDuration.Milliseconds())))
+	fmt.Println(ui.Successf("Server restarted (%dms total)", totalDuration.Milliseconds()))
 	fmt.Println()
 	fmt.Printf("%s %s\n",
 		ui.Cyan+ui.IconWatch+ui.Reset,
-		ui.Muted("Watching for changes..."))
+		ui.Mutedf("Watching for changes..."))
 
 	return nil
 }
