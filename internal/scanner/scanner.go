@@ -13,37 +13,35 @@ import (
 
 // ScanStats tracks scanning statistics
 type ScanStats struct {
-	FilesScanned int // Total files scanned
-	CacheHits    int // Files loaded from cache
-	CacheMisses  int // Files parsed (not in cache)
-	Providers    int // Providers found
-	Controllers  int // Controllers found
-	Middleware   int // Middleware found
-	Handlers     int // Handlers found
+	FilesScanned int
+	CacheHits    int
+	CacheMisses  int
+	Providers    int
+	Controllers  int
+	Middleware   int
+	Handlers     int
 }
 
 // Scanner scans a Go project for Glib annotations
 type Scanner struct {
 	fset               *token.FileSet
-	modulePath         string                   // e.g., "github.com/user/myapp"
-	projectDir         string                   // e.g., "/path/to/myapp"
-	currentPackageName string                   // Current package being scanned
-	currentPackagePath string                   // Current package import path
-	currentImports     map[string]string        // Maps package name to import path for current file
+	modulePath         string
+	projectDir         string
+	currentPackageName string
+	currentPackagePath string
+	currentImports     map[string]string
 	currentFile        *ast.File                // Current file being scanned (for type lookups)
 	typeSpecs          map[string]*ast.TypeSpec // Maps type name to TypeSpec (for current file)
-	cache              *FileCache               // File cache for incremental scanning (Phase 2)
-	cacheEnabled       bool                     // Whether caching is enabled
-	parallel           bool                     // Whether parallel scanning is enabled (Phase 3)
-	workers            int                      // Number of workers (0 = auto)
-	mu                 sync.Mutex               // Protects mutable state for concurrent access (Phase 3)
-	stats              ScanStats                // Scanning statistics
+	cache              *FileCache
+	cacheEnabled       bool
+	parallel           bool
+	workers            int
+	mu                 sync.Mutex
+	stats              ScanStats
 }
 
-// ScannerOption configures the scanner
 type ScannerOption func(*Scanner)
 
-// WithCache enables file caching for incremental scanning
 func WithCache(cacheDir string) ScannerOption {
 	return func(s *Scanner) {
 		s.cache = NewFileCache(cacheDir)
@@ -60,7 +58,6 @@ func WithParallel(workers int) ScannerOption {
 	}
 }
 
-// New creates a new scanner with optional configurations
 func New(projectDir string, opts ...ScannerOption) (*Scanner, error) {
 	// Find module path from go.mod
 	modulePath, err := findModulePath(projectDir)
@@ -168,7 +165,6 @@ func (s *Scanner) Scan() (*Project, error) {
 		// AST is now GC-able after this function returns
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -332,8 +328,8 @@ func findModulePath(projectDir string) (string, error) {
 		return "", fmt.Errorf("go.mod not found: %w", err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "module ") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "module")), nil

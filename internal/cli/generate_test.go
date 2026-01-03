@@ -20,13 +20,13 @@ require (
 	github.com/azizndao/glib v0.1.0
 )
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a simple controller
 	controllersDir := filepath.Join(tmpDir, "controllers")
-	if err := os.MkdirAll(controllersDir, 0755); err != nil {
+	if err := os.MkdirAll(controllersDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,7 +45,7 @@ func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
 	return glib.OK("healthy")
 }
 `
-	if err := os.WriteFile(filepath.Join(controllersDir, "health.go"), []byte(controllerContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(controllersDir, "health.go"), []byte(controllerContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

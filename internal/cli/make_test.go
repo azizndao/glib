@@ -15,7 +15,7 @@ func TestMakeController_Success(t *testing.T) {
 
 go 1.21
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -31,7 +31,10 @@ go 1.21
 	}
 
 	// Load config from defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make controller
 	opts := &makeOptions{
@@ -83,7 +86,10 @@ func TestMakeController_CustomPath(t *testing.T) {
 	}
 
 	// Load config from defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make controller with custom path
 	opts := &makeOptions{
@@ -120,7 +126,10 @@ func TestMakeProvider_Success(t *testing.T) {
 	}
 
 	// Load config from defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make provider
 	opts := &makeOptions{
@@ -165,7 +174,10 @@ func TestMakeMiddleware_Success(t *testing.T) {
 	}
 
 	// Load config from defaults
-	cfg := getDefaultConfig()
+	cfg, err := loadConfigs()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make middleware
 	opts := &makeOptions{

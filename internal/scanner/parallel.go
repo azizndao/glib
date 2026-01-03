@@ -27,7 +27,7 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 
 	// Collect file paths to process
 	var filePaths []string
-	var fileInfos map[string]os.FileInfo = make(map[string]os.FileInfo)
+	fileInfos := make(map[string]os.FileInfo)
 
 	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -55,7 +55,6 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 		fileInfos[path] = info
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
