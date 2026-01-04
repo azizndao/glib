@@ -16,7 +16,6 @@ import (
 	"glib/demo/services"
 
 	"github.com/azizndao/glib"
-	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 	"github.com/azizndao/glib/validator"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -34,12 +33,12 @@ type App struct {
 type ProviderContainer struct {
 	Validator      *validator.Validator
 	Translator     *i18n.Translator
-	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
+	RedisConfig    *configs.RedisConfig
+	JWTService     *services.JWTService
 	Database       *gorm.DB
 	CommentService *services.CommentService
-	JWTService     *services.JWTService
 	UserSerivce    *services.UserSerivce
 	PostSerivce    *services.PostSerivce
 	AuditorFactory func() *services.Auditor
@@ -48,8 +47,8 @@ type ProviderContainer struct {
 
 type ControllerContainer struct {
 	CommentController *comment.Controller
-	PostController    *post.Controller
 	AuthController    *auth.Controller
+	PostController    *post.Controller
 }
 
 type MiddlewareContainer struct {
@@ -92,10 +91,6 @@ func (c *App) initProviders(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize translator: %w", err)
 	}
 	c.Translator = translator
-	c.RedisConfig, err = loadRedisConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load RedisConfig: %w", err)
-	}
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -104,15 +99,19 @@ func (c *App) initProviders(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load StorageConfig: %w", err)
 	}
+	c.RedisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
+	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
 	}
+	c.JWTService = services.NewJWTService()
 	c.Database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
 	c.CommentService = services.NewCommentService(c.Database)
-	c.JWTService = services.NewJWTService()
 	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
 	c.LoggerFactory = func() *services.Logger {
@@ -127,16 +126,16 @@ func (c *App) initControllers() error {
 		Logger:         c.LoggerFactory(),
 		CommentService: c.CommentService,
 	}
+	c.controllers.AuthController = &auth.Controller{
+		UserService: c.UserSerivce,
+		JWTService:  c.JWTService,
+		Auditor:     c.AuditorFactory(),
+	}
 	c.controllers.PostController = &post.Controller{
 		UserSerivce: c.UserSerivce,
 		PostSerivce: c.PostSerivce,
 		Logger:      c.LoggerFactory(),
 		I18n:        c.Translator,
-	}
-	c.controllers.AuthController = &auth.Controller{
-		UserService: c.UserSerivce,
-		JWTService:  c.JWTService,
-		Auditor:     c.AuditorFactory(),
 	}
 
 	return nil
@@ -149,23 +148,68 @@ func (c *App) initMiddleware() error {
 	return nil
 }
 
-func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
+// wrapGlibMiddleware wraps a glib-style middleware (func(glib.Request, glib.Next) glib.Response)
+// into a standard http.Handler middleware (func(http.Handler) http.Handler)
+func wrapGlibMiddleware(mw func(glib.Request, glib.Next) glib.Response) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			req := glibmiddleware.NewRequest(r)
+			req := glib.NewRequest(r)
+
+			// Track if next was called AND if handler wrote directly to ResponseWriter
+			capture := &responseCapture{ResponseWriter: w, handlerWrote: false}
 			nextCalled := false
 
-			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+			nextFn := func(req glib.Request) glib.Response {
 				nextCalled = true
-				next.ServeHTTP(w, req.HTTPRequest())
-				return glib.OK[any](nil)
+				next.ServeHTTP(capture, req.HTTPRequest())
+				return glib.Response{} // Handler already wrote response
 			}
 
-			result := mw(req, nextFn)
+			resp := mw(req, nextFn)
 
-			if !nextCalled {
-				result.Write(w)
+			// Only write response if:
+			// 1. next() was NOT called, OR
+			// 2. next() was called but the handler didn't write to ResponseWriter
+			if !nextCalled || !capture.handlerWrote {
+				// Write response headers
+				for key, values := range resp.Header() {
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+				}
+
+				// Handle error response
+				if resp.Err != nil {
+					glib.WriteError(w, resp.Err)
+					return
+				}
+
+				// Handle status code override
+				if resp.HTTPStatus > 0 {
+					w.WriteHeader(resp.HTTPStatus)
+				}
+
+				// Write payload if present
+				if resp.Payload != nil {
+					glib.WriteResponseWithMetadata(w, r.Method, resp.Payload)
+				}
 			}
 		})
 	}
+}
+
+// responseCapture wraps http.ResponseWriter to detect if handler wrote response
+type responseCapture struct {
+	http.ResponseWriter
+	handlerWrote bool
+}
+
+func (rc *responseCapture) Write(b []byte) (int, error) {
+	rc.handlerWrote = true
+	return rc.ResponseWriter.Write(b)
+}
+
+func (rc *responseCapture) WriteHeader(statusCode int) {
+	rc.handlerWrote = true
+	rc.ResponseWriter.WriteHeader(statusCode)
 }

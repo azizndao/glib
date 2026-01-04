@@ -3,11 +3,10 @@
 package generated
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/errs"
 	"github.com/azizndao/glib/utils"
 
 	"glib/demo/controllers/auth"
@@ -38,11 +37,12 @@ func handleCommentControllerShow(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse path parameters
 		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
 			return
 		}
 
@@ -64,11 +64,12 @@ func handleCommentControllerCreate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse request body (pure JSON, no query/header params)
 		req, err := utils.ParseJSONBody[comment.CreateCommentRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				Msgf("invalid request body: %v", err).Err())
 			return
 		}
 
@@ -91,18 +92,20 @@ func handleCommentControllerUpdate(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse path parameters
 		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
 			return
 		}
+
 		// Parse request body (pure JSON, no query/header params)
 		req, err := utils.ParseJSONBody[comment.UpdateCommentRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				Msgf("invalid request body: %v", err).Err())
 			return
 		}
 
@@ -125,13 +128,15 @@ func handleCommentControllerDelete(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse path parameters
 		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
 			return
 		}
+
 		err = app.controllers.CommentController.Delete(ctx, id)
 		if err != nil {
 			glib.WriteError(w, err)
@@ -148,168 +153,16 @@ func handleCommentControllerDelete(app *App) http.HandlerFunc {
 	return handler.ServeHTTP
 }
 
-func handlePostControllerIndex(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		data, err := app.controllers.PostController.Index(ctx)
-		if err != nil {
-			glib.WriteError(w, err)
-			return
-		}
-		glib.WriteResponseWithMetadata(w, r.Method, data)
-
-	}))
-
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerShow(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
-			return
-		}
-
-		data, err := app.controllers.PostController.Show(ctx, id)
-		if err != nil {
-			glib.WriteError(w, err)
-			return
-		}
-		glib.WriteResponseWithMetadata(w, r.Method, data)
-
-	}))
-
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerCreate(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[post.CreatePostRequest](r)
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
-			return
-		}
-
-		data, err := app.controllers.PostController.Create(ctx, req)
-		if err != nil {
-			glib.WriteError(w, err)
-			return
-		}
-		glib.WriteResponseWithMetadata(w, r.Method, data)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerUpdate(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
-			return
-		}
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[post.UpdatePostRequest](r)
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
-			return
-		}
-
-		data, err := app.controllers.PostController.Update(ctx, id, req)
-		if err != nil {
-			glib.WriteError(w, err)
-			return
-		}
-		glib.WriteResponseWithMetadata(w, r.Method, data)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerDelete(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
-			return
-		}
-		err = app.controllers.PostController.Delete(ctx, id)
-		if err != nil {
-			glib.WriteError(w, err)
-			return
-		}
-		// Success - return 204 No Content for error-only handlers
-		w.WriteHeader(http.StatusNoContent)
-
-	}))
-
-	handler = app.middleware.AuthMiddleware(handler)
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerExport(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Export))
-
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerStream(app *App) http.HandlerFunc {
-	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Stream))
-
-	handler = app.middleware.RatelimitMiddleware(handler)
-
-	return handler.ServeHTTP
-}
-
-func handlePostControllerHealth(app *App) http.HandlerFunc {
-	return app.controllers.PostController.Health
-}
-
 func handleAuthControllerRegister(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse request body (pure JSON, no query/header params)
 		req, err := utils.ParseJSONBody[auth.RegisterRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				Msgf("invalid request body: %v", err).Err())
 			return
 		}
 
@@ -327,11 +180,12 @@ func handleAuthControllerLogin(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse request body (pure JSON, no query/header params)
 		req, err := utils.ParseJSONBody[auth.LoginRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				Msgf("invalid request body: %v", err).Err())
 			return
 		}
 
@@ -368,11 +222,12 @@ func handleAuthControllerUpdateProfile(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse request body (pure JSON, no query/header params)
 		req, err := utils.ParseJSONBody[auth.UpdateProfileRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				Msgf("invalid request body: %v", err).Err())
 			return
 		}
 
@@ -394,6 +249,7 @@ func handleAuthControllerLogout(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		err := app.controllers.AuthController.Logout(ctx)
 		if err != nil {
 			glib.WriteError(w, err)
@@ -413,11 +269,12 @@ func handleAuthControllerGetUser(app *App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
 		// Parse path parameters
 		id, err := utils.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
-				WithMessage(fmt.Sprintf("invalid path parameter 'id': %v", err)))
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
 			return
 		}
 
@@ -429,4 +286,163 @@ func handleAuthControllerGetUser(app *App) http.HandlerFunc {
 		glib.WriteResponseWithMetadata(w, r.Method, data)
 
 	}
+}
+
+func handlePostControllerIndex(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		data, err := app.controllers.PostController.Index(ctx)
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		glib.WriteResponseWithMetadata(w, r.Method, data)
+
+	}))
+
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerShow(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse path parameters
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
+			return
+		}
+
+		data, err := app.controllers.PostController.Show(ctx, id)
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		glib.WriteResponseWithMetadata(w, r.Method, data)
+
+	}))
+
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerCreate(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[post.CreatePostRequest](r)
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid request body: %v", err).Err())
+			return
+		}
+
+		data, err := app.controllers.PostController.Create(ctx, req)
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		glib.WriteResponseWithMetadata(w, r.Method, data)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerUpdate(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse path parameters
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
+			return
+		}
+
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[post.UpdatePostRequest](r)
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid request body: %v", err).Err())
+			return
+		}
+
+		data, err := app.controllers.PostController.Update(ctx, id, req)
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		glib.WriteResponseWithMetadata(w, r.Method, data)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerDelete(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		// Parse path parameters
+		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid path parameter '%s': %v", "id", err).Err())
+			return
+		}
+
+		err = app.controllers.PostController.Delete(ctx, id)
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		// Success - return 204 No Content for error-only handlers
+		w.WriteHeader(http.StatusNoContent)
+
+	}))
+
+	handler = app.middleware.AuthMiddleware(handler)
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerExport(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Export))
+
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerStream(app *App) http.HandlerFunc {
+	handler := http.Handler(http.HandlerFunc(app.controllers.PostController.Stream))
+
+	handler = app.middleware.RatelimitMiddleware(handler)
+
+	return handler.ServeHTTP
+}
+
+func handlePostControllerHealth(app *App) http.HandlerFunc {
+	return app.controllers.PostController.Health
 }
