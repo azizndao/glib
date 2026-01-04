@@ -1,21 +1,23 @@
+// Package scanner provides code analysis and project scanning capabilities for the glib framework.
+// It walks Go source files, extracts annotations, and builds a structured representation of
+// controllers, providers, handlers, middleware, and configuration types.
 package scanner
 
 import (
 	"crypto/sha256"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
+
+	"github.com/azizndao/glib/internal/cache"
 )
 
 // FileCache manages cached scan results for incremental scanning
 type FileCache struct {
-	entries  map[string]*CacheEntry // filePath -> entry
-	mu       sync.RWMutex
-	cacheDir string // Where to persist cache
+	*cache.Cache[string, *CacheEntry]        // Embedded generic cache
+	cacheDir                          string // Where to persist cache
 }
 
 // CacheEntry stores cached scan data for a single file
@@ -31,66 +33,16 @@ type CacheEntry struct {
 
 // NewFileCache creates a new file cache
 func NewFileCache(cacheDir string) *FileCache {
+	cachePath := filepath.Join(cacheDir, "scan.cache")
 	return &FileCache{
-		entries:  make(map[string]*CacheEntry),
+		Cache:    cache.New[string, *CacheEntry](cachePath),
 		cacheDir: cacheDir,
 	}
 }
 
-// Load loads cache from disk
-func (c *FileCache) Load() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	cachePath := filepath.Join(c.cacheDir, "scan.cache")
-	file, err := os.Open(cachePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // No cache file yet, that's ok
-		}
-		return fmt.Errorf("failed to open cache file: %w", err)
-	}
-	defer file.Close()
-
-	decoder := gob.NewDecoder(file)
-	if err := decoder.Decode(&c.entries); err != nil {
-		return fmt.Errorf("failed to decode cache: %w", err)
-	}
-
-	return nil
-}
-
-// Save persists cache to disk
-func (c *FileCache) Save() error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	// Create cache directory if it doesn't exist
-	if err := os.MkdirAll(c.cacheDir, 0755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
-	}
-
-	cachePath := filepath.Join(c.cacheDir, "scan.cache")
-	file, err := os.Create(cachePath)
-	if err != nil {
-		return fmt.Errorf("failed to create cache file: %w", err)
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	if err := encoder.Encode(c.entries); err != nil {
-		return fmt.Errorf("failed to encode cache: %w", err)
-	}
-
-	return nil
-}
-
-// Get retrieves a cached entry if valid
+// Get retrieves a cached entry if valid (with modTime check)
 func (c *FileCache) Get(filePath string, modTime time.Time) (*CacheEntry, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	entry, exists := c.entries[filePath]
+	entry, exists := c.Cache.Get(filePath)
 	if !exists {
 		return nil, false
 	}
@@ -105,10 +57,7 @@ func (c *FileCache) Get(filePath string, modTime time.Time) (*CacheEntry, bool) 
 
 // GetByHash retrieves a cached entry by content hash (more accurate)
 func (c *FileCache) GetByHash(filePath string, hash string) (*CacheEntry, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	entry, exists := c.entries[filePath]
+	entry, exists := c.Cache.Get(filePath)
 	if !exists {
 		return nil, false
 	}
@@ -120,28 +69,9 @@ func (c *FileCache) GetByHash(filePath string, hash string) (*CacheEntry, bool) 
 	return entry, true
 }
 
-// Set stores a cache entry
-func (c *FileCache) Set(filePath string, entry *CacheEntry) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.entries[filePath] = entry
-}
-
 // Invalidate removes a cache entry
 func (c *FileCache) Invalidate(filePath string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	delete(c.entries, filePath)
-}
-
-// Clear removes all cache entries
-func (c *FileCache) Clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.entries = make(map[string]*CacheEntry)
+	c.Cache.Delete(filePath)
 }
 
 // computeFileHash computes SHA256 hash of file content

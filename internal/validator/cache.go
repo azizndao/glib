@@ -2,20 +2,18 @@ package validator
 
 import (
 	"crypto/sha256"
-	"encoding/gob"
 	"fmt"
-	"os"
 	"path/filepath"
-	"sync"
+	"slices"
 
+	"github.com/azizndao/glib/internal/cache"
 	"github.com/azizndao/glib/internal/scanner"
 )
 
 // ValidationCache caches validation results to avoid re-validating unchanged components
 type ValidationCache struct {
-	mu         sync.RWMutex
-	cacheDir   string
-	components map[string]*CachedValidation // componentID -> validation
+	*cache.Cache[string, *CachedValidation] // Embedded generic cache
+	cacheDir                                string
 }
 
 // CachedValidation stores validation results for a component
@@ -30,57 +28,16 @@ type CachedValidation struct {
 
 // NewValidationCache creates a new validation cache
 func NewValidationCache(cacheDir string) *ValidationCache {
+	cachePath := filepath.Join(cacheDir, "validation.cache")
 	return &ValidationCache{
-		cacheDir:   cacheDir,
-		components: make(map[string]*CachedValidation),
+		Cache:    cache.New[string, *CachedValidation](cachePath),
+		cacheDir: cacheDir,
 	}
-}
-
-// Load loads the cache from disk
-func (vc *ValidationCache) Load() error {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	cachePath := filepath.Join(vc.cacheDir, "validation.cache")
-	file, err := os.Open(cachePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // No cache file yet
-		}
-		return err
-	}
-	defer file.Close()
-
-	decoder := gob.NewDecoder(file)
-	return decoder.Decode(&vc.components)
-}
-
-// Save saves the cache to disk
-func (vc *ValidationCache) Save() error {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
-
-	if err := os.MkdirAll(vc.cacheDir, 0755); err != nil {
-		return err
-	}
-
-	cachePath := filepath.Join(vc.cacheDir, "validation.cache")
-	file, err := os.Create(cachePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	return encoder.Encode(vc.components)
 }
 
 // Get retrieves cached validation for a component if it matches the current hash
 func (vc *ValidationCache) Get(componentID, currentHash string) (*CachedValidation, bool) {
-	vc.mu.RLock()
-	defer vc.mu.RUnlock()
-
-	cached, ok := vc.components[componentID]
+	cached, ok := vc.Cache.Get(componentID)
 	if !ok {
 		return nil, false
 	}
@@ -95,40 +52,29 @@ func (vc *ValidationCache) Get(componentID, currentHash string) (*CachedValidati
 
 // Set stores validation results for a component
 func (vc *ValidationCache) Set(cached *CachedValidation) {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	vc.components[cached.ComponentID] = cached
+	vc.Cache.Set(cached.ComponentID, cached)
 }
 
 // Invalidate removes a component and all components that depend on it
 func (vc *ValidationCache) Invalidate(componentID string) []string {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
 	invalidated := []string{componentID}
-	delete(vc.components, componentID)
+	vc.Delete(componentID)
 
-	// Find all components that depend on this one
-	for id, cached := range vc.components {
-		for _, dep := range cached.Dependencies {
-			if dep == componentID {
-				invalidated = append(invalidated, id)
-				delete(vc.components, id)
-				break
-			}
+	// Find all components that depend on this one (collect IDs first to avoid lock issues)
+	var toDelete []string
+	vc.ForEach(func(id string, cached *CachedValidation) {
+		if slices.Contains(cached.Dependencies, componentID) {
+			toDelete = append(toDelete, id)
 		}
+	})
+
+	// Delete dependent components
+	for _, id := range toDelete {
+		invalidated = append(invalidated, id)
+		vc.Delete(id)
 	}
 
 	return invalidated
-}
-
-// Clear removes all cached validations
-func (vc *ValidationCache) Clear() {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	vc.components = make(map[string]*CachedValidation)
 }
 
 // componentID generates a unique ID for a component
@@ -137,7 +83,7 @@ func componentID(componentType, packagePath, name string) string {
 }
 
 // computeComponentHash computes a hash of a component and its dependencies
-func computeComponentHash(component interface{}, project *scanner.Project) (string, []string) {
+func computeComponentHash(component any, project *scanner.Project) (string, []string) {
 	hasher := sha256.New()
 	var dependencies []string
 
