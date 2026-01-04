@@ -9,10 +9,10 @@ import (
 // TranslatorErrors provides translations for errors
 type TranslatorErrors struct {
 	translator *Translator
-	Comments   *TranslatorErrorsComments
 	Posts      *TranslatorErrorsPosts
-	Auth       *TranslatorErrorsAuth
 	Users      *TranslatorErrorsUsers
+	Auth       *TranslatorErrorsAuth
+	Comments   *TranslatorErrorsComments
 }
 
 // Forbidden translates: "Vous n'avez pas la permission d'accéder à cette ressource"
@@ -33,26 +33,6 @@ func (t *TranslatorErrors) NotFound(ctx context.Context) string {
 // Unauthorized translates: "Accès non autorisé"
 func (t *TranslatorErrors) Unauthorized(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.unauthorized")
-}
-
-// TranslatorErrorsUsers provides translations for errors.users
-type TranslatorErrorsUsers struct {
-	translator *Translator
-}
-
-// EmailTaken translates: "L'email '%s' est déjà enregistré"
-func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
-	return t.translator.translate(ctx, "errors.users.email_taken", email)
-}
-
-// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
-func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.invalid_email", id)
-}
-
-// NotFound translates: "Utilisateur avec l'ID %s introuvable"
-func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.not_found", id)
 }
 
 // TranslatorErrorsComments provides translations for errors.comments
@@ -103,6 +83,26 @@ func (t *TranslatorErrorsPosts) TitleRequired(ctx context.Context) string {
 // TitleTooShort translates: "Le titre doit contenir au moins %d caractères (actuel : %d)"
 func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg2 int) string {
 	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
+}
+
+// TranslatorErrorsUsers provides translations for errors.users
+type TranslatorErrorsUsers struct {
+	translator *Translator
+}
+
+// EmailTaken translates: "L'email '%s' est déjà enregistré"
+func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
+	return t.translator.translate(ctx, "errors.users.email_taken", email)
+}
+
+// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
+func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.invalid_email", id)
+}
+
+// NotFound translates: "Utilisateur avec l'ID %s introuvable"
+func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.not_found", id)
 }
 
 // TranslatorErrorsAuth provides translations for errors.auth

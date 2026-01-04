@@ -33,12 +33,12 @@ type App struct {
 type ProviderContainer struct {
 	Validator      *validator.Validator
 	Translator     *i18n.Translator
+	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
-	RedisConfig    *configs.RedisConfig
-	JWTService     *services.JWTService
 	Database       *gorm.DB
 	CommentService *services.CommentService
+	JWTService     *services.JWTService
 	UserSerivce    *services.UserSerivce
 	PostSerivce    *services.PostSerivce
 	AuditorFactory func() *services.Auditor
@@ -91,6 +91,10 @@ func (c *App) initProviders(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize translator: %w", err)
 	}
 	c.Translator = translator
+	c.RedisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
+	}
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -99,19 +103,15 @@ func (c *App) initProviders(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load StorageConfig: %w", err)
 	}
-	c.RedisConfig, err = loadRedisConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load RedisConfig: %w", err)
-	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
 	}
-	c.JWTService = services.NewJWTService()
 	c.Database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
 	c.CommentService = services.NewCommentService(c.Database)
+	c.JWTService = services.NewJWTService()
 	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
 	c.LoggerFactory = func() *services.Logger {
