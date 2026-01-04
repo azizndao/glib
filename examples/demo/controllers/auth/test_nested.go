@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-
-	"github.com/azizndao/glib"
 )
 
 // Nested test models
@@ -26,7 +24,7 @@ type CreateProfileRequest struct {
 func (r CreateProfileRequest) Validate() bool { return true }
 
 // @Route method=POST path=/test-nested
-func (c *Controller) TestNested(ctx context.Context, req CreateProfileRequest) glib.Result[*UserResponse] {
+func (c *Controller) TestNested(ctx context.Context, req CreateProfileRequest) (*UserResponse, error) {
 	// Just return success for testing validation
-	return glib.OK[*UserResponse](nil)
+	return nil, nil
 }

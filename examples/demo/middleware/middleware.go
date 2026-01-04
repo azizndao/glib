@@ -1,13 +1,11 @@
 package middleware
 
 import (
-	"context"
 	"glib/demo/services"
-	"strings"
 	"time"
 
 	"github.com/azizndao/glib"
-	"github.com/azizndao/glib/pkg/middleware"
+	"github.com/azizndao/glib/errs"
 )
 
 // ContextKey type for context keys
@@ -21,48 +19,58 @@ const (
 
 // Auth middleware
 // @Middleware name=auth target=protected order=10
-func Auth(jwtService *services.JWTService) middleware.Middleware {
-	return func(request middleware.Request, next middleware.Next) glib.Result[any] {
-		authHeader := request.Header("Authorization")
+func Auth(jwtService *services.JWTService) func(glib.Request, glib.Next) glib.Response {
+	return func(req glib.Request, next glib.Next) glib.Response {
+		authHeader := req.Header("Authorization")
 		if authHeader == "" {
-			return glib.Unauthorized[any]("Authorization header required")
+			return glib.Response{
+				Err: errs.NewUnauthorized().Msg("Authorization header required").Err(),
+			}
 		}
 
 		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return glib.Unauthorized[any](
-				"Invalid authorization header format. Use: Bearer <token>",
-			)
+		token := ""
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
 		}
 
-		token := parts[1]
+		if token == "" {
+			return glib.Response{
+				Err: errs.NewUnauthorized().
+					Msg("Invalid authorization header format. Use: Bearer <token>").Err(),
+			}
+		}
 
 		// Validate token
 		claims, err := jwtService.ValidateToken(token)
 		if err != nil {
-			return glib.Fail[any](err)
+			return glib.Response{Err: err}
 		}
 
-		// Add user info to context
-		ctx := context.WithValue(request.Context(), UserIDKey, claims.UserID)
-		ctx = context.WithValue(ctx, UsernameKey, claims.Username)
-		ctx = context.WithValue(ctx, EmailKey, claims.Email)
+		// Add user info to request context using helper method
+		req = req.WithValues(map[any]any{
+			UserIDKey:   claims.UserID,
+			UsernameKey: claims.Username,
+			EmailKey:    claims.Email,
+		})
 
-		// Continue with updated context
-		return next(request.WithContext(ctx))
+		// Call next middleware/handler and add response header
+		resp := next(req)
+		resp.Header().Set("X-User-ID", claims.UserID.String())
+
+		return resp
 	}
 }
 
 // RateLimit middleware
 // @Middleware name=ratelimit target=api order=5
-func RateLimit() middleware.Middleware {
+func RateLimit() func(glib.Request, glib.Next) glib.Response {
 	// Simple in-memory rate limiter (for demo purposes)
 	requests := make(map[string][]time.Time)
 	limit := 100 // requests per minute
 
-	return func(req middleware.Request, next middleware.Next) glib.Result[any] {
-		ip := req.HTTPRequest().RemoteAddr
+	return func(req glib.Request, next glib.Next) glib.Response {
+		ip := req.RemoteAddr()
 		now := time.Now()
 
 		// Clean old requests
@@ -78,13 +86,21 @@ func RateLimit() middleware.Middleware {
 
 		// Check limit
 		if len(requests[ip]) >= limit {
-			return glib.TooManyRequests[any]("rate limit exceeded")
+			return glib.Response{
+				Err: errs.B().
+					Code(errs.ResourceExhausted).
+					Msg("rate limit exceeded").Err(),
+			}
 		}
 
 		// Record request
 		requests[ip] = append(requests[ip], now)
 
-		// Continue to next middleware/handler
-		return next(req)
+		// Call next middleware/handler and add rate limit headers
+		resp := next(req)
+		resp.Header().Set("X-RateLimit-Limit", "100")
+		resp.Header().Set("X-RateLimit-Remaining", string(rune(limit-len(requests[ip]))))
+
+		return resp
 	}
 }

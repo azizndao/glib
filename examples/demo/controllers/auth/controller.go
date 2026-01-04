@@ -5,7 +5,7 @@ import (
 	"glib/demo/models"
 	"glib/demo/services"
 
-	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/errs"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
