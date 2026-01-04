@@ -29,28 +29,7 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 	var filePaths []string
 	fileInfos := make(map[string]os.FileInfo)
 
-	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Handle directories - check exclusions
-		if info.IsDir() {
-			if s.shouldExcludeDir(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Check include patterns
-		if !s.shouldIncludeFile(path) {
-			return nil
-		}
-
-		// Check exclude patterns
-		if s.shouldExcludeFile(path) {
-			return nil
-		}
+	err := s.walkGoFiles(func(path string, info os.FileInfo) error {
 
 		filePaths = append(filePaths, path)
 		fileInfos[path] = info
@@ -169,15 +148,8 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 	}
 
 	// Scan locale files if i18n is enabled
-	if s.i18nEnabled && s.i18nLocaleDir != "" {
-		localesPath := filepath.Join(s.projectDir, s.i18nLocaleDir)
-		if _, err := os.Stat(localesPath); err == nil {
-			localeFiles, err := ScanLocales(localesPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to scan locales: %w", err)
-			}
-			project.LocaleFiles = localeFiles
-		}
+	if err := s.scanLocaleFiles(project); err != nil {
+		return nil, err
 	}
 
 	return project, nil

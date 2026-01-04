@@ -34,9 +34,9 @@ type App struct {
 type ProviderContainer struct {
 	Validator      *validator.Validator
 	Translator     *i18n.Translator
+	RedisConfig    *configs.RedisConfig
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
-	RedisConfig    *configs.RedisConfig
 	Database       *gorm.DB
 	CommentService *services.CommentService
 	JWTService     *services.JWTService
@@ -92,6 +92,10 @@ func (c *App) initProviders(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize translator: %w", err)
 	}
 	c.Translator = translator
+	c.RedisConfig, err = loadRedisConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load RedisConfig: %w", err)
+	}
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -99,10 +103,6 @@ func (c *App) initProviders(ctx context.Context) error {
 	c.StorageConfig, err = loadStorageConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load StorageConfig: %w", err)
-	}
-	c.RedisConfig, err = loadRedisConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load RedisConfig: %w", err)
 	}
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)

@@ -140,28 +140,7 @@ func (s *Scanner) Scan() (*Project, error) {
 	controllerFiles := make(map[string][]fileInfo) // packagePath -> files with controllers
 
 	// First pass: collect all controllers, providers, middleware
-	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Handle directories - check exclusions
-		if info.IsDir() {
-			if s.shouldExcludeDir(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Check include patterns
-		if !s.shouldIncludeFile(path) {
-			return nil
-		}
-
-		// Check exclude patterns
-		if s.shouldExcludeFile(path) {
-			return nil
-		}
+	err := s.walkGoFiles(func(path string, info os.FileInfo) error {
 
 		// Parse the file
 		file, err := parser.ParseFile(s.fset, path, nil, parser.ParseComments)
@@ -276,15 +255,8 @@ func (s *Scanner) Scan() (*Project, error) {
 	}
 
 	// Scan locale files if i18n is enabled
-	if s.i18nEnabled && s.i18nLocaleDir != "" {
-		localesPath := filepath.Join(s.projectDir, s.i18nLocaleDir)
-		if _, err := os.Stat(localesPath); err == nil {
-			localeFiles, err := ScanLocales(localesPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to scan locales: %w", err)
-			}
-			project.LocaleFiles = localeFiles
-		}
+	if err := s.scanLocaleFiles(project); err != nil {
+		return nil, err
 	}
 
 	return project, nil
@@ -471,6 +443,56 @@ func (s *Scanner) shouldExcludeFile(path string) bool {
 		}
 	}
 	return false
+}
+
+// walkGoFiles walks the project directory and calls fn for each Go file that passes filtering
+func (s *Scanner) walkGoFiles(fn func(path string, info os.FileInfo) error) error {
+	return filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Handle directories - check exclusions
+		if info.IsDir() {
+			if s.shouldExcludeDir(path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Check include patterns
+		if !s.shouldIncludeFile(path) {
+			return nil
+		}
+
+		// Check exclude patterns
+		if s.shouldExcludeFile(path) {
+			return nil
+		}
+
+		// Call the provided function
+		return fn(path, info)
+	})
+}
+
+// scanLocaleFiles scans locale files if i18n is enabled and adds them to the project
+func (s *Scanner) scanLocaleFiles(project *Project) error {
+	if !s.i18nEnabled || s.i18nLocaleDir == "" {
+		return nil
+	}
+
+	localesPath := filepath.Join(s.projectDir, s.i18nLocaleDir)
+	if _, err := os.Stat(localesPath); err != nil {
+		return nil // Locales directory doesn't exist, not an error
+	}
+
+	localeFiles, err := ScanLocales(localesPath)
+	if err != nil {
+		return fmt.Errorf("failed to scan locales: %w", err)
+	}
+
+	project.LocaleFiles = localeFiles
+	return nil
 }
 
 // Stats returns scanning statistics

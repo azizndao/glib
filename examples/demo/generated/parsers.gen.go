@@ -27,14 +27,6 @@ func handleAuthControllerRegister(app *App) http.HandlerFunc {
 			return
 		}
 
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*auth.UserResponse](err).Write(w)
-			return
-		}
-
 		result := app.controllers.AuthController.Register(ctx, req)
 		result.Write(w)
 
@@ -50,14 +42,6 @@ func handleAuthControllerLogin(app *App) http.HandlerFunc {
 		if err != nil {
 			glib.BadRequest[*auth.LoginResponse](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*auth.LoginResponse](err).Write(w)
 			return
 		}
 
@@ -186,14 +170,6 @@ func handleCommentControllerCreate(app *App) http.HandlerFunc {
 			return
 		}
 
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*models.Comment](err).Write(w)
-			return
-		}
-
 		result := app.controllers.CommentController.Create(ctx, req)
 		result.Write(w)
 
@@ -221,14 +197,6 @@ func handleCommentControllerUpdate(app *App) http.HandlerFunc {
 		if err != nil {
 			glib.BadRequest[*models.Comment](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*models.Comment](err).Write(w)
 			return
 		}
 
@@ -315,14 +283,6 @@ func handlePostControllerCreate(app *App) http.HandlerFunc {
 			return
 		}
 
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*models.Post](err).Write(w)
-			return
-		}
-
 		result := app.controllers.PostController.Create(ctx, req)
 		result.Write(w)
 
@@ -350,14 +310,6 @@ func handlePostControllerUpdate(app *App) http.HandlerFunc {
 		if err != nil {
 			glib.BadRequest[*models.Post](
 				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
-
-		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
-		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
-			glib.Fail[*models.Post](err).Write(w)
 			return
 		}
 

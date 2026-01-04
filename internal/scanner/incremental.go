@@ -30,28 +30,7 @@ func (s *Scanner) ScanIncremental(changedFiles []string) (*Project, error) {
 	// Scan all files, using cache for unchanged ones
 	fileMap := make(map[string]*ast.File) // Track parsed files (for handlers pass)
 
-	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Handle directories - check exclusions
-		if info.IsDir() {
-			if s.shouldExcludeDir(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Check include patterns
-		if !s.shouldIncludeFile(path) {
-			return nil
-		}
-
-		// Check exclude patterns
-		if s.shouldExcludeFile(path) {
-			return nil
-		}
+	err := s.walkGoFiles(func(path string, info os.FileInfo) error {
 
 		// Check if file is in cache and unchanged
 		s.stats.FilesScanned++
@@ -176,11 +155,17 @@ func (s *Scanner) ScanIncremental(changedFiles []string) (*Project, error) {
 	}
 
 	// Update statistics
+	s.stats.FilesScanned = len(fileMap)
 	s.stats.Providers = len(project.Providers)
 	s.stats.Controllers = len(project.Controllers)
 	s.stats.Middleware = len(project.Middleware)
 	for _, ctrl := range project.Controllers {
 		s.stats.Handlers += len(ctrl.Handlers)
+	}
+
+	// Scan locale files if i18n is enabled
+	if err := s.scanLocaleFiles(project); err != nil {
+		return nil, err
 	}
 
 	return project, nil

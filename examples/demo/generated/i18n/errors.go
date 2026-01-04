@@ -9,10 +9,10 @@ import (
 // TranslatorErrors provides translations for errors
 type TranslatorErrors struct {
 	translator *Translator
-	Users      *TranslatorErrorsUsers
-	Posts      *TranslatorErrorsPosts
 	Auth       *TranslatorErrorsAuth
+	Posts      *TranslatorErrorsPosts
 	Comments   *TranslatorErrorsComments
+	Users      *TranslatorErrorsUsers
 }
 
 // Forbidden translates: "Vous n'avez pas la permission d'accéder à cette ressource"
@@ -33,51 +33,6 @@ func (t *TranslatorErrors) NotFound(ctx context.Context) string {
 // Unauthorized translates: "Accès non autorisé"
 func (t *TranslatorErrors) Unauthorized(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.unauthorized")
-}
-
-// TranslatorErrorsUsers provides translations for errors.users
-type TranslatorErrorsUsers struct {
-	translator *Translator
-}
-
-// EmailTaken translates: "L'email '%s' est déjà enregistré"
-func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
-	return t.translator.translate(ctx, "errors.users.email_taken", email)
-}
-
-// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
-func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.invalid_email", id)
-}
-
-// NotFound translates: "Utilisateur avec l'ID %s introuvable"
-func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.not_found", id)
-}
-
-// TranslatorErrorsPosts provides translations for errors.posts
-type TranslatorErrorsPosts struct {
-	translator *Translator
-}
-
-// AlreadyPublished translates: "L'article '%s' est déjà publié"
-func (t *TranslatorErrorsPosts) AlreadyPublished(ctx context.Context, arg1 string) string {
-	return t.translator.translate(ctx, "errors.posts.already_published", arg1)
-}
-
-// NotFound translates: "Article avec l'ID %s introuvable"
-func (t *TranslatorErrorsPosts) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.posts.not_found", id)
-}
-
-// TitleRequired translates: "Le titre de l'article est requis"
-func (t *TranslatorErrorsPosts) TitleRequired(ctx context.Context) string {
-	return t.translator.translate(ctx, "errors.posts.title_required")
-}
-
-// TitleTooShort translates: "Le titre doit contenir au moins %d caractères (actuel : %d)"
-func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg2 int) string {
-	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
 }
 
 // TranslatorErrorsAuth provides translations for errors.auth
@@ -105,6 +60,31 @@ func (t *TranslatorErrorsAuth) TokenInvalid(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.auth.token_invalid")
 }
 
+// TranslatorErrorsPosts provides translations for errors.posts
+type TranslatorErrorsPosts struct {
+	translator *Translator
+}
+
+// AlreadyPublished translates: "L'article '%s' est déjà publié"
+func (t *TranslatorErrorsPosts) AlreadyPublished(ctx context.Context, arg1 string) string {
+	return t.translator.translate(ctx, "errors.posts.already_published", arg1)
+}
+
+// NotFound translates: "Article avec l'ID %s introuvable"
+func (t *TranslatorErrorsPosts) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.posts.not_found", id)
+}
+
+// TitleRequired translates: "Le titre de l'article est requis"
+func (t *TranslatorErrorsPosts) TitleRequired(ctx context.Context) string {
+	return t.translator.translate(ctx, "errors.posts.title_required")
+}
+
+// TitleTooShort translates: "Le titre doit contenir au moins %d caractères (actuel : %d)"
+func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg2 int) string {
+	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
+}
+
 // TranslatorErrorsComments provides translations for errors.comments
 type TranslatorErrorsComments struct {
 	translator *Translator
@@ -128,4 +108,24 @@ func (t *TranslatorErrorsComments) NotFound(ctx context.Context, id string) stri
 // PostNotFound translates: "Impossible de créer le commentaire : article %s introuvable"
 func (t *TranslatorErrorsComments) PostNotFound(ctx context.Context, arg1 string) string {
 	return t.translator.translate(ctx, "errors.comments.post_not_found", arg1)
+}
+
+// TranslatorErrorsUsers provides translations for errors.users
+type TranslatorErrorsUsers struct {
+	translator *Translator
+}
+
+// EmailTaken translates: "L'email '%s' est déjà enregistré"
+func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
+	return t.translator.translate(ctx, "errors.users.email_taken", email)
+}
+
+// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
+func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.invalid_email", id)
+}
+
+// NotFound translates: "Utilisateur avec l'ID %s introuvable"
+func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.not_found", id)
 }

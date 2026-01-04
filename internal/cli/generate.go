@@ -119,51 +119,6 @@ func runGenerateSimple(outputDir, pkgName string, cfg *glibConfig, opts *generat
 	return PerformCodeGeneration(cfg, codegenOpts)
 }
 
-// scanWithProgress runs scanner with streaming progress updates
-func scanWithProgress(scan *scanner.Scanner, opts *generateOptions) (*scanner.Project, error) {
-	events := make(chan scanner.StreamEvent, 100)
-
-	// Start goroutine to consume events
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for event := range events {
-			switch event.Type {
-			case scanner.EventProvider:
-				fmt.Printf("  %s %s %s\n",
-					ui.Cyan+ui.IconProvider+ui.Reset,
-					ui.Mutedf("Provider:"),
-					ui.Primaryf("%s.%s", event.Provider.PackageName, event.Provider.Name))
-			case scanner.EventController:
-				fmt.Printf("  %s %s %s\n",
-					ui.Blue+ui.IconController+ui.Reset,
-					ui.Mutedf("Controller:"),
-					ui.Primaryf("%s.%s", event.Controller.PackageName, event.Controller.Name))
-			case scanner.EventMiddleware:
-				fmt.Printf("  %s %s %s\n",
-					ui.Yellow+ui.IconMiddleware+ui.Reset,
-					ui.Mutedf("Middleware:"),
-					ui.Primaryf("%s.%s", event.Middleware.PackageName, event.Middleware.Name))
-			case scanner.EventConfig:
-				fmt.Printf("  %s %s %s\n",
-					ui.Gray+ui.IconConfig+ui.Reset,
-					ui.Mutedf("Config:"),
-					ui.Primaryf("%s", event.Config.PackageName))
-			case scanner.EventProgress:
-				// Could add progress bar here
-			case scanner.EventError:
-				fmt.Println(ui.Warningf("Warning: %v", event.Error))
-			}
-		}
-	}()
-
-	// Run scan with streaming
-	project, err := scan.ScanWithStream(events)
-	<-done // Wait for event processing to complete
-
-	return project, err
-}
-
 // printScanSummary prints a formatted summary table of scan statistics
 func printScanSummary(scanStats scanner.ScanStats, valStats *validator.ValidationStats, cacheEnabled bool) {
 	fmt.Println(ui.BoldTextf("  Scan Summary:"))

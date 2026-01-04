@@ -90,16 +90,7 @@ func (s *Scanner) ScanWithStream(events chan<- StreamEvent) (*Project, error) {
 
 	// Count total files first for progress reporting
 	totalFiles := 0
-	filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		if strings.HasSuffix(path, ".gen.go") ||
-			strings.Contains(path, "/vendor/") ||
-			strings.Contains(path, "/node_modules/") ||
-			strings.Contains(path, "/.git/") {
-			return nil
-		}
+	s.walkGoFiles(func(path string, info os.FileInfo) error {
 		totalFiles++
 		return nil
 	})
@@ -113,23 +104,7 @@ func (s *Scanner) ScanWithStream(events chan<- StreamEvent) (*Project, error) {
 	fileMap := make(map[string]*ast.File)
 	var mu sync.Mutex
 
-	err := filepath.Walk(s.projectDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip non-Go files
-		if info.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-
-		// Skip generated/vendor files
-		if strings.HasSuffix(path, ".gen.go") ||
-			strings.Contains(path, "/vendor/") ||
-			strings.Contains(path, "/node_modules/") ||
-			strings.Contains(path, "/.git/") {
-			return nil
-		}
+	err := s.walkGoFiles(func(path string, info os.FileInfo) error {
 
 		// Parse the file
 		file, err := parser.ParseFile(s.fset, path, nil, parser.ParseComments)
@@ -296,6 +271,14 @@ func (s *Scanner) ScanWithStream(events chan<- StreamEvent) (*Project, error) {
 					}
 				}
 			}
+		}
+	}
+
+	// Scan locale files if i18n is enabled
+	if err := s.scanLocaleFiles(project); err != nil {
+		events <- StreamEvent{
+			Type:  EventError,
+			Error: err,
 		}
 	}
 
