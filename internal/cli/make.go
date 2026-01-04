@@ -324,18 +324,43 @@ func renderMiddleware(name string) string {
 	return fmt.Sprintf(`package middleware
 
 import (
-	"net/http"
+	"github.com/azizndao/glib"
 )
 
 // @Middleware %s
-func %s() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: implement middleware logic
-			
-			next.ServeHTTP(w, r)
-		})
+func %s() func(glib.Request, glib.Next) glib.Response {
+	return func(req glib.Request, next glib.Next) glib.Response {
+		// TODO: Pre-processing logic here
+		// Example: Check headers, modify context, etc.
+		// req = req.WithValue("key", value)
+		
+		// Call next middleware/handler
+		resp := next(req)
+		
+		// TODO: Post-processing logic here
+		// Example: Add response headers, log, etc.
+		// resp.Header().Set("X-Custom", "value")
+		
+		return resp
 	}
 }
-`, name, funcName)
+
+// Alternative: Standard http.Handler middleware signature
+// Uncomment and use this if you prefer the standard signature:
+//
+// import "net/http"
+//
+// // @Middleware %s
+// func %s() func(http.Handler) http.Handler {
+// 	return func(next http.Handler) http.Handler {
+// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 			// TODO: Pre-processing logic here
+// 			
+// 			next.ServeHTTP(w, r)
+// 			
+// 			// TODO: Post-processing logic here (limited)
+// 		})
+// 	}
+// }
+`, name, funcName, name, funcName)
 }
