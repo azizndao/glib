@@ -66,7 +66,7 @@ import (
     "context"
     "github.com/google/uuid"
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/pkg/errs"
+    "github.com/azizndao/glib/errs"
 )
 
 // @Controller path=/api/v1/posts tags=api
@@ -421,7 +421,7 @@ Glib uses Encore.dev-style structured errors with automatic HTTP status mapping:
 ```go
 import (
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/pkg/errs"
+    "github.com/azizndao/glib/errs"
 )
 
 func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {

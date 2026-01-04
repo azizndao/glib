@@ -58,7 +58,7 @@ Glib uses the `Result[T]` type for handlers, which provides explicit error contr
 ```go
 import (
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/pkg/errs"
+    "github.com/azizndao/glib/errs"
 )
 
 // @Route GET /posts/{id}
@@ -282,7 +282,7 @@ type ValidationErrors struct {
 ### Creating ValidationErrors
 
 ```go
-import "github.com/azizndao/glib/pkg/errs"
+import "github.com/azizndao/glib/errs"
 
 // @Route POST /posts
 func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
@@ -488,7 +488,7 @@ package posts
 
 import (
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/pkg/errs"
+    "github.com/azizndao/glib/errs"
 )
 
 // Predefined errors
@@ -734,7 +734,7 @@ import (
     
     "github.com/google/uuid"
     "github.com/azizndao/glib"
-    "github.com/azizndao/glib/pkg/errs"
+    "github.com/azizndao/glib/errs"
     "gorm.io/gorm"
 )
 
