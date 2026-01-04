@@ -1,0 +1,55 @@
+# Traductions françaises
+
+[errors]
+not_found = "Ressource introuvable"
+internal_server_error = "Une erreur interne du serveur s'est produite"
+unauthorized = "Accès non autorisé"
+forbidden = "Vous n'avez pas la permission d'accéder à cette ressource"
+
+[errors.auth]
+invalid_credentials = "Email ou mot de passe invalide"
+token_expired = "Votre session a expiré il y a %d minutes"
+token_invalid = "Jeton d'authentification invalide"
+account_locked = "Compte verrouillé après %d tentatives échouées"
+
+[errors.posts]
+not_found = "Article avec l'ID %s introuvable"
+title_required = "Le titre de l'article est requis"
+title_too_short = "Le titre doit contenir au moins %d caractères (actuel : %d)"
+already_published = "L'article '%s' est déjà publié"
+
+[errors.comments]
+not_found = "Commentaire avec l'ID %s introuvable"
+content_required = "Le contenu du commentaire est requis"
+content_too_long = "Le commentaire ne peut pas dépasser %d caractères"
+post_not_found = "Impossible de créer le commentaire : article %s introuvable"
+
+[errors.users]
+not_found = "Utilisateur avec l'ID %s introuvable"
+email_taken = "L'email '%s' est déjà enregistré"
+invalid_email = "'%s' n'est pas une adresse email valide"
+
+[validation]
+required = "Le champ '%s' est requis"
+email = "'%s' doit être un email valide"
+min_length = "'%s' doit contenir au moins %d caractères"
+max_length = "'%s' ne peut pas dépasser %d caractères"
+numeric = "'%s' doit être un nombre"
+positive = "'%s' doit être un nombre positif"
+
+[success]
+user_created = "Utilisateur '%s' créé avec succès"
+user_updated = "Profil utilisateur mis à jour"
+user_deleted = "Compte utilisateur supprimé"
+post_created = "Article '%s' créé avec succès"
+post_updated = "Article mis à jour avec succès"
+post_published = "Article '%s' publié le %s"
+post_deleted = "Article supprimé avec succès"
+comment_created = "Commentaire ajouté avec succès"
+comment_updated = "Commentaire mis à jour"
+comment_deleted = "Commentaire supprimé"
+
+[messages]
+welcome = "Bienvenue sur Glib Demo !"
+goodbye = "À bientôt, %s !"
+greeting = "Bonjour, %s ! Vous avez %d nouvelles notifications"

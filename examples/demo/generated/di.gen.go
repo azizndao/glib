@@ -11,6 +11,7 @@ import (
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
 	"glib/demo/controllers/post"
+	"glib/demo/generated/i18n"
 	"glib/demo/middleware"
 	"glib/demo/services"
 
@@ -32,6 +33,7 @@ type App struct {
 
 type ProviderContainer struct {
 	Validator      *validator.Validator
+	Translator     *i18n.Translator
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
 	RedisConfig    *configs.RedisConfig
@@ -80,6 +82,16 @@ func (c *App) initProviders(ctx context.Context) error {
 	var err error
 	// Initialize validator (generated in validator.gen.go)
 	c.Validator = initValidator()
+	// Initialize translator (generated in i18n/translator.go)
+	translator, err := i18n.NewTranslator(
+		"locales",
+		"fr",
+		i18n.SupportedLocales,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to initialize translator: %w", err)
+	}
+	c.Translator = translator
 	c.Config, err = loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load Config: %w", err)
@@ -124,6 +136,7 @@ func (c *App) initControllers() error {
 		UserSerivce: c.UserSerivce,
 		PostSerivce: c.PostSerivce,
 		Logger:      c.LoggerFactory(),
+		Translator:  c.Translator,
 	}
 
 	return nil

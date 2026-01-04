@@ -20,5 +20,13 @@ exclude_files = ["*_test.go", "*.gen.go"]
 
 [validation]
 enabled = false
-languages = ["en"]
-default_language = "en"
+languages = ["fr"]
+default_language = "fr"
+
+[i18n]
+enabled = true
+locales_dir = "locales"
+default_locale = "fr"
+supported_locales = ["en", "fr"]
+detect_from = ["header", "query"]
+query_param = "lng"

@@ -13,6 +13,9 @@ import (
 {{- if .NeedsGlibMiddleware}}
 	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
 {{- end}}
+{{- if .I18nEnabled}}
+	"{{.ModulePath}}/{{.OutputDir}}/i18n"
+{{- end}}
 
 {{- range .Imports}}
 	"{{.}}"
@@ -31,6 +34,9 @@ type App struct {
 type ProviderContainer struct {
 {{- if .ValidationEnabled}}
 	Validator *validator.Validator
+{{- end}}
+{{- if .I18nEnabled}}
+	Translator *i18n.Translator
 {{- end}}
 {{- if gt (len .ConfigProviders) 0}}
 {{- range .ConfigProviders}}
@@ -109,6 +115,19 @@ func (c *App) initProviders(ctx context.Context) error {
 {{- if .ValidationEnabled}}
 	// Initialize validator (generated in validator.gen.go)
 	c.Validator = initValidator()
+{{- end}}
+
+{{- if .I18nEnabled}}
+	// Initialize translator (generated in i18n/translator.go)
+	translator, err := i18n.NewTranslator(
+		"{{.I18nConfig.LocalesDir}}",
+		"{{.I18nConfig.DefaultLocale}}",
+		i18n.SupportedLocales,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to initialize translator: %w", err)
+	}
+	c.Translator = translator
 {{- end}}
 
 {{- if $hasConfigs}}

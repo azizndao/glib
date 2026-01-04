@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glib/demo/generated/i18n"
 	"glib/demo/models"
 	"glib/demo/services"
 	"net/http"
@@ -18,11 +19,12 @@ type Controller struct {
 	UserSerivce *services.UserSerivce
 	PostSerivce *services.PostSerivce
 	Logger      *services.Logger // Transient provider
+	Translator  *i18n.Translator // I18n translator
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context, params PostPaginationParams) glib.Result[[]models.Post] {
-	c.Logger.Info("Fetching all posts")
+func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
+	fmt.Println(c.Translator.Success.PostCreated(ctx, "My First Post"))
 	posts, err := c.PostSerivce.GetPosts()
 	if err != nil {
 		return glib.Fail[[]models.Post](err)
@@ -34,7 +36,9 @@ func (c *Controller) Index(ctx context.Context, params PostPaginationParams) gli
 func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*models.Post] {
 	post, err := c.PostSerivce.GetPost(id)
 	if err != nil {
-		return glib.Fail[*models.Post](err)
+		// Use localized error message
+		msg := c.Translator.Errors.Posts.NotFound(ctx, id.String())
+		return glib.NotFound[*models.Post](msg)
 	}
 	return glib.OK(post)
 }
@@ -53,6 +57,10 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
 	if err := c.PostSerivce.CreatePost(post); err != nil {
 		return glib.Fail[*models.Post](err)
 	}
+
+	// Log localized success message
+	msg := c.Translator.Success.PostCreated(ctx, post.Title)
+	c.Logger.Info(msg)
 
 	return glib.Created(post)
 }

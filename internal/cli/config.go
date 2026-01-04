@@ -37,6 +37,14 @@ type glibConfig struct {
 		Languages       []string `toml:"languages"`
 		DefaultLanguage string   `toml:"default_language"`
 	} `toml:"validation"`
+	I18n struct {
+		Enabled          bool     `toml:"enabled"`
+		LocalesDir       string   `toml:"locales_dir"`
+		DefaultLocale    string   `toml:"default_locale"`
+		SupportedLocales []string `toml:"supported_locales"`
+		DetectFrom       []string `toml:"detect_from"`
+		QueryParam       string   `toml:"query_param"`
+	} `toml:"i18n"`
 }
 
 // getDefaultConfig returns a glibConfig with sensible defaults
@@ -65,6 +73,14 @@ func _getDefaultConfig() *glibConfig {
 	cfg.Validation.Enabled = false
 	cfg.Validation.Languages = []string{"en"}
 	cfg.Validation.DefaultLanguage = "en"
+
+	// I18n defaults
+	cfg.I18n.Enabled = false
+	cfg.I18n.LocalesDir = "locales"
+	cfg.I18n.DefaultLocale = "en"
+	cfg.I18n.SupportedLocales = []string{"en"}
+	cfg.I18n.DetectFrom = []string{"header", "query"}
+	cfg.I18n.QueryParam = "lang"
 
 	return cfg
 }

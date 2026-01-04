@@ -35,6 +35,7 @@ func templateFuncs() template.FuncMap {
 		"trimSuffix":      strings.TrimSuffix,
 		"typeRef":         typeRef,
 		"toChiMethod":     toChiMethod,
+		"ToUpper":         strings.ToUpper,
 	}
 }
 

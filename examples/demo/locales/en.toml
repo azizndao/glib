@@ -1,0 +1,55 @@
+# English translations
+
+[errors]
+not_found = "Resource not found"
+internal_server_error = "An internal server error occurred"
+unauthorized = "Unauthorized access"
+forbidden = "You don't have permission to access this resource"
+
+[errors.auth]
+invalid_credentials = "Invalid email or password"
+token_expired = "Your session expired %d minutes ago"
+token_invalid = "Invalid authentication token"
+account_locked = "Account locked after %d failed attempts"
+
+[errors.posts]
+not_found = "Post with ID %s not found"
+title_required = "Post title is required"
+title_too_short = "Post title must be at least %d characters (current: %d)"
+already_published = "Post '%s' is already published"
+
+[errors.comments]
+not_found = "Comment with ID %s not found"
+content_required = "Comment content is required"
+content_too_long = "Comment cannot exceed %d characters"
+post_not_found = "Cannot create comment: post %s not found"
+
+[errors.users]
+not_found = "User with ID %s not found"
+email_taken = "Email '%s' is already registered"
+invalid_email = "'%s' is not a valid email address"
+
+[validation]
+required = "Field '%s' is required"
+email = "'%s' must be a valid email"
+min_length = "'%s' must be at least %d characters"
+max_length = "'%s' cannot exceed %d characters"
+numeric = "'%s' must be a number"
+positive = "'%s' must be a positive number"
+
+[success]
+user_created = "User '%s' created successfully"
+user_updated = "User profile updated"
+user_deleted = "User account deleted"
+post_created = "Post '%s' created successfully"
+post_updated = "Post updated successfully"
+post_published = "Post '%s' published at %s"
+post_deleted = "Post deleted successfully"
+comment_created = "Comment added successfully"
+comment_updated = "Comment updated"
+comment_deleted = "Comment deleted"
+
+[messages]
+welcome = "Welcome to Glib Demo!"
+goodbye = "See you soon, %s!"
+greeting = "Hello, %s! You have %d new notifications"

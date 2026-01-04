@@ -24,6 +24,8 @@ func Bootstrap(ctx context.Context) (*http.Server, error) {
 	app.Router.Use(middleware.Recoverer)
 	app.Router.Use(middleware.Timeout(60 * time.Second))
 
+	app.Router.Use(app.Translator.Middleware())
+
 	// Register routes
 	if err := app.RegisterRoutes(); err != nil {
 		return nil, err

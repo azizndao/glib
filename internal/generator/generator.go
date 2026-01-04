@@ -15,6 +15,7 @@ type Generator struct {
 	outputDir     string
 	pkgName       string
 	validationCfg ValidationConfig
+	i18nCfg       I18nConfig
 }
 
 // ValidationConfig holds validation settings from environment/CLI
@@ -34,11 +35,17 @@ func New(project *scanner.Project, outputDir, pkgName string) *Generator {
 
 // NewWithValidation creates a new generator with validation config
 func NewWithValidation(project *scanner.Project, outputDir, pkgName string, validationCfg ValidationConfig) *Generator {
+	return NewWithValidationAndI18n(project, outputDir, pkgName, validationCfg, I18nConfig{})
+}
+
+// NewWithValidationAndI18n creates a new generator with validation and i18n config
+func NewWithValidationAndI18n(project *scanner.Project, outputDir, pkgName string, validationCfg ValidationConfig, i18nCfg I18nConfig) *Generator {
 	return &Generator{
 		project:       project,
 		outputDir:     outputDir,
 		pkgName:       pkgName,
 		validationCfg: validationCfg,
+		i18nCfg:       i18nCfg,
 	}
 }
 
@@ -78,6 +85,14 @@ func (g *Generator) Generate() error {
 			name      string
 			generator func() (string, error)
 		}{"config.gen.go", g.generateConfigLoader})
+	}
+
+	// Add i18n generator if enabled and locale files exist
+	if g.i18nCfg.Enabled && len(g.project.LocaleFiles) > 0 {
+		// Generate i18n in separate subdirectory
+		if err := g.generateI18nPackage(); err != nil {
+			return fmt.Errorf("failed to generate i18n package: %w", err)
+		}
 	}
 
 	for _, file := range files {
@@ -176,6 +191,40 @@ func (g *Generator) generateValidator() (string, error) {
 	}
 
 	return g.executeTemplate("validator.templ", data)
+}
+
+// generateI18nPackage generates the i18n translation code in a separate package
+func (g *Generator) generateI18nPackage() error {
+	// Create i18n subdirectory
+	i18nDir := filepath.Join(g.outputDir, "i18n")
+	if err := os.MkdirAll(i18nDir, 0755); err != nil {
+		return fmt.Errorf("failed to create i18n directory: %w", err)
+	}
+
+	// Generate i18n code (returns multiple files)
+	i18nGen := NewI18nGenerator(g.project, "i18n", g.i18nCfg)
+	files, err := i18nGen.Generate()
+	if err != nil {
+		return err
+	}
+
+	// Write each file
+	for filename, code := range files {
+		// Format code
+		formatted, err := format.Source([]byte(code))
+		if err != nil {
+			fmt.Printf("Warning: failed to format %s: %v\n", filename, err)
+			formatted = []byte(code)
+		}
+
+		// Write file
+		path := filepath.Join(i18nDir, filename)
+		if err := os.WriteFile(path, formatted, 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", filename, err)
+		}
+	}
+
+	return nil
 }
 
 // validateUniqueNames checks for field name collisions across providers, controllers, and configs

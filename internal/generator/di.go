@@ -162,6 +162,10 @@ func (g *Generator) generateDI() (string, error) {
 		"Middleware":            middleware,
 		"ValidationConfig":      g.validationCfg,
 		"ValidationEnabled":     g.validationCfg.Enabled,
+		"I18nConfig":            g.i18nCfg,
+		"I18nEnabled":           g.i18nCfg.Enabled && len(g.project.LocaleFiles) > 0,
+		"ModulePath":            g.project.Module,
+		"OutputDir":             g.pkgName,
 	}
 
 	return g.executeTemplate("di.templ", data)
@@ -270,6 +274,14 @@ func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 		return ""
 	}
 
+	// Check if this is the Translator type (when i18n is enabled)
+	if g.i18nCfg.Enabled && len(g.project.LocaleFiles) > 0 {
+		// Match by name "Translator" or by full type path containing "i18n.Translator"
+		if typeInfo.Name == "Translator" && typeInfo.PackageName == "i18n" {
+			return "Translator"
+		}
+	}
+
 	// Check if this is a Config type request
 	for _, cfg := range g.project.Configs {
 		configType := g.getConfigType(cfg)
@@ -295,6 +307,18 @@ func (g *Generator) findProviderForType(typeInfo *scanner.TypeInfo) string {
 func (g *Generator) isProviderTransient(typeInfo *scanner.TypeInfo) bool {
 	if typeInfo == nil {
 		return false
+	}
+
+	// Translator is always a singleton
+	if g.i18nCfg.Enabled && typeInfo.Name == "Translator" && typeInfo.PackageName == "i18n" {
+		return false
+	}
+
+	// Configs are always singletons
+	for _, cfg := range g.project.Configs {
+		if typeInfo.Name == cfg.Name {
+			return false
+		}
 	}
 
 	// Find the provider that returns this type

@@ -5,10 +5,10 @@ package generated
 import (
 	"github.com/azizndao/glib/utils"
 	glib "github.com/azizndao/glib/validator"
-	locales_en "github.com/go-playground/locales/en"
+	locales_fr "github.com/go-playground/locales/fr"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	trans_en "github.com/go-playground/validator/v10/translations/en"
+	trans_fr "github.com/go-playground/validator/v10/translations/fr"
 )
 
 // initValidator initializes the validator with configured locales
@@ -16,29 +16,29 @@ func initValidator() *glib.Validator {
 	v := validator.New()
 
 	// Create locale instances
-	locale_en := locales_en.New()
+	locale_fr := locales_fr.New()
 
-	// Initialize UniversalTranslator with en as fallback
-	uni := ut.New(locale_en, locale_en)
+	// Initialize UniversalTranslator with fr as fallback
+	uni := ut.New(locale_fr, locale_fr)
 
 	// Register translations for each language
-	if trans, _ := uni.GetTranslator("en"); trans != nil {
-		_ = trans_en.RegisterDefaultTranslations(v, trans)
+	if trans, _ := uni.GetTranslator("fr"); trans != nil {
+		_ = trans_fr.RegisterDefaultTranslations(v, trans)
 	}
 
-	return glib.NewValidatorWithTranslator(v, uni, "en")
+	return glib.NewValidatorWithTranslator(v, uni, "fr")
 }
 
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
-// Falls back to "en" if no language specified or no match found
+// Falls back to "fr" if no language specified or no match found
 func DetectLanguageOrDefault(acceptLanguage string) string {
-	lang := utils.DetectLanguage(acceptLanguage, "en")
+	lang := utils.DetectLanguage(acceptLanguage, "fr")
 
 	// Validate that the detected language is in our supported list
 	switch lang {
-	case "en":
+	case "fr":
 		return lang
 	}
 
-	return "en" // Fallback to configured default
+	return "fr" // Fallback to configured default
 }

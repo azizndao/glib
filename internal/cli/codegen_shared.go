@@ -72,6 +72,14 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		}
 	}
 
+	// Enable i18n scanning if configured
+	if cfg.I18n.Enabled && cfg.I18n.LocalesDir != "" {
+		scanOpts = append(scanOpts, scanner.WithI18n(cfg.I18n.LocalesDir))
+		if opts.Verbose && opts.ShowProgress {
+			fmt.Printf("  %s I18n scanning enabled (locales: %s)\n", ui.IconBullet, cfg.I18n.LocalesDir)
+		}
+	}
+
 	// Create scanner
 	scan, err := scanner.New(opts.ProjectDir, scanOpts...)
 	if err != nil {
@@ -194,9 +202,19 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		DefaultLanguage: cfg.Validation.DefaultLanguage,
 	}
 
+	// Build i18n config from environment/CLI settings
+	i18nCfg := generator.I18nConfig{
+		Enabled:          cfg.I18n.Enabled,
+		LocalesDir:       cfg.I18n.LocalesDir,
+		DefaultLocale:    cfg.I18n.DefaultLocale,
+		SupportedLocales: cfg.I18n.SupportedLocales,
+		DetectFrom:       cfg.I18n.DetectFrom,
+		QueryParam:       cfg.I18n.QueryParam,
+	}
+
 	// Generate code
 	genStart := time.Now()
-	gen := generator.NewWithValidation(project, opts.OutputDir, pkgName, validationCfg)
+	gen := generator.NewWithValidationAndI18n(project, opts.OutputDir, pkgName, validationCfg, i18nCfg)
 	if err := gen.Generate(); err != nil {
 		return fmt.Errorf("code generation failed: %w", err)
 	}

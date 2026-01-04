@@ -238,15 +238,8 @@ func handlePostControllerIndex(app *App) http.HandlerFunc {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[post.PostPaginationParams](r)
-		if err != nil {
-			glib.BadRequest[[]models.Post](
-				fmt.Sprintf("invalid request body: %v", err)).Write(w)
-			return
-		}
 
-		result := app.controllers.PostController.Index(ctx, req)
+		result := app.controllers.PostController.Index(ctx)
 		result.Write(w)
 
 	}))

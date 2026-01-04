@@ -167,6 +167,18 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 		s.stats.Handlers += len(ctrl.Handlers)
 	}
 
+	// Scan locale files if i18n is enabled
+	if s.i18nEnabled && s.i18nLocaleDir != "" {
+		localesPath := filepath.Join(s.projectDir, s.i18nLocaleDir)
+		if _, err := os.Stat(localesPath); err == nil {
+			localeFiles, err := ScanLocales(localesPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan locales: %w", err)
+			}
+			project.LocaleFiles = localeFiles
+		}
+	}
+
 	return project, nil
 }
 

@@ -13,6 +13,7 @@ type Project struct {
 	Controllers []*Controller
 	Providers   []*Provider
 	Middleware  []*Middleware
+	LocaleFiles []*LocaleFile // Locale translation files
 }
 
 // Controller represents a scanned controller
