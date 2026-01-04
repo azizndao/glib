@@ -10,9 +10,7 @@ import (
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/validator"
 	"github.com/go-chi/chi/v5"
-{{- if .NeedsGlibMiddleware}}
-	glibmiddleware "github.com/azizndao/glib/pkg/middleware"
-{{- end}}
+
 {{- if .I18nEnabled}}
 	"{{.ModulePath}}/{{.OutputDir}}/i18n"
 {{- end}}
@@ -210,24 +208,69 @@ func (c *App) initMiddleware() error {
 
 {{- if .NeedsGlibMiddleware}}
 
-func wrapGlibMiddleware(mw glibmiddleware.Middleware) func(http.Handler) http.Handler {
+// wrapGlibMiddleware wraps a glib-style middleware (func(glib.Request, glib.Next) glib.Response)
+// into a standard http.Handler middleware (func(http.Handler) http.Handler)
+func wrapGlibMiddleware(mw func(glib.Request, glib.Next) glib.Response) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			req := glibmiddleware.NewRequest(r)
+			req := glib.NewRequest(r)
+			
+			// Track if next was called AND if handler wrote directly to ResponseWriter
+			capture := &responseCapture{ResponseWriter: w, handlerWrote: false}
 			nextCalled := false
 
-			nextFn := func(req glibmiddleware.Request) glib.Result[any] {
+			nextFn := func(req glib.Request) glib.Response {
 				nextCalled = true
-				next.ServeHTTP(w, req.HTTPRequest())
-				return glib.OK[any](nil)
+				next.ServeHTTP(capture, req.HTTPRequest())
+				return glib.Response{} // Handler already wrote response
 			}
 
-			result := mw(req, nextFn)
+			resp := mw(req, nextFn)
 
-			if !nextCalled {
-				result.Write(w)
+			// Only write response if:
+			// 1. next() was NOT called, OR
+			// 2. next() was called but the handler didn't write to ResponseWriter
+			if !nextCalled || !capture.handlerWrote {
+				// Write response headers
+				for key, values := range resp.Header() {
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+				}
+				
+				// Handle error response
+				if resp.Err != nil {
+					glib.WriteError(w, resp.Err)
+					return
+				}
+				
+				// Handle status code override
+				if resp.HTTPStatus > 0 {
+					w.WriteHeader(resp.HTTPStatus)
+				}
+				
+				// Write payload if present
+				if resp.Payload != nil {
+					glib.WriteResponseWithMetadata(w, r.Method, resp.Payload)
+				}
 			}
 		})
 	}
+}
+
+// responseCapture wraps http.ResponseWriter to detect if handler wrote response
+type responseCapture struct {
+	http.ResponseWriter
+	handlerWrote bool
+}
+
+func (rc *responseCapture) Write(b []byte) (int, error) {
+	rc.handlerWrote = true
+	return rc.ResponseWriter.Write(b)
+}
+
+func (rc *responseCapture) WriteHeader(statusCode int) {
+	rc.handlerWrote = true
+	rc.ResponseWriter.WriteHeader(statusCode)
 }
 {{- end}}
