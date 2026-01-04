@@ -28,16 +28,6 @@ func loadConfig() (*configs.Config, error) {
 	return cfg, nil
 }
 
-func loadStorageConfig() (*configs.StorageConfig, error) {
-	cfg := &configs.StorageConfig{}
-
-	cfg.Driver = utils.GetEnvOr("STORAGE_DRIVER", "")
-
-	cfg.Local.Root = utils.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
-
-	return cfg, nil
-}
-
 func loadRedisConfig() (*configs.RedisConfig, error) {
 	cfg := &configs.RedisConfig{}
 	var err error
@@ -49,6 +39,16 @@ func loadRedisConfig() (*configs.RedisConfig, error) {
 	}
 
 	cfg.Password = utils.GetEnvOr("REDIS_PASSWORD", "")
+
+	return cfg, nil
+}
+
+func loadStorageConfig() (*configs.StorageConfig, error) {
+	cfg := &configs.StorageConfig{}
+
+	cfg.Driver = utils.GetEnvOr("STORAGE_DRIVER", "")
+
+	cfg.Local.Root = utils.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
 
 	return cfg, nil
 }

@@ -108,9 +108,16 @@ func (g *I18nGenerator) prepareTemplateData(structure *I18nSection) map[string]a
 	var sections []map[string]any
 	g.collectSections(structure, &sections)
 
-	// Collect root children
+	// Collect root children and sort alphabetically
+	childNames := make([]string, 0, len(structure.Children))
+	for name := range structure.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
+
 	var rootChildren []map[string]any
-	for _, child := range structure.Children {
+	for _, name := range childNames {
+		child := structure.Children[name]
 		rootChildren = append(rootChildren, map[string]any{
 			"Name":       child.Name,
 			"StructName": child.StructName,
@@ -143,9 +150,16 @@ func (g *I18nGenerator) prepareTemplateData(structure *I18nSection) map[string]a
 
 // generateMainFile generates the main translator.go file
 func (g *I18nGenerator) generateMainFile(structure *I18nSection) (string, error) {
-	// Collect root children
+	// Collect root children and sort alphabetically
+	childNames := make([]string, 0, len(structure.Children))
+	for name := range structure.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
+
 	var rootChildren []map[string]any
-	for _, child := range structure.Children {
+	for _, name := range childNames {
+		child := structure.Children[name]
 		rootChildren = append(rootChildren, map[string]any{
 			"Name":       child.Name,
 			"StructName": child.StructName,
@@ -207,8 +221,16 @@ func (g *I18nGenerator) generateSectionFile(section *I18nSection) (string, error
 
 // getChildrenData extracts children data for template
 func (g *I18nGenerator) getChildrenData(section *I18nSection) []map[string]any {
+	// Sort children alphabetically
+	childNames := make([]string, 0, len(section.Children))
+	for name := range section.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
+
 	var children []map[string]any
-	for _, child := range section.Children {
+	for _, name := range childNames {
+		child := section.Children[name]
 		children = append(children, map[string]any{
 			"Name":       child.Name,
 			"StructName": child.StructName,
@@ -221,8 +243,15 @@ func (g *I18nGenerator) getChildrenData(section *I18nSection) []map[string]any {
 func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]map[string]any) {
 	// Skip root
 	if section.Parent == nil {
-		for _, child := range section.Children {
-			g.collectSections(child, sections)
+		// Sort children alphabetically
+		childNames := make([]string, 0, len(section.Children))
+		for name := range section.Children {
+			childNames = append(childNames, name)
+		}
+		sort.Strings(childNames)
+
+		for _, name := range childNames {
+			g.collectSections(section.Children[name], sections)
 		}
 		return
 	}
@@ -239,7 +268,7 @@ func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]map[st
 		})
 	}
 
-	// Prepare children data
+	// Prepare children data (already sorted by getChildrenData)
 	var children []map[string]any
 	for _, child := range section.Children {
 		children = append(children, map[string]any{
@@ -255,9 +284,15 @@ func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]map[st
 		"Methods":    methods,
 	})
 
-	// Recursively collect children
-	for _, child := range section.Children {
-		g.collectSections(child, sections)
+	// Recursively collect children (sorted)
+	childNames := make([]string, 0, len(section.Children))
+	for name := range section.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
+
+	for _, name := range childNames {
+		g.collectSections(section.Children[name], sections)
 	}
 }
 

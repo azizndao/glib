@@ -3,6 +3,7 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/azizndao/glib/internal/scanner"
@@ -41,7 +42,14 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 	needsTime := false
 	needsURL := false
 
-	for _, cfg := range g.project.Configs {
+	// Sort configs alphabetically for deterministic output
+	sortedConfigs := make([]*scanner.Config, len(g.project.Configs))
+	copy(sortedConfigs, g.project.Configs)
+	sort.Slice(sortedConfigs, func(i, j int) bool {
+		return sortedConfigs[i].Name < sortedConfigs[j].Name
+	})
+
+	for _, cfg := range sortedConfigs {
 		// Flatten nested fields for easier template processing
 		fields := g.flattenFields(cfg.Fields, "")
 
@@ -165,8 +173,15 @@ func (g *ConfigGenerator) GenerateEnvExample() (string, error) {
 		buf.WriteString("\n")
 	}
 
+	// Sort configs alphabetically for deterministic output
+	sortedConfigs := make([]*scanner.Config, len(g.project.Configs))
+	copy(sortedConfigs, g.project.Configs)
+	sort.Slice(sortedConfigs, func(i, j int) bool {
+		return sortedConfigs[i].Name < sortedConfigs[j].Name
+	})
+
 	// Generate for all configs
-	for _, cfg := range g.project.Configs {
+	for _, cfg := range sortedConfigs {
 		fmt.Fprintf(&buf, "# %s\n", cfg.Name)
 		generate(cfg.Fields, "")
 	}

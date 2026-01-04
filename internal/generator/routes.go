@@ -48,7 +48,16 @@ func (g *Generator) generateRoutes() (string, error) {
 func (g *Generator) organizeControllerGroups() []*ControllerGroup {
 	var groups []*ControllerGroup
 
-	for _, ctrl := range g.project.Controllers {
+	// Sort controllers alphabetically for deterministic output
+	sortedControllers := make([]*scanner.Controller, len(g.project.Controllers))
+	copy(sortedControllers, g.project.Controllers)
+	sort.Slice(sortedControllers, func(i, j int) bool {
+		nameI := sortedControllers[i].PackageName + sortedControllers[i].Name
+		nameJ := sortedControllers[j].PackageName + sortedControllers[j].Name
+		return nameI < nameJ
+	})
+
+	for _, ctrl := range sortedControllers {
 		group := &ControllerGroup{
 			Controller: ctrl,
 			Prefix:     ctrl.RoutePrefix,

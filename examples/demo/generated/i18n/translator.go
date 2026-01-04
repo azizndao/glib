@@ -39,9 +39,9 @@ type Translator struct {
 	defaultLocale    string
 	supportedLocales []string
 	Errors           *TranslatorErrors
-	Validation       *TranslatorValidation
-	Success          *TranslatorSuccess
 	Messages         *TranslatorMessages
+	Success          *TranslatorSuccess
+	Validation       *TranslatorValidation
 }
 
 // NewTranslator creates a new translator instance
@@ -62,18 +62,18 @@ func NewTranslator(localesDir string, defaultLocale string, supportedLocales []s
 	// Initialize nested sections
 	t.Errors = &TranslatorErrors{
 		translator: t,
-		Posts:      &TranslatorErrorsPosts{translator: t},
 		Auth:       &TranslatorErrorsAuth{translator: t},
 		Comments:   &TranslatorErrorsComments{translator: t},
+		Posts:      &TranslatorErrorsPosts{translator: t},
 		Users:      &TranslatorErrorsUsers{translator: t},
 	}
-	t.Validation = &TranslatorValidation{
+	t.Messages = &TranslatorMessages{
 		translator: t,
 	}
 	t.Success = &TranslatorSuccess{
 		translator: t,
 	}
-	t.Messages = &TranslatorMessages{
+	t.Validation = &TranslatorValidation{
 		translator: t,
 	}
 

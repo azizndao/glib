@@ -10,8 +10,8 @@ import (
 type TranslatorErrors struct {
 	translator *Translator
 	Comments   *TranslatorErrorsComments
-	Users      *TranslatorErrorsUsers
 	Posts      *TranslatorErrorsPosts
+	Users      *TranslatorErrorsUsers
 	Auth       *TranslatorErrorsAuth
 }
 
@@ -33,31 +33,6 @@ func (t *TranslatorErrors) NotFound(ctx context.Context) string {
 // Unauthorized translates: "Accès non autorisé"
 func (t *TranslatorErrors) Unauthorized(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.unauthorized")
-}
-
-// TranslatorErrorsPosts provides translations for errors.posts
-type TranslatorErrorsPosts struct {
-	translator *Translator
-}
-
-// AlreadyPublished translates: "L'article '%s' est déjà publié"
-func (t *TranslatorErrorsPosts) AlreadyPublished(ctx context.Context, arg1 string) string {
-	return t.translator.translate(ctx, "errors.posts.already_published", arg1)
-}
-
-// NotFound translates: "Article avec l'ID %s introuvable"
-func (t *TranslatorErrorsPosts) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.posts.not_found", id)
-}
-
-// TitleRequired translates: "Le titre de l'article est requis"
-func (t *TranslatorErrorsPosts) TitleRequired(ctx context.Context) string {
-	return t.translator.translate(ctx, "errors.posts.title_required")
-}
-
-// TitleTooShort translates: "Le titre doit contenir au moins %d caractères (actuel : %d)"
-func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg2 int) string {
-	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
 }
 
 // TranslatorErrorsAuth provides translations for errors.auth
@@ -108,6 +83,31 @@ func (t *TranslatorErrorsComments) NotFound(ctx context.Context, id string) stri
 // PostNotFound translates: "Impossible de créer le commentaire : article %s introuvable"
 func (t *TranslatorErrorsComments) PostNotFound(ctx context.Context, arg1 string) string {
 	return t.translator.translate(ctx, "errors.comments.post_not_found", arg1)
+}
+
+// TranslatorErrorsPosts provides translations for errors.posts
+type TranslatorErrorsPosts struct {
+	translator *Translator
+}
+
+// AlreadyPublished translates: "L'article '%s' est déjà publié"
+func (t *TranslatorErrorsPosts) AlreadyPublished(ctx context.Context, arg1 string) string {
+	return t.translator.translate(ctx, "errors.posts.already_published", arg1)
+}
+
+// NotFound translates: "Article avec l'ID %s introuvable"
+func (t *TranslatorErrorsPosts) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.posts.not_found", id)
+}
+
+// TitleRequired translates: "Le titre de l'article est requis"
+func (t *TranslatorErrorsPosts) TitleRequired(ctx context.Context) string {
+	return t.translator.translate(ctx, "errors.posts.title_required")
+}
+
+// TitleTooShort translates: "Le titre doit contenir au moins %d caractères (actuel : %d)"
+func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg2 int) string {
+	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
 }
 
 // TranslatorErrorsUsers provides translations for errors.users

@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/azizndao/glib/internal/scanner"
@@ -105,8 +106,17 @@ func (g *Generator) generateDI() (string, error) {
 	}
 
 	// Build controller data
+	// Sort controllers alphabetically for deterministic output
+	sortedControllers := make([]*scanner.Controller, len(g.project.Controllers))
+	copy(sortedControllers, g.project.Controllers)
+	sort.Slice(sortedControllers, func(i, j int) bool {
+		nameI := sortedControllers[i].PackageName + sortedControllers[i].Name
+		nameJ := sortedControllers[j].PackageName + sortedControllers[j].Name
+		return nameI < nameJ
+	})
+
 	var controllers []ControllerData
-	for _, ctrl := range g.project.Controllers {
+	for _, ctrl := range sortedControllers {
 		var fields []ControllerFieldData
 		for _, field := range ctrl.Fields {
 			providerField := g.findProviderForType(field.Type)
@@ -128,8 +138,15 @@ func (g *Generator) generateDI() (string, error) {
 	}
 
 	// Build middleware data
+	// Sort middleware alphabetically for deterministic output
+	sortedMiddleware := make([]*scanner.Middleware, len(g.project.Middleware))
+	copy(sortedMiddleware, g.project.Middleware)
+	sort.Slice(sortedMiddleware, func(i, j int) bool {
+		return sortedMiddleware[i].Name < sortedMiddleware[j].Name
+	})
+
 	var middleware []MiddlewareData
-	for _, mw := range g.project.Middleware {
+	for _, mw := range sortedMiddleware {
 		var args []string
 		for _, dep := range mw.Dependencies {
 			providerField := g.findProviderForType(dep.Type)
@@ -149,6 +166,9 @@ func (g *Generator) generateDI() (string, error) {
 
 	// Collect all package paths for imports
 	imports := g.collectPackageImports()
+
+	// Sort imports alphabetically for deterministic output
+	sort.Strings(imports)
 
 	data := map[string]any{
 		"PackageName":           g.pkgName,

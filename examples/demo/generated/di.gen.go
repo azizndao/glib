@@ -36,9 +36,9 @@ type ProviderContainer struct {
 	Config         *configs.Config
 	StorageConfig  *configs.StorageConfig
 	RedisConfig    *configs.RedisConfig
-	JWTService     *services.JWTService
 	Database       *gorm.DB
 	CommentService *services.CommentService
+	JWTService     *services.JWTService
 	UserSerivce    *services.UserSerivce
 	PostSerivce    *services.PostSerivce
 	AuditorFactory func() *services.Auditor
@@ -106,12 +106,12 @@ func (c *App) initProviders(ctx context.Context) error {
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
 	}
-	c.JWTService = services.NewJWTService()
 	c.Database, err = services.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}
 	c.CommentService = services.NewCommentService(c.Database)
+	c.JWTService = services.NewJWTService()
 	c.UserSerivce = services.NewUserSerivce(c.Database)
 	c.PostSerivce = services.NewPostSerivce(c.Database, c.AuditorFactory())
 	c.LoggerFactory = func() *services.Logger {

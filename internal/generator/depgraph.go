@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/azizndao/glib/internal/scanner"
@@ -161,9 +162,18 @@ func (g *DependencyGraph) findCriticalTransients(singletons []*scanner.Provider)
 // Returns providers in dependency order (dependencies first)
 // This uses the global provider map to resolve dependencies, including transitive dependencies
 func (g *DependencyGraph) topologicalSort(providers []*scanner.Provider) []*scanner.Provider {
+	// Sort input alphabetically first for deterministic tie-breaking
+	// This ensures that when multiple providers have no dependency relationship,
+	// they appear in alphabetical order
+	sortedInput := make([]*scanner.Provider, len(providers))
+	copy(sortedInput, providers)
+	sort.SliceStable(sortedInput, func(i, j int) bool {
+		return sortedInput[i].Name < sortedInput[j].Name
+	})
+
 	// Build a set of providers we're sorting (for filtering result)
 	targetProviders := make(map[string]bool)
-	for _, prov := range providers {
+	for _, prov := range sortedInput {
 		if prov.ReturnType != nil {
 			targetProviders[prov.ReturnType.FullName] = true
 		}
@@ -236,8 +246,9 @@ func (g *DependencyGraph) topologicalSort(providers []*scanner.Provider) []*scan
 		result = append(result, prov)
 	}
 
-	// Visit all providers
-	for _, prov := range providers {
+	// Visit all providers in alphabetical order
+	// This ensures deterministic output when there are no dependencies
+	for _, prov := range sortedInput {
 		visit(prov)
 	}
 
