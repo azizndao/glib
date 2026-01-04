@@ -22,10 +22,7 @@ func TestWorkerPool(t *testing.T) {
 
 	t.Run("worker_pool_auto_workers", func(t *testing.T) {
 		pool := NewWorkerPool(scanner, 0)
-		expected := runtime.NumCPU() / 2
-		if expected < 1 {
-			expected = 1
-		}
+		expected := max(runtime.NumCPU()/2, 1)
 		if pool.WorkerCount() != expected {
 			t.Errorf("expected %d workers, got %d", expected, pool.WorkerCount())
 		}

@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/azizndao/glib/internal/scanner"
-	"github.com/azizndao/glib/internal/validator"
 	"github.com/spf13/cobra"
 )
 
@@ -117,49 +114,4 @@ func runGenerateSimple(outputDir, pkgName string, cfg *glibConfig, opts *generat
 	}
 
 	return PerformCodeGeneration(cfg, codegenOpts)
-}
-
-// printScanSummary prints a formatted summary table of scan statistics
-func printScanSummary(scanStats scanner.ScanStats, valStats *validator.ValidationStats, cacheEnabled bool) {
-	fmt.Println(ui.BoldTextf("  Scan Summary:"))
-	fmt.Println(ui.Mutedf("  ┌────────────────────────┬──────────────┐"))
-
-	// Components found
-	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
-		"Providers", ui.Cyan+fmt.Sprintf("%d", scanStats.Providers)+ui.Reset)
-	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
-		"Controllers", ui.Blue+fmt.Sprintf("%d", scanStats.Controllers)+ui.Reset)
-	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
-		"Middleware", ui.Yellow+fmt.Sprintf("%d", scanStats.Middleware)+ui.Reset)
-	fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12s "+ui.Mutedf("│")+"\n",
-		"Handlers", ui.Green+fmt.Sprintf("%d", scanStats.Handlers)+ui.Reset)
-
-	if cacheEnabled && scanStats.FilesScanned > 0 {
-		fmt.Println(ui.Mutedf("  ├────────────────────────┼──────────────┤"))
-
-		hitRate := float64(scanStats.CacheHits) * 100 / float64(scanStats.FilesScanned)
-		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12d "+ui.Mutedf("│")+"\n",
-			"Files Scanned", scanStats.FilesScanned)
-
-		cacheHitStr := fmt.Sprintf("%d", scanStats.CacheHits)
-		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Mutedf("│")+"\n",
-			"Cache Hits", fmt.Sprintf("%s (%.1f%%)", cacheHitStr, hitRate))
-
-		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Yellow+"%-12d"+ui.Reset+" "+ui.Mutedf("│")+"\n",
-			"Cache Misses", scanStats.CacheMisses)
-	}
-
-	if valStats != nil && cacheEnabled {
-		fmt.Println(ui.Mutedf("  ├────────────────────────┼──────────────┤"))
-
-		valHitRate := float64(valStats.CacheHits) * 100 / float64(valStats.ComponentsValidated)
-		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" %12d "+ui.Mutedf("│")+"\n",
-			"Components Validated", valStats.ComponentsValidated)
-
-		valCacheStr := fmt.Sprintf("%d", valStats.CacheHits)
-		fmt.Printf(ui.Mutedf("  │")+" %-22s "+ui.Mutedf("│")+" "+ui.Green+"%-12s"+ui.Reset+" "+ui.Mutedf("│")+"\n",
-			"Validation Cached", fmt.Sprintf("%s (%.1f%%)", valCacheStr, valHitRate))
-	}
-
-	fmt.Println(ui.Mutedf("  └────────────────────────┴──────────────┘"))
 }

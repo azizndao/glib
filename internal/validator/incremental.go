@@ -21,7 +21,10 @@ type IncrementalValidator struct {
 // NewIncrementalValidator creates a validator with caching support
 func NewIncrementalValidator(cacheDir string) *IncrementalValidator {
 	cache := NewValidationCache(cacheDir)
-	cache.Load() // Load existing cache (ignore errors)
+	if err := cache.Load(); err != nil {
+		// Log error but continue - cache will be rebuilt
+		// Don't fail initialization due to cache load failure
+	}
 
 	return &IncrementalValidator{
 		cache:     cache,
@@ -33,7 +36,7 @@ func NewIncrementalValidator(cacheDir string) *IncrementalValidator {
 func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) error {
 	// Track which components need validation
 	needsValidation := make(map[string]bool)
-	componentMap := make(map[string]interface{})
+	componentMap := make(map[string]any)
 
 	// Check all providers
 	for _, provider := range project.Providers {

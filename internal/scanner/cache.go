@@ -71,7 +71,7 @@ func (c *FileCache) GetByHash(filePath string, hash string) (*CacheEntry, bool) 
 
 // Invalidate removes a cache entry
 func (c *FileCache) Invalidate(filePath string) {
-	c.Cache.Delete(filePath)
+	c.Delete(filePath)
 }
 
 // computeFileHash computes SHA256 hash of file content

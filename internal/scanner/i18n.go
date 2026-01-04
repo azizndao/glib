@@ -13,9 +13,9 @@ import (
 
 // LocaleFile represents a parsed locale TOML file
 type LocaleFile struct {
-	Code         string                  // e.g., "en", "fr"
-	FilePath     string                  // e.g., "locales/en.toml"
-	Translations map[string]*Translation // Key -> Translation
+	Code         string
+	FilePath     string
+	Translations map[string]*Translation
 }
 
 // Translation represents a single translation entry

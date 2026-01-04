@@ -34,12 +34,8 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 	// Clear cache if requested
 	if opts.ClearCache {
 		cacheDir := filepath.Join(opts.ProjectDir, ".glib", "cache")
-		if err := os.RemoveAll(cacheDir); err != nil && !os.IsNotExist(err) {
-			if opts.Verbose {
-				fmt.Println(ui.Warningf("Failed to clear cache: %v", err))
-			}
-		} else if opts.Verbose {
-			fmt.Println(ui.Infof("Cache cleared"))
+		if err := clearCache(cacheDir, opts.Verbose && opts.ShowProgress); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to clear cache: %w", err)
 		}
 	}
 
@@ -128,34 +124,16 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 
 	// Show scan statistics
 	stats := scan.Stats()
+	outputMode := OutputModeDetailed
+	if !opts.ShowProgress {
+		outputMode = OutputModeCompact
+	}
 	if opts.Verbose {
-		if opts.ShowProgress {
-			// Detailed stats for generate command - show full breakdown
-			fmt.Printf("  %s Files scanned: %d\n", ui.IconBullet, stats.FilesScanned)
-			fmt.Printf("  %s Providers: %d\n", ui.IconBullet, stats.Providers)
-			fmt.Printf("  %s Controllers: %d\n", ui.IconBullet, stats.Controllers)
-			fmt.Printf("  %s Middleware: %d\n", ui.IconBullet, stats.Middleware)
-			fmt.Printf("  %s Duration: %dms\n", ui.IconBullet, scanDuration.Milliseconds())
-		} else {
-			// Compact stats for dev mode
-			printDevScanStats(stats, scanDuration)
-		}
+		printScanStats(stats, scanDuration, outputMode, isIncremental)
 	} else if !isIncremental && opts.ShowProgress {
-		// Compact output for non-incremental non-verbose generate
-		fmt.Printf("  %s Scanned: %d providers, %d controllers, %d middleware (%dms)\n",
-			ui.IconCheck,
-			stats.Providers,
-			stats.Controllers,
-			stats.Middleware,
-			scanDuration.Milliseconds())
+		printScanStats(stats, scanDuration, OutputModeCompact, isIncremental)
 	} else if !isIncremental {
-		// Compact output for dev mode
-		fmt.Printf("  %s Scanned: %d providers, %d controllers, %d middleware (%dms)\n",
-			ui.IconCheck,
-			stats.Providers,
-			stats.Controllers,
-			stats.Middleware,
-			scanDuration.Milliseconds())
+		printScanStats(stats, scanDuration, OutputModeCompact, isIncremental)
 	}
 
 	// Validate with incremental validation if caching enabled
@@ -177,15 +155,12 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		valStats = &vstats
 		validationDuration := time.Since(validationStart)
 
-		if opts.Verbose {
-			fmt.Printf("  %s Validation: %d components (%dms)\n",
-				ui.IconCheck,
-				valStats.ComponentsValidated,
-				validationDuration.Milliseconds())
-		} else if opts.ShowProgress {
-			fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
-		} else {
-			fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
+		outputMode := OutputModeDetailed
+		if !opts.ShowProgress {
+			outputMode = OutputModeCompact
+		}
+		if opts.Verbose || opts.ShowProgress {
+			printValidationStats(valStats, validationDuration, outputMode)
 		}
 	} else {
 		// Regular validation
@@ -197,11 +172,11 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 			return fmt.Errorf("validation failed: %w", err)
 		}
 		validationDuration := time.Since(validationStart)
+		outputMode := OutputModeCompact
 		if opts.ShowProgress {
-			fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
-		} else {
-			fmt.Printf("  %s Validation passed (%dms)\n", ui.IconCheck, validationDuration.Milliseconds())
+			outputMode = OutputModeDetailed
 		}
+		printValidationStats(nil, validationDuration, outputMode)
 	}
 
 	// Build validation config from environment/CLI settings

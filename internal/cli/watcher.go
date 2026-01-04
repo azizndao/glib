@@ -16,6 +16,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+const (
+	// DefaultWatcherBufferSize is the default buffer size for watcher channels
+	DefaultWatcherBufferSize = 10
+)
+
 // FileWatcher watches for file changes in the project directory
 type FileWatcher struct {
 	watcher      *fsnotify.Watcher
@@ -57,8 +62,8 @@ func NewFileWatcher(rootDir string, outputDir string, config *WatchConfig) (*Fil
 		excludeDirs:  config.ExcludeDirs,
 		includeFiles: config.IncludeFiles,
 		excludeFiles: config.ExcludeFiles,
-		changes:      make(chan []string, 10),
-		errors:       make(chan error, 10),
+		changes:      make(chan []string, DefaultWatcherBufferSize),
+		errors:       make(chan error, DefaultWatcherBufferSize),
 		done:         make(chan struct{}),
 		pending:      make(map[string]bool),
 	}

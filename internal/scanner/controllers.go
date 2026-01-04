@@ -329,18 +329,11 @@ func (s *Scanner) parseImports(file *ast.File) {
 	}
 }
 
-// Helper to check if type is http.ResponseWriter or *http.Request
-func (s *Scanner) isHTTPType(typeInfo *TypeInfo) bool {
-	if typeInfo.PackageName != "http" {
-		return false
-	}
-	return typeInfo.Name == "ResponseWriter" || typeInfo.Name == "Request"
-}
-
 // buildTypeSpecMapFromPackage builds a map of type names to their TypeSpec for all files in the package
 func (s *Scanner) buildTypeSpecMapFromPackage(packageFiles []*ast.File) {
 	s.typeSpecs = make(map[string]*ast.TypeSpec)
 
+	// Extract only type declarations, keeping minimal AST references
 	for _, file := range packageFiles {
 		for _, decl := range file.Decls {
 			genDecl, ok := decl.(*ast.GenDecl)

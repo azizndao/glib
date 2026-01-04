@@ -171,15 +171,6 @@ func (s *Scanner) ScanIncremental(changedFiles []string) (*Project, error) {
 	return project, nil
 }
 
-// InvalidateCache invalidates the cache for specific files
-func (s *Scanner) InvalidateCache(files []string) {
-	if s.cache != nil {
-		for _, file := range files {
-			s.cache.Invalidate(file)
-		}
-	}
-}
-
 // ClearCache clears all cached data
 func (s *Scanner) ClearCache() error {
 	if s.cache != nil {

@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	// BufferMultiplier is the multiplier for channel buffer sizes
+	BufferMultiplier = 2
+)
+
 // WorkerPool manages parallel file parsing
 type WorkerPool struct {
 	workers int
@@ -44,16 +49,13 @@ type ParseResult struct {
 // If workers <= 0, uses runtime.NumCPU() / 2
 func NewWorkerPool(scanner *Scanner, workers int) *WorkerPool {
 	if workers <= 0 {
-		workers = runtime.NumCPU() / 2
-		if workers < 1 {
-			workers = 1
-		}
+		workers = max(runtime.NumCPU()/2, 1)
 	}
 
 	return &WorkerPool{
 		workers: workers,
-		jobs:    make(chan *parseJob, workers*2), // Buffer for better throughput
-		results: make(chan *ParseResult, workers*2),
+		jobs:    make(chan *parseJob, workers*BufferMultiplier),
+		results: make(chan *ParseResult, workers*BufferMultiplier),
 		errors:  make(chan error, workers),
 		scanner: scanner,
 	}

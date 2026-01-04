@@ -49,7 +49,7 @@ type glibConfig struct {
 
 // getDefaultConfig returns a glibConfig with sensible defaults
 // Defaults can be overridden by environment variables
-func _getDefaultConfig() *glibConfig {
+func getDefaultConfig() *glibConfig {
 	cfg := &glibConfig{Version: "2", Verbose: false}
 
 	// Generate defaults
@@ -86,22 +86,45 @@ func _getDefaultConfig() *glibConfig {
 }
 
 func loadConfigs() (*glibConfig, error) {
-	cfg := _getDefaultConfig()
+	cfg := getDefaultConfig()
 	file, err := os.ReadFile(glibConfigFile)
 	if err != nil {
-		fmt.Println(ui.Infof("Writting default config to %s", glibConfigFile))
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+		// Config file doesn't exist, create it with defaults
+		fmt.Println(ui.Infof("Writing default config to %s", glibConfigFile))
 		jsonStr, err := toml.Marshal(cfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal default config: %w", err)
 		}
-		if err := os.WriteFile(glibConfigFile, jsonStr, 0o644); err != nil {
-			return nil, err
+		if err := os.WriteFile(glibConfigFile, jsonStr, 0o600); err != nil {
+			return nil, fmt.Errorf("failed to write config file: %w", err)
 		}
+		// Return the default config (no need to unmarshal)
+		return cfg, nil
 	}
 
+	// Parse existing config file
 	if err := toml.Unmarshal(file, cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Validate config values
+	if err := validateConfig(cfg); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// validateConfig validates configuration values
+func validateConfig(cfg *glibConfig) error {
+	if cfg.Watch.Debounce < 0 {
+		return fmt.Errorf("watch.debounce cannot be negative: %d", cfg.Watch.Debounce)
+	}
+	if cfg.Generate.Workers < 0 {
+		return fmt.Errorf("generate.workers cannot be negative: %d", cfg.Generate.Workers)
+	}
+	return nil
 }

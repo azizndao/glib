@@ -1,3 +1,6 @@
+// Package validator provides validation capabilities for glib projects.
+// It validates controllers, handlers, routes, providers, middleware, and their relationships,
+// detecting issues like duplicate routes, circular dependencies, and invalid configurations.
 package validator
 
 import (

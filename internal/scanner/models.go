@@ -9,126 +9,126 @@ const (
 // Project represents the complete scanned project
 type Project struct {
 	Module      string
-	Configs     []*Config // @Config annotated structs
+	Configs     []*Config
 	Controllers []*Controller
 	Providers   []*Provider
 	Middleware  []*Middleware
-	LocaleFiles []*LocaleFile // Locale translation files
+	LocaleFiles []*LocaleFile
 }
 
 // Controller represents a scanned controller
 type Controller struct {
-	Name        string     // e.g., "PostsController"
-	PackageName string     // e.g., "posts"
-	PackagePath string     // e.g., "myapp/controllers/posts"
-	FilePath    string     // e.g., "/path/to/controllers/posts/controller.go"
-	SourceLine  int        // Line number in source file
-	RoutePrefix string     // e.g., "/api/v1/posts"
-	Tags        []string   // e.g., ["protected", "api"] - for auto-targeting middleware
-	Handlers    []*Handler // Handler methods
-	Fields      []*Field   // Injected dependencies
+	Name        string
+	PackageName string
+	PackagePath string
+	FilePath    string
+	SourceLine  int
+	RoutePrefix string
+	Tags        []string
+	Handlers    []*Handler
+	Fields      []*Field
 }
 
 // Handler represents a controller method annotated with @Route
 type Handler struct {
-	Name       string            // e.g., "Show"
-	Method     string            // e.g., "GET"
-	Path       string            // e.g., "/{id}"
-	FullPath   string            // e.g., "/api/v1/posts/{id}"
-	SourceLine int               // Line number in source file
-	Tags       []string          // e.g., ["protected"] - for auto-targeting middleware
+	Name       string
+	Method     string
+	Path       string
+	FullPath   string
+	SourceLine int
+	Tags       []string
 	With       []string          // e.g., ["auth", "cache"] or ["none"] - explicit middleware override
 	Signature  *HandlerSignature // Parsed signature
 }
 
 // HandlerSignature represents a parsed handler signature
 type HandlerSignature struct {
-	Pattern               string         // "result" or "raw_http" - handler pattern type
-	Receiver              *Field         // Controller receiver
-	PathParams            []*PathParam   // Path parameters (e.g., id uuid.UUID)
-	QueryParams           []*QueryParam  // Query parameters (e.g., page int from ?page=1)
-	HeaderParams          []*HeaderParam // Header parameters (e.g., Authorization string)
-	ParamsStructType      *TypeInfo      // Struct type containing query/header tags (e.g., SearchPostsRequest)
-	RequestType           *TypeInfo      // Request body type (if any)
-	ResponseType          *TypeInfo      // Response type (if any)
-	ReturnsError          bool           // Whether it returns error
-	HasContext            bool           // Whether it has context.Context param
-	HasRawHTTP            bool           // Whether it uses http.ResponseWriter/Request
-	NeedsValidation       bool           // Whether request body has validate tags
-	NeedsParamsValidation bool           // Whether params struct (query/header) has validate tags
+	Pattern               string
+	Receiver              *Field
+	PathParams            []*PathParam
+	QueryParams           []*QueryParam
+	HeaderParams          []*HeaderParam
+	ParamsStructType      *TypeInfo
+	RequestType           *TypeInfo
+	ResponseType          *TypeInfo
+	ReturnsError          bool
+	HasContext            bool
+	HasRawHTTP            bool
+	NeedsValidation       bool
+	NeedsParamsValidation bool
 }
 
 // PathParam represents a path parameter in handler signature
 type PathParam struct {
-	Name     string    // e.g., "id"
-	Type     *TypeInfo // e.g., uuid.UUID
-	Position int       // Parameter position in function signature
+	Name     string
+	Type     *TypeInfo
+	Position int
 }
 
 // QueryParam represents a query parameter from struct tag
 type QueryParam struct {
-	FieldName  string    // Struct field name (e.g., "Page")
-	ParamName  string    // Query param name from tag (e.g., "page")
-	Type       *TypeInfo // Type (e.g., int, string, []string)
-	IsOptional bool      // Is pointer type? (e.g., *int)
+	FieldName  string
+	ParamName  string
+	Type       *TypeInfo
+	IsOptional bool
 }
 
 // HeaderParam represents a header parameter from struct tag
 type HeaderParam struct {
-	FieldName  string    // Struct field name (e.g., "Authorization")
-	HeaderName string    // HTTP header name from tag (e.g., "Authorization")
-	Type       *TypeInfo // Type (usually string or *string)
-	IsOptional bool      // Is pointer type?
+	FieldName  string
+	HeaderName string
+	Type       *TypeInfo
+	IsOptional bool
 }
 
 // Provider represents a function annotated with @Provider
 type Provider struct {
-	Name         string    // e.g., "NewDatabase"
-	FunctionName string    // e.g., "NewDatabase"
-	PackageName  string    // e.g., "providers"
-	PackagePath  string    // e.g., "myapp/providers"
-	FilePath     string    // e.g., "/path/to/providers/database.go"
-	SourceLine   int       // Line number in source file
-	Lifecycle    string    // "singleton" or "transient"
-	ReturnType   *TypeInfo // What it provides
-	Dependencies []*Field  // What it depends on
-	ReturnsError bool      // Whether the provider returns (T, error) or just T
+	Name         string
+	FunctionName string
+	PackageName  string
+	PackagePath  string
+	FilePath     string
+	SourceLine   int
+	Lifecycle    string // "singleton" or "transient"
+	ReturnType   *TypeInfo
+	Dependencies []*Field
+	ReturnsError bool
 }
 
 // Middleware represents a function annotated with @Middleware
 type Middleware struct {
-	Name         string   // e.g., "auth" - middleware identifier
-	FunctionName string   // e.g., "Auth" - Go function name
-	PackageName  string   // e.g., "middleware"
-	PackagePath  string   // e.g., "myapp/middleware"
-	FilePath     string   // e.g., "/path/to/middleware/auth.go"
-	SourceLine   int      // Line number in source file
-	Target       string   // e.g., "all", "protected", "public,admin" - targeting expression
-	Order        int      // Execution order (default: 100)
-	Signature    string   // "old" (http.Handler) or "new" (glib.Middleware)
-	Dependencies []*Field // What it depends on
+	Name         string
+	FunctionName string
+	PackageName  string
+	PackagePath  string
+	FilePath     string
+	SourceLine   int
+	Target       string // e.g., "all", "protected", "public,admin" - targeting expression
+	Order        int    // Execution order (default: 100)
+	Signature    string // "old" (http.Handler) or "new" (glib.Middleware)
+	Dependencies []*Field
 }
 
 // Config represents a scanned configuration struct (annotated with @Config)
 type Config struct {
-	Name        string         // e.g., "Config", "AppConfig", "DatabaseConfig"
-	PackageName string         // e.g., "configs"
-	PackagePath string         // e.g., "myapp/configs"
-	FilePath    string         // e.g., "/path/to/configs/config.go"
-	SourceLine  int            // Line number in source file
+	Name        string // e.g., "Config", "AppConfig", "DatabaseConfig"
+	PackageName string
+	PackagePath string
+	FilePath    string
+	SourceLine  int
 	Fields      []*ConfigField // Top-level config fields
 }
 
 // ConfigField represents a field in the Config struct
 type ConfigField struct {
-	Name         string         // Field name (e.g., "App", "Database", "Port")
-	Type         *TypeInfo      // Field type (string, int, bool, or nested struct)
-	EnvName      string         // Environment variable name from `env:"VAR_NAME"` tag
-	DefaultValue string         // Default value from `default:"value"` tag
-	Required     bool           // Whether field is required from `required:"true"` tag
-	IsNested     bool           // True if type is a nested struct (not primitive)
-	Fields       []*ConfigField // Nested fields (if IsNested is true)
-	SourceLine   int            // Line number in source file
+	Name         string
+	Type         *TypeInfo
+	EnvName      string
+	DefaultValue string
+	Required     bool
+	IsNested     bool
+	Fields       []*ConfigField
+	SourceLine   int
 }
 
 // Field represents a struct field (for DI) or function parameter
@@ -139,17 +139,17 @@ type Field struct {
 
 // TypeInfo represents a Go type with package information
 type TypeInfo struct {
-	Name        string      // e.g., "DB", "UUID", "string", "int", "Result"
-	PackagePath string      // e.g., "gorm.io/gorm", "github.com/google/uuid"
-	PackageName string      // e.g., "gorm", "uuid", "glib"
-	IsPointer   bool        // e.g., true for *gorm.DB
-	IsSlice     bool        // e.g., true for []Post
-	IsError     bool        // Special case for error type
-	IsContext   bool        // Special case for context.Context
-	IsPrimitive bool        // true for string, int, etc.
-	IsGeneric   bool        // true for generic types like Result[T]
-	TypeParams  []*TypeInfo // Generic type parameters (e.g., [T] in Result[T])
-	FullName    string      // e.g., "*gorm.DB", "[]Post", "uuid.UUID", "glib.Result[*Post]"
+	Name        string
+	PackagePath string
+	PackageName string
+	IsPointer   bool
+	IsSlice     bool
+	IsError     bool
+	IsContext   bool
+	IsPrimitive bool
+	IsGeneric   bool
+	TypeParams  []*TypeInfo
+	FullName    string
 }
 
 // Annotation represents a parsed annotation from comments
@@ -157,5 +157,5 @@ type Annotation struct {
 	Type  string            // e.g., "Controller", "Route", "Provider", "Middleware"
 	Value string            // Primary value (e.g., "/api/v1/posts", "GET /", "singleton")
 	Args  map[string]string // Additional arguments (future use)
-	Line  int               // Line number in source
+	Line  int
 }

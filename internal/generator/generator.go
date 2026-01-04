@@ -1,3 +1,6 @@
+// Package generator provides code generation functionality for the glib framework.
+// It generates dependency injection setup, route registration, request parsers,
+// validators, and internationalization code based on scanned project data.
 package generator
 
 import (

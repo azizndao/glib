@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/azizndao/glib/internal/cli/ui"
-	"github.com/azizndao/glib/internal/scanner"
 	"github.com/spf13/cobra"
 )
 
@@ -211,8 +210,8 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 
 	// Ensure cache directory exists
 	cacheDir := filepath.Join(".glib", "cache")
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
+	if err := ensureCacheDir(cacheDir); err != nil {
+		return err
 	}
 
 	binaryPath := "./tmp/main"
@@ -386,26 +385,4 @@ func buildApp(outputPath string, verbose bool) error {
 	}
 
 	return cmd.Run()
-}
-
-// printDevScanStats prints detailed scan statistics
-func printDevScanStats(stats scanner.ScanStats, duration time.Duration) {
-	fmt.Printf("  %s Providers: %d, Controllers: %d, Middleware: %d, Handlers: %d\n",
-		ui.IconBullet,
-		stats.Providers,
-		stats.Controllers,
-		stats.Middleware,
-		stats.Handlers)
-	fmt.Printf("  %s Files: %d scanned, %d hits (%.1f%%), %d misses\n",
-		ui.IconBullet,
-		stats.FilesScanned,
-		stats.CacheHits,
-		float64(stats.CacheHits)/float64(stats.FilesScanned)*100,
-		stats.CacheMisses)
-	fmt.Printf("  %s Duration: %dms\n", ui.IconBullet, duration.Milliseconds())
-}
-
-// printSeparator prints a visual separator
-func printSeparator() {
-	fmt.Println(ui.Gray + "─────────────────────────────────────────" + ui.Reset)
 }
