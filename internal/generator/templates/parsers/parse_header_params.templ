@@ -1,0 +1,51 @@
+{{/* Shared: Parse header parameters from HTTP headers */}}
+{{- if .Handler.Signature.HeaderParams}}
+		// Parse headers
+{{- range .Handler.Signature.HeaderParams}}
+{{- if .IsOptional}}
+		// Optional header: {{.HeaderName}}
+		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = &{{.FieldName}}Val
+{{- else if eq .Type.Name "int"}}
+			{{.FieldName}}Parsed := utils.ParseIntOrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "int64"}}
+			{{.FieldName}}Parsed := utils.ParseInt64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "uint64"}}
+			{{.FieldName}}Parsed := utils.ParseUint64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "bool"}}
+			{{.FieldName}}Parsed := utils.ParseBoolOrFalse({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "float64"}}
+			{{.FieldName}}Parsed := utils.ParseFloat64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.FieldName}}Parsed := utils.ParseUUIDOrNil({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- end}}
+		}
+{{- else}}
+		// Required header: {{.HeaderName}}
+		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = {{.FieldName}}Val
+{{- else if eq .Type.Name "int"}}
+			req.{{.FieldName}} = utils.ParseIntOrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "int64"}}
+			req.{{.FieldName}} = utils.ParseInt64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "uint64"}}
+			req.{{.FieldName}} = utils.ParseUint64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "bool"}}
+			req.{{.FieldName}} = utils.ParseBoolOrFalse({{.FieldName}}Val)
+{{- else if eq .Type.Name "float64"}}
+			req.{{.FieldName}} = utils.ParseFloat64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.PackageName "uuid"}}
+			req.{{.FieldName}} = utils.ParseUUIDOrNil({{.FieldName}}Val)
+{{- end}}
+		}
+{{- end}}
+{{- end}}
+{{- end}}

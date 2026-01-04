@@ -1,0 +1,15 @@
+{{/* Shared: Validate query/header parameters only (no request body) */}}
+{{- if .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+{{- if not .Handler.Signature.RequestType}}
+
+		// Validate query/header parameters with language detection and section "query"
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+{{- end}}
+{{- end}}
+{{- end}}

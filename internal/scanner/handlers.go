@@ -248,21 +248,26 @@ func (s *Scanner) extractParamNames(funcDecl *ast.FuncDecl) []string {
 	return names
 }
 
+// Common path parameter name patterns
+const (
+	pathParamSuffixID  = "Id"
+	pathParamSuffixKey = "Key"
+)
+
+var commonPathParamNames = map[string]bool{
+	"id":     true,
+	"uuid":   true,
+	"key":    true,
+	"slug":   true,
+	"userId": true,
+	"postId": true,
+}
+
 // isPathParamName checks if a parameter name looks like a path parameter
 func isPathParamName(name string) bool {
-	// Common path parameter names
-	pathParamNames := map[string]bool{
-		"id":     true,
-		"uuid":   true,
-		"key":    true,
-		"slug":   true,
-		"userId": true,
-		"postId": true,
-	}
-
-	return pathParamNames[name] ||
-		len(name) >= 2 && name[len(name)-2:] == "Id" ||
-		len(name) >= 3 && name[len(name)-3:] == "Key"
+	return commonPathParamNames[name] ||
+		len(name) >= 2 && name[len(name)-2:] == pathParamSuffixID ||
+		len(name) >= 3 && name[len(name)-3:] == pathParamSuffixKey
 }
 
 // parseStructTags analyzes a struct type for query/header/json tags

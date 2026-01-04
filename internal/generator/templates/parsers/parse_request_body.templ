@@ -1,0 +1,34 @@
+{{/* Shared: Parse and validate request body */}}
+{{- if .Handler.Signature.RequestType}}
+{{- if not (or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams)}}
+	// Parse request body (pure JSON, no query/header params)
+	req, err := utils.ParseJSONBody[{{typeRef .Handler.Signature.RequestType}}](r)
+	if err != nil {
+		glib.WriteError(w, errs.NewBadRequest().
+			Msgf("invalid request body: %v", err).Err())
+		return
+	}
+{{- else}}
+	// Mixed params: struct has both query/header AND json fields
+	// Decode JSON body into the existing req struct
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				Msgf("invalid request body: %v", err).Err())
+			return
+		}
+	}
+{{- end}}
+{{- if or .Handler.Signature.NeedsValidation .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+{{- end}}
+{{- end}}
+{{- end}}

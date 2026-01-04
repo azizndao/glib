@@ -3,6 +3,7 @@ package glib
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -128,6 +129,24 @@ func TestWriteResponseWithMetadata(t *testing.T) {
 			data:           struct{ Message string }{Message: "deleted"},
 			expectedStatus: http.StatusNoContent,
 		},
+		{
+			name:   "integer header value (regression test for integer-to-string bug)",
+			method: "GET",
+			data: struct {
+				Data         string `json:"data"`
+				RetryAfter   int    `header:"Retry-After"`
+				ContentCount int    `header:"X-Content-Count"`
+			}{
+				Data:         "test",
+				RetryAfter:   120,
+				ContentCount: 42,
+			},
+			expectedStatus: http.StatusOK,
+			expectedHeaders: map[string]string{
+				"Retry-After":     "120",
+				"X-Content-Count": "42",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -179,5 +198,65 @@ func TestGetDefaultStatusCode(t *testing.T) {
 				t.Errorf("expected %d for %s, got %d", tt.expectedCode, tt.method, code)
 			}
 		})
+	}
+}
+
+func TestGetFieldValueAsString(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    any
+		expected string
+	}{
+		{"string", "hello", "hello"},
+		{"int", 12345, "12345"},
+		{"int8", int8(127), "127"},
+		{"int16", int16(32767), "32767"},
+		{"int32", int32(2147483647), "2147483647"},
+		{"int64", int64(9223372036854775807), "9223372036854775807"},
+		{"uint", uint(12345), "12345"},
+		{"uint8", uint8(255), "255"},
+		{"uint16", uint16(65535), "65535"},
+		{"uint32", uint32(4294967295), "4294967295"},
+		{"uint64", uint64(18446744073709551615), "18446744073709551615"},
+		{"bool true", true, "true"},
+		{"bool false", false, "false"},
+		{"string pointer", stringPtr("test"), "test"},
+		{"nil pointer", (*string)(nil), ""},
+		{"int pointer", intPtr(999), "999"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := reflect.ValueOf(tt.value)
+			result := getFieldValueAsString(val)
+			if result != tt.expected {
+				t.Errorf("getFieldValueAsString(%v) = %q, want %q", tt.value, result, tt.expected)
+			}
+		})
+	}
+}
+
+func stringPtr(s string) *string { return &s }
+func intPtr(i int) *int          { return &i }
+
+func TestWriteResponseWithMetadata_InvalidStatusType(t *testing.T) {
+	// Test runtime validation of response:"httpstatus" with wrong type
+	type InvalidResponse struct {
+		Data   string `json:"data"`
+		Status string `response:"httpstatus"` // Wrong type! Should be int
+	}
+
+	w := httptest.NewRecorder()
+	data := InvalidResponse{
+		Data:   "test",
+		Status: "200", // String instead of int
+	}
+
+	// Should log warning and use default status (200 for GET)
+	WriteResponseWithMetadata(w, "GET", data)
+
+	// Should use default status code (not crash)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected fallback to default status %d, got %d", http.StatusOK, w.Code)
 	}
 }

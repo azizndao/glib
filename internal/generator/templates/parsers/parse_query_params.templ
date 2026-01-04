@@ -1,0 +1,54 @@
+{{/* Shared: Parse query parameters from URL */}}
+{{- if .Handler.Signature.QueryParams}}
+		// Parse query parameters
+{{- range .Handler.Signature.QueryParams}}
+{{- if .Type.IsSlice}}
+		// Slice parameter: {{.ParamName}}
+		req.{{.FieldName}} = utils.GetQuerySlice(r, "{{.ParamName}}")
+{{- else if .IsOptional}}
+		// Optional parameter: {{.ParamName}}
+		if {{.ParamName}}Str, ok := utils.GetQueryParam(r, "{{.ParamName}}"); ok {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = &{{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			{{.ParamName}}Val := utils.ParseIntOrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "int64"}}
+			{{.ParamName}}Val := utils.ParseInt64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "uint64"}}
+			{{.ParamName}}Val := utils.ParseUint64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "bool"}}
+			{{.ParamName}}Val := utils.ParseBoolOrFalse({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "float64"}}
+			{{.ParamName}}Val := utils.ParseFloat64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.ParamName}}Val := utils.ParseUUIDOrNil({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- end}}
+		}
+{{- else}}
+		// Required parameter: {{.ParamName}}
+		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = {{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			req.{{.FieldName}} = utils.ParseIntOrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "int64"}}
+			req.{{.FieldName}} = utils.ParseInt64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "uint64"}}
+			req.{{.FieldName}} = utils.ParseUint64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "bool"}}
+			req.{{.FieldName}} = utils.ParseBoolOrFalse({{.ParamName}}Str)
+{{- else if eq .Type.Name "float64"}}
+			req.{{.FieldName}} = utils.ParseFloat64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.PackageName "uuid"}}
+			req.{{.FieldName}} = utils.ParseUUIDOrNil({{.ParamName}}Str)
+{{- end}}
+		}
+{{- end}}
+{{- end}}
+{{- end}}
