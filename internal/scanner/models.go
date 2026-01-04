@@ -57,11 +57,8 @@ type HandlerSignature struct {
 	HeaderParams          []*HeaderParam
 	ParamsStructType      *TypeInfo
 	RequestType           *TypeInfo
-	ResponseType          *TypeInfo
 	ResponseMetadata      *ResponseMetadata // Metadata from response struct tags
 	ReturnsError          bool
-	HasContext            bool
-	HasRawHTTP            bool
 	NeedsValidation       bool
 	NeedsParamsValidation bool
 }

@@ -107,8 +107,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "GET",
 				Path:   "/export",
 				Signature: &scanner.HandlerSignature{
-					Pattern:    scanner.PatternRawHTTP,
-					HasRawHTTP: true,
+					Pattern: scanner.PatternRawHTTP,
 				},
 			},
 			expectErrors: 0,

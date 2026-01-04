@@ -75,8 +75,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		}
 
 		sig.Pattern = PatternRawHTTP
-		sig.HasRawHTTP = true
-		sig.HasContext = false // Context accessed via r.Context()
 		sig.ReturnsError = false
 
 		return sig, nil
@@ -91,7 +89,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 	if !params[0].IsContext {
 		return nil, fmt.Errorf("first parameter must be context.Context, got %s (or use raw handler with http.ResponseWriter and *http.Request)", params[0].FullName)
 	}
-	sig.HasContext = true
 
 	// Check return types to determine pattern
 	if len(returns) == 2 {
@@ -100,7 +97,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			return nil, fmt.Errorf("second return value must be error, got %s", returns[1].FullName)
 		}
 
-		sig.ResponseType = returns[0]
 		sig.Pattern = PatternDataError
 		sig.ReturnsError = true
 
@@ -117,7 +113,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 			return nil, fmt.Errorf("handler must return (T, error), error, or be a raw handler (w, r), got single return of type %s", returns[0].FullName)
 		}
 
-		sig.ResponseType = nil // No response data
 		sig.Pattern = PatternErrorOnly
 		sig.ReturnsError = true
 

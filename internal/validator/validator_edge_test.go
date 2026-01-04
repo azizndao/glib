@@ -717,9 +717,8 @@ func TestValidator_QueryAndHeaderValidation(t *testing.T) {
 			Method: "GET",
 			Path:   "/{id}",
 			Signature: &scanner.HandlerSignature{
-				Pattern:    scanner.PatternRawHTTP,
-				HasRawHTTP: true,
-				// No params defined
+				Pattern: scanner.PatternRawHTTP,
+				// No params defined - raw HTTP handlers don't validate params
 			},
 		}
 		ctrl := &scanner.Controller{FilePath: "test.go"}
