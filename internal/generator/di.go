@@ -59,8 +59,15 @@ func (g *Generator) generateDI() (string, error) {
 	allProviders := g.project.Providers
 	var configProviders []*scanner.Provider
 	if len(g.project.Configs) > 0 {
+		// Sort configs alphabetically for deterministic output
+		sortedConfigs := make([]*scanner.Config, len(g.project.Configs))
+		copy(sortedConfigs, g.project.Configs)
+		sort.Slice(sortedConfigs, func(i, j int) bool {
+			return sortedConfigs[i].Name < sortedConfigs[j].Name
+		})
+
 		// Create synthetic providers for each Config
-		for _, cfg := range g.project.Configs {
+		for _, cfg := range sortedConfigs {
 			configProvider := g.createConfigProvider(cfg)
 			configProviders = append(configProviders, configProvider)
 			// Add to allProviders for dependency graph analysis

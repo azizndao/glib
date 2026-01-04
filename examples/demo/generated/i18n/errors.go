@@ -9,10 +9,10 @@ import (
 // TranslatorErrors provides translations for errors
 type TranslatorErrors struct {
 	translator *Translator
+	Auth       *TranslatorErrorsAuth
 	Comments   *TranslatorErrorsComments
 	Posts      *TranslatorErrorsPosts
 	Users      *TranslatorErrorsUsers
-	Auth       *TranslatorErrorsAuth
 }
 
 // Forbidden translates: "Vous n'avez pas la permission d'accéder à cette ressource"

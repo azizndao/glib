@@ -268,9 +268,16 @@ func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]map[st
 		})
 	}
 
-	// Prepare children data (already sorted by getChildrenData)
+	// Prepare children data - sort alphabetically
+	childNames2 := make([]string, 0, len(section.Children))
+	for name := range section.Children {
+		childNames2 = append(childNames2, name)
+	}
+	sort.Strings(childNames2)
+
 	var children []map[string]any
-	for _, child := range section.Children {
+	for _, name := range childNames2 {
+		child := section.Children[name]
 		children = append(children, map[string]any{
 			"Name":       child.Name,
 			"StructName": child.StructName,
