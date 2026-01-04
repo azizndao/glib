@@ -3,7 +3,7 @@ package validator
 import (
 	"strings"
 
-	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/errs"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/errs"
 )
 
 // GetQuerySlice extracts all values for a query parameter.

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/azizndao/glib/pkg/errs"
+	"github.com/azizndao/glib/errs"
 	"github.com/azizndao/glib/validator"
 )
 

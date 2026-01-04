@@ -47,7 +47,7 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString("\t\"net/http\"\n")
 	b.WriteString("\n")
 	b.WriteString("\t\"github.com/azizndao/glib\"\n")
-	b.WriteString("\t\"github.com/azizndao/glib/pkg/errs\"\n")
+	b.WriteString("\t\"github.com/azizndao/glib/errs\"\n")
 	b.WriteString("\t\"github.com/azizndao/glib/utils\"\n")
 
 	// Add local imports
