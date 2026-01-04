@@ -9,10 +9,10 @@ import (
 // TranslatorErrors provides translations for errors
 type TranslatorErrors struct {
 	translator *Translator
-	Posts      *TranslatorErrorsPosts
-	Users      *TranslatorErrorsUsers
-	Auth       *TranslatorErrorsAuth
 	Comments   *TranslatorErrorsComments
+	Users      *TranslatorErrorsUsers
+	Posts      *TranslatorErrorsPosts
+	Auth       *TranslatorErrorsAuth
 }
 
 // Forbidden translates: "Vous n'avez pas la permission d'accéder à cette ressource"
@@ -33,31 +33,6 @@ func (t *TranslatorErrors) NotFound(ctx context.Context) string {
 // Unauthorized translates: "Accès non autorisé"
 func (t *TranslatorErrors) Unauthorized(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.unauthorized")
-}
-
-// TranslatorErrorsComments provides translations for errors.comments
-type TranslatorErrorsComments struct {
-	translator *Translator
-}
-
-// ContentRequired translates: "Le contenu du commentaire est requis"
-func (t *TranslatorErrorsComments) ContentRequired(ctx context.Context) string {
-	return t.translator.translate(ctx, "errors.comments.content_required")
-}
-
-// ContentTooLong translates: "Le commentaire ne peut pas dépasser %d caractères"
-func (t *TranslatorErrorsComments) ContentTooLong(ctx context.Context, arg1 int) string {
-	return t.translator.translate(ctx, "errors.comments.content_too_long", arg1)
-}
-
-// NotFound translates: "Commentaire avec l'ID %s introuvable"
-func (t *TranslatorErrorsComments) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.comments.not_found", id)
-}
-
-// PostNotFound translates: "Impossible de créer le commentaire : article %s introuvable"
-func (t *TranslatorErrorsComments) PostNotFound(ctx context.Context, arg1 string) string {
-	return t.translator.translate(ctx, "errors.comments.post_not_found", arg1)
 }
 
 // TranslatorErrorsPosts provides translations for errors.posts
@@ -85,26 +60,6 @@ func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg
 	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
 }
 
-// TranslatorErrorsUsers provides translations for errors.users
-type TranslatorErrorsUsers struct {
-	translator *Translator
-}
-
-// EmailTaken translates: "L'email '%s' est déjà enregistré"
-func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
-	return t.translator.translate(ctx, "errors.users.email_taken", email)
-}
-
-// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
-func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.invalid_email", id)
-}
-
-// NotFound translates: "Utilisateur avec l'ID %s introuvable"
-func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.not_found", id)
-}
-
 // TranslatorErrorsAuth provides translations for errors.auth
 type TranslatorErrorsAuth struct {
 	translator *Translator
@@ -128,4 +83,49 @@ func (t *TranslatorErrorsAuth) TokenExpired(ctx context.Context, minutes int) st
 // TokenInvalid translates: "Jeton d'authentification invalide"
 func (t *TranslatorErrorsAuth) TokenInvalid(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.auth.token_invalid")
+}
+
+// TranslatorErrorsComments provides translations for errors.comments
+type TranslatorErrorsComments struct {
+	translator *Translator
+}
+
+// ContentRequired translates: "Le contenu du commentaire est requis"
+func (t *TranslatorErrorsComments) ContentRequired(ctx context.Context) string {
+	return t.translator.translate(ctx, "errors.comments.content_required")
+}
+
+// ContentTooLong translates: "Le commentaire ne peut pas dépasser %d caractères"
+func (t *TranslatorErrorsComments) ContentTooLong(ctx context.Context, arg1 int) string {
+	return t.translator.translate(ctx, "errors.comments.content_too_long", arg1)
+}
+
+// NotFound translates: "Commentaire avec l'ID %s introuvable"
+func (t *TranslatorErrorsComments) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.comments.not_found", id)
+}
+
+// PostNotFound translates: "Impossible de créer le commentaire : article %s introuvable"
+func (t *TranslatorErrorsComments) PostNotFound(ctx context.Context, arg1 string) string {
+	return t.translator.translate(ctx, "errors.comments.post_not_found", arg1)
+}
+
+// TranslatorErrorsUsers provides translations for errors.users
+type TranslatorErrorsUsers struct {
+	translator *Translator
+}
+
+// EmailTaken translates: "L'email '%s' est déjà enregistré"
+func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
+	return t.translator.translate(ctx, "errors.users.email_taken", email)
+}
+
+// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
+func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.invalid_email", id)
+}
+
+// NotFound translates: "Utilisateur avec l'ID %s introuvable"
+func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.not_found", id)
 }

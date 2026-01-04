@@ -12,11 +12,11 @@ func createLargeProject() *scanner.Project {
 	}
 
 	// Create 50 providers
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		provider := &scanner.Provider{
 			Name:        "NewService" + string(rune('A'+i%26)),
 			PackagePath: "testproject",
-			Lifecycle:   "singleton",
+			Lifecycle:   scanner.LifecycleSingleton,
 			ReturnType: &scanner.TypeInfo{
 				Name:     "Service" + string(rune('A'+i%26)),
 				FullName: "Service" + string(rune('A'+i%26)),
@@ -26,7 +26,7 @@ func createLargeProject() *scanner.Project {
 	}
 
 	// Create 20 controllers
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		controller := &scanner.Controller{
 			Name:        "Controller" + string(rune('A'+i)),
 			PackagePath: "testproject",
@@ -99,16 +99,15 @@ func BenchmarkIncrementalValidation_OneChangeOnly(b *testing.B) {
 	// Modify just one provider
 	project.Providers[0].Lifecycle = "transient"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		validator := NewIncrementalValidator(cacheDir)
 		validator.ValidateIncremental(project)
 
 		// Flip back and forth to simulate changes
 		if i%2 == 0 {
-			project.Providers[0].Lifecycle = "singleton"
+			project.Providers[0].Lifecycle = scanner.LifecycleSingleton
 		} else {
-			project.Providers[0].Lifecycle = "transient"
+			project.Providers[0].Lifecycle = scanner.LifecycleTransient
 		}
 	}
 }

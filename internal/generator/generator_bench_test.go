@@ -15,7 +15,7 @@ func createSimpleBenchmarkProject() *scanner.Project {
 				PackageName: "services",
 				PackagePath: "github.com/test/app/services",
 				FilePath:    "/test/services/database.go",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:        "DB",
 					FullName:    "gorm.DB",
@@ -122,7 +122,7 @@ func BenchmarkGenerator_LargeProject(b *testing.B) {
 			Name:        "NewService" + string(rune('A'+i%26)) + string(rune('0'+i/26)),
 			PackageName: "services",
 			PackagePath: "github.com/test/app/services",
-			Lifecycle:   "singleton",
+			Lifecycle:   scanner.LifecycleSingleton,
 			ReturnType: &scanner.TypeInfo{
 				Name: "Service" + string(rune('A'+i%26)),
 			},
@@ -152,7 +152,7 @@ func BenchmarkDependencyGraph_Build(b *testing.B) {
 			Name:        "NewService" + string(rune('A'+i)),
 			PackageName: "services",
 			PackagePath: "github.com/test/app/services",
-			Lifecycle:   "singleton",
+			Lifecycle:   scanner.LifecycleSingleton,
 			ReturnType: &scanner.TypeInfo{
 				Name: "Service" + string(rune('A'+i)),
 			},

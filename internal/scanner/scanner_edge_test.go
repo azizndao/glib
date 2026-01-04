@@ -12,7 +12,7 @@ func TestScanner_EdgeCases(t *testing.T) {
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/empty\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/empty\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -39,7 +39,7 @@ func TestScanner_EdgeCases(t *testing.T) {
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/comments\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/comments\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -55,7 +55,7 @@ func TestScanner_EdgeCases(t *testing.T) {
    @Provider also not real
 */
 `
-		if err := os.WriteFile(mainGo, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(mainGo, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -79,13 +79,13 @@ func TestScanner_EdgeCases(t *testing.T) {
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/nested\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/nested\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create deeply nested structure
 		deepDir := filepath.Join(tmpDir, "a", "b", "c", "d", "e")
-		if err := os.MkdirAll(deepDir, 0755); err != nil {
+		if err := os.MkdirAll(deepDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -100,7 +100,7 @@ func NewService() *Service {
 
 type Service struct {}
 `
-		if err := os.WriteFile(deepFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(deepFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -124,7 +124,7 @@ type Service struct {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/buildtags\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/buildtags\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -142,7 +142,7 @@ func NewLinuxService() *LinuxService {
 
 type LinuxService struct {}
 `
-		if err := os.WriteFile(taggedFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(taggedFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -167,7 +167,7 @@ type LinuxService struct {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/unicode\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/unicode\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -183,7 +183,7 @@ type UserController struct {}
 // @Route method=GET path=/
 func (c *UserController) List(w http.ResponseWriter, r *http.Request) {}
 `
-		if err := os.WriteFile(unicodeFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(unicodeFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -212,7 +212,7 @@ func (c *UserController) List(w http.ResponseWriter, r *http.Request) {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/special\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/special\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -228,7 +228,7 @@ type PostController struct {}
 // @Route method=GET path=/{id:[0-9]+}
 func (c *PostController) Get(w http.ResponseWriter, r *http.Request) {}
 `
-		if err := os.WriteFile(specialFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(specialFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -257,14 +257,14 @@ func (c *PostController) Get(w http.ResponseWriter, r *http.Request) {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/lineendings\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/lineendings\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create file with mixed line endings (CRLF and LF)
 		mixedFile := filepath.Join(tmpDir, "mixed.go")
 		content := "package main\r\n\r\n// @Provider singleton\r\nfunc NewService() *Service {\n\treturn &Service{}\n}\n\ntype Service struct {}\n"
-		if err := os.WriteFile(mixedFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(mixedFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -288,13 +288,13 @@ func (c *PostController) Get(w http.ResponseWriter, r *http.Request) {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/longpath\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/longpath\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a very long path (but reasonable)
 		longPath := filepath.Join(tmpDir, "very", "long", "nested", "package", "structure", "with", "many", "levels", "to", "test", "path", "handling")
-		if err := os.MkdirAll(longPath, 0755); err != nil {
+		if err := os.MkdirAll(longPath, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -305,7 +305,7 @@ func (c *PostController) Get(w http.ResponseWriter, r *http.Request) {}
 func NewService() *Service { return &Service{} }
 type Service struct {}
 `
-		if err := os.WriteFile(longFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(longFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -329,13 +329,13 @@ type Service struct {}
 
 		// Create go.mod
 		goMod := filepath.Join(tmpDir, "go.mod")
-		if err := os.WriteFile(goMod, []byte("module test/symlink\ngo 1.21\n"), 0644); err != nil {
+		if err := os.WriteFile(goMod, []byte("module test/symlink\ngo 1.21\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create actual directory
 		actualDir := filepath.Join(tmpDir, "actual")
-		if err := os.MkdirAll(actualDir, 0755); err != nil {
+		if err := os.MkdirAll(actualDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -346,7 +346,7 @@ type Service struct {}
 func NewService() *Service { return &Service{} }
 type Service struct {}
 `
-		if err := os.WriteFile(actualFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(actualFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -378,12 +378,12 @@ func TestScanner_ConcurrentAccess(t *testing.T) {
 
 	// Create go.mod
 	goMod := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goMod, []byte("module test/concurrent\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goMod, []byte("module test/concurrent\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create multiple files
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		file := filepath.Join(tmpDir, "service"+string(rune('0'+i))+".go")
 		content := `package main
 
@@ -394,7 +394,7 @@ func NewService` + string(rune('A'+i)) + `() *Service` + string(rune('A'+i)) + `
 
 type Service` + string(rune('A'+i)) + ` struct {}
 `
-		if err := os.WriteFile(file, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -404,7 +404,7 @@ type Service` + string(rune('A'+i)) + ` struct {}
 	const goroutines = 5
 	results := make(chan error, goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			scanner, err := New(tmpDir)
 			if err != nil {
@@ -417,7 +417,7 @@ type Service` + string(rune('A'+i)) + ` struct {}
 	}
 
 	// Check all succeeded
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		if err := <-results; err != nil {
 			t.Errorf("Concurrent scan %d failed: %v", i, err)
 		}
@@ -429,7 +429,7 @@ func TestScanner_ExcludePatterns(t *testing.T) {
 
 	// Create go.mod
 	goMod := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goMod, []byte("module test/exclude\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goMod, []byte("module test/exclude\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -440,7 +440,7 @@ func TestScanner_ExcludePatterns(t *testing.T) {
 	dirs := []string{"vendor", "node_modules", ".git", ".glib", "tmp", "normal"}
 	for _, dir := range dirs {
 		dirPath := filepath.Join(tmpDir, dir)
-		if err := os.MkdirAll(dirPath, 0755); err != nil {
+		if err := os.MkdirAll(dirPath, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -451,7 +451,7 @@ func TestScanner_ExcludePatterns(t *testing.T) {
 func NewService() *Service { return &Service{} }
 type Service struct {}
 `
-		if err := os.WriteFile(file, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

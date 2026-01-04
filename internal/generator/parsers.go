@@ -161,7 +161,7 @@ func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scann
 	}
 
 	// Use appropriate template based on pattern name
-	templateName := sig.Pattern + ".templ"
+	templateName := sig.Pattern.String() + ".templ"
 	return g.executeTemplate(templateName, data)
 }
 

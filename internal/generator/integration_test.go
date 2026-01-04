@@ -19,7 +19,7 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 				FunctionName: "NewDatabase",
 				PackageName:  "services",
 				PackagePath:  "app/services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*gorm.DB",
 				},
@@ -31,7 +31,7 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 				FunctionName: "NewUserService",
 				PackageName:  "services",
 				PackagePath:  "app/services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.UserService",
 				},
@@ -50,7 +50,7 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 				FunctionName: "NewAuditor",
 				PackageName:  "services",
 				PackagePath:  "app/services",
-				Lifecycle:    "transient",
+				Lifecycle:    scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.Auditor",
 				},
@@ -69,7 +69,7 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 				FunctionName: "NewPostService",
 				PackageName:  "services",
 				PackagePath:  "app/services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.PostService",
 				},
@@ -94,7 +94,7 @@ func TestIntegration_SingletonDependsOnTransient(t *testing.T) {
 				FunctionName: "NewLogger",
 				PackageName:  "services",
 				PackagePath:  "app/services",
-				Lifecycle:    "transient",
+				Lifecycle:    scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.Logger",
 				},
@@ -207,7 +207,7 @@ func TestIntegration_ComplexDependencyChain(t *testing.T) {
 				Name:         "NewE",
 				FunctionName: "NewE",
 				PackageName:  "services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType:   &scanner.TypeInfo{FullName: "*services.E"},
 				Dependencies: nil,
 			},
@@ -215,7 +215,7 @@ func TestIntegration_ComplexDependencyChain(t *testing.T) {
 				Name:         "NewD",
 				FunctionName: "NewD",
 				PackageName:  "services",
-				Lifecycle:    "transient",
+				Lifecycle:    scanner.LifecycleTransient,
 				ReturnType:   &scanner.TypeInfo{FullName: "*services.D"},
 				Dependencies: []*scanner.Field{
 					{Name: "e", Type: &scanner.TypeInfo{FullName: "*services.E"}},
@@ -225,7 +225,7 @@ func TestIntegration_ComplexDependencyChain(t *testing.T) {
 				Name:         "NewC",
 				FunctionName: "NewC",
 				PackageName:  "services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType:   &scanner.TypeInfo{FullName: "*services.C"},
 				Dependencies: []*scanner.Field{
 					{Name: "d", Type: &scanner.TypeInfo{FullName: "*services.D"}},
@@ -235,7 +235,7 @@ func TestIntegration_ComplexDependencyChain(t *testing.T) {
 				Name:         "NewB",
 				FunctionName: "NewB",
 				PackageName:  "services",
-				Lifecycle:    "transient",
+				Lifecycle:    scanner.LifecycleTransient,
 				ReturnType:   &scanner.TypeInfo{FullName: "*services.B"},
 				Dependencies: []*scanner.Field{
 					{Name: "c", Type: &scanner.TypeInfo{FullName: "*services.C"}},
@@ -245,7 +245,7 @@ func TestIntegration_ComplexDependencyChain(t *testing.T) {
 				Name:         "NewA",
 				FunctionName: "NewA",
 				PackageName:  "services",
-				Lifecycle:    "singleton",
+				Lifecycle:    scanner.LifecycleSingleton,
 				ReturnType:   &scanner.TypeInfo{FullName: "*services.A"},
 				Dependencies: []*scanner.Field{
 					{Name: "b", Type: &scanner.TypeInfo{FullName: "*services.B"}},

@@ -78,9 +78,9 @@ func (g *DependencyGraph) AnalyzeUsage() *InitializationPlan {
 
 	for _, prov := range g.Providers {
 		switch prov.Lifecycle {
-		case "singleton":
+		case scanner.LifecycleSingleton:
 			singletons = append(singletons, prov)
-		case "transient":
+		case scanner.LifecycleTransient:
 			transients = append(transients, prov)
 		}
 	}
@@ -129,7 +129,7 @@ func (g *DependencyGraph) findCriticalTransients(singletons []*scanner.Provider)
 
 		// Check if this provider is a transient
 		if prov, exists := g.ProvidersByType[provType]; exists {
-			if prov.Lifecycle == "transient" {
+			if prov.Lifecycle == scanner.LifecycleTransient {
 				critical[provType] = true
 			}
 
@@ -255,12 +255,12 @@ func (g *DependencyGraph) IsUsedBySingleton(transient *scanner.Provider) bool {
 	// Check all dependents of this transient
 	for _, dependentType := range g.Dependents[transientType] {
 		dependent := g.ProvidersByType[dependentType]
-		if dependent != nil && dependent.Lifecycle == "singleton" {
+		if dependent != nil && dependent.Lifecycle == scanner.LifecycleSingleton {
 			return true
 		}
 
 		// Recursively check if any dependent is used by a singleton
-		if dependent != nil && dependent.Lifecycle == "transient" {
+		if dependent != nil && dependent.Lifecycle == scanner.LifecycleTransient {
 			if g.IsUsedBySingleton(dependent) {
 				return true
 			}

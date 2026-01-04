@@ -11,10 +11,9 @@ func (s *Scanner) scanProvider(funcDecl *ast.FuncDecl, annotation *Annotation, p
 	s.currentPackageName = packageName
 	s.currentPackagePath = packagePath
 
-	lifecycle := parseProviderAnnotation(annotation.Value)
-
-	if lifecycle != "singleton" && lifecycle != "transient" {
-		return nil, fmt.Errorf("invalid provider lifecycle: %s (must be 'singleton' or 'transient')", lifecycle)
+	lifecycle, err := ParseLifecycle(annotation.Value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid provider lifecycle: %w", err)
 	}
 
 	// Parse function parameters (dependencies)
@@ -82,7 +81,7 @@ func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation,
 
 	target := def["target"]
 	if target == "" {
-		target = "all"
+		target = TargetAll
 	}
 
 	order := 100

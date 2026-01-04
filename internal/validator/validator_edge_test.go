@@ -303,7 +303,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Name:      "auth",
 			Target:    "all",
 			Order:     0,
-			Signature: "chi",
+			Signature: scanner.MiddlewareSignatureStandard,
 			FilePath:  "test.go",
 		}
 
@@ -319,7 +319,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Name:      "auth",
 			Target:    "all",
 			Order:     0,
-			Signature: "glib",
+			Signature: scanner.MiddlewareSignatureGlib,
 			FilePath:  "test.go",
 		}
 
@@ -554,7 +554,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Providers: []*scanner.Provider{
 				{
 					Name:       "NewDB",
-					Lifecycle:  "singleton",
+					Lifecycle:  scanner.LifecycleSingleton,
 					FilePath:   "providers/db.go",
 					ReturnType: &scanner.TypeInfo{FullName: "*gorm.DB"},
 				},
@@ -564,7 +564,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 					Name:      "auth",
 					Target:    "all",
 					Order:     0,
-					Signature: "chi",
+					Signature: scanner.MiddlewareSignatureStandard,
 					FilePath:  "middleware/auth.go",
 				},
 			},
@@ -810,8 +810,8 @@ func TestValidator_ComplexScenarios(t *testing.T) {
 				},
 			},
 			Middleware: []*scanner.Middleware{
-				{Name: "auth", Target: "api", Order: 0, Signature: "chi", FilePath: "auth.go"},
-				{Name: "ratelimit", Target: "all", Order: 1, Signature: "chi", FilePath: "ratelimit.go"},
+				{Name: "auth", Target: "api", Order: 0, Signature: scanner.MiddlewareSignatureStandard, FilePath: "auth.go"},
+				{Name: "ratelimit", Target: "all", Order: 1, Signature: scanner.MiddlewareSignatureStandard, FilePath: "ratelimit.go"},
 			},
 		}
 

@@ -62,10 +62,10 @@ func NewTranslator(localesDir string, defaultLocale string, supportedLocales []s
 	// Initialize nested sections
 	t.Errors = &TranslatorErrors{
 		translator: t,
-		Comments:   &TranslatorErrorsComments{translator: t},
 		Posts:      &TranslatorErrorsPosts{translator: t},
-		Users:      &TranslatorErrorsUsers{translator: t},
 		Auth:       &TranslatorErrorsAuth{translator: t},
+		Comments:   &TranslatorErrorsComments{translator: t},
+		Users:      &TranslatorErrorsUsers{translator: t},
 	}
 	t.Validation = &TranslatorValidation{
 		translator: t,

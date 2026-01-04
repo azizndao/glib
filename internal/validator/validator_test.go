@@ -195,7 +195,7 @@ func TestValidateProvider(t *testing.T) {
 			name: "valid singleton provider",
 			provider: &scanner.Provider{
 				Name:       "NewDatabase",
-				Lifecycle:  "singleton",
+				Lifecycle:  scanner.LifecycleSingleton,
 				FilePath:   "test.go",
 				ReturnType: &scanner.TypeInfo{FullName: "*gorm.DB"},
 			},
@@ -205,7 +205,7 @@ func TestValidateProvider(t *testing.T) {
 			name: "valid transient provider",
 			provider: &scanner.Provider{
 				Name:       "NewLogger",
-				Lifecycle:  "transient",
+				Lifecycle:  scanner.LifecycleTransient,
 				FilePath:   "test.go",
 				ReturnType: &scanner.TypeInfo{FullName: "*logger.Logger"},
 			},
@@ -225,7 +225,7 @@ func TestValidateProvider(t *testing.T) {
 			name: "missing return type",
 			provider: &scanner.Provider{
 				Name:       "NewDatabase",
-				Lifecycle:  "singleton",
+				Lifecycle:  scanner.LifecycleSingleton,
 				FilePath:   "test.go",
 				ReturnType: nil,
 			},

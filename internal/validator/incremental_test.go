@@ -3,6 +3,7 @@ package validator
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/azizndao/glib/internal/scanner"
@@ -18,7 +19,7 @@ func TestIncrementalValidation(t *testing.T) {
 			{
 				Name:        "NewDatabase",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "Database",
 					FullName: "Database",
@@ -79,7 +80,7 @@ func TestCacheInvalidation(t *testing.T) {
 			{
 				Name:        "NewService",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "Service",
 					FullName: "Service",
@@ -116,7 +117,7 @@ func TestDependencyTracking(t *testing.T) {
 			{
 				Name:        "NewDatabase",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "Database",
 					FullName: "Database",
@@ -125,7 +126,7 @@ func TestDependencyTracking(t *testing.T) {
 			{
 				Name:        "NewUserService",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "UserService",
 					FullName: "UserService",
@@ -160,13 +161,7 @@ func TestDependencyTracking(t *testing.T) {
 	invalidated := validator.InvalidateComponent("provider", "testproject", "NewDatabase")
 
 	// Should invalidate Database
-	found := false
-	for _, inv := range invalidated {
-		if inv == dbID {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(invalidated, dbID)
 
 	if !found {
 		t.Error("Database should have been invalidated")
@@ -182,7 +177,7 @@ func TestCacheClear(t *testing.T) {
 			{
 				Name:        "NewService",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "Service",
 					FullName: "Service",
@@ -220,7 +215,7 @@ func TestComponentHashChanges(t *testing.T) {
 	provider2 := &scanner.Provider{
 		Name:        "NewService",
 		PackagePath: "testproject",
-		Lifecycle:   "transient", // Changed!
+		Lifecycle:   scanner.LifecycleTransient, // Changed!
 		ReturnType: &scanner.TypeInfo{
 			Name:     "Service",
 			FullName: "Service",
@@ -247,7 +242,7 @@ func TestCachePersistence(t *testing.T) {
 			{
 				Name:        "NewService",
 				PackagePath: "testproject",
-				Lifecycle:   "singleton",
+				Lifecycle:   scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					Name:     "Service",
 					FullName: "Service",
@@ -258,7 +253,10 @@ func TestCachePersistence(t *testing.T) {
 
 	// Create validator and validate
 	validator1 := NewIncrementalValidator(cacheDir)
-	validator1.ValidateIncremental(project)
+	err := validator1.ValidateIncremental(project)
+	if err != nil {
+		t.Fatalf("First validation failed: %v", err)
+	}
 
 	// Create new validator instance (should load from disk)
 	validator2 := NewIncrementalValidator(cacheDir)

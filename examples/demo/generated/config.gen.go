@@ -7,21 +7,6 @@ import (
 	"github.com/azizndao/glib/utils"
 )
 
-func loadRedisConfig() (*configs.RedisConfig, error) {
-	cfg := &configs.RedisConfig{}
-	var err error
-
-	cfg.Host = utils.GetEnvOr("REDIS_HOST", "localhost")
-
-	if cfg.Port, err = utils.GetEnvInt("REDIS_PORT", 6379); err != nil {
-		return nil, err
-	}
-
-	cfg.Password = utils.GetEnvOr("REDIS_PASSWORD", "")
-
-	return cfg, nil
-}
-
 func loadConfig() (*configs.Config, error) {
 	cfg := &configs.Config{}
 	var err error
@@ -49,6 +34,21 @@ func loadStorageConfig() (*configs.StorageConfig, error) {
 	cfg.Driver = utils.GetEnvOr("STORAGE_DRIVER", "")
 
 	cfg.Local.Root = utils.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
+
+	return cfg, nil
+}
+
+func loadRedisConfig() (*configs.RedisConfig, error) {
+	cfg := &configs.RedisConfig{}
+	var err error
+
+	cfg.Host = utils.GetEnvOr("REDIS_HOST", "localhost")
+
+	if cfg.Port, err = utils.GetEnvInt("REDIS_PORT", 6379); err != nil {
+		return nil, err
+	}
+
+	cfg.Password = utils.GetEnvOr("REDIS_PASSWORD", "")
 
 	return cfg, nil
 }

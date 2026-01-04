@@ -155,7 +155,7 @@ func TestIsProviderTransient(t *testing.T) {
 			},
 			providers: []*scanner.Provider{
 				{
-					Lifecycle: "transient",
+					Lifecycle: scanner.LifecycleTransient,
 					ReturnType: &scanner.TypeInfo{
 						FullName: "services.Logger",
 					},
@@ -170,7 +170,7 @@ func TestIsProviderTransient(t *testing.T) {
 			},
 			providers: []*scanner.Provider{
 				{
-					Lifecycle: "singleton",
+					Lifecycle: scanner.LifecycleSingleton,
 					ReturnType: &scanner.TypeInfo{
 						FullName: "services.Database",
 					},
@@ -185,7 +185,7 @@ func TestIsProviderTransient(t *testing.T) {
 			},
 			providers: []*scanner.Provider{
 				{
-					Lifecycle: "singleton",
+					Lifecycle: scanner.LifecycleSingleton,
 					ReturnType: &scanner.TypeInfo{
 						FullName: "services.Database",
 					},

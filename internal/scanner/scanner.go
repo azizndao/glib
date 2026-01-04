@@ -148,7 +148,6 @@ func (s *Scanner) Scan() (*Project, error) {
 
 	// First pass: collect all controllers, providers, middleware
 	err := s.walkGoFiles(func(path string, info os.FileInfo) error {
-
 		// Parse the file
 		file, err := parser.ParseFile(s.fset, path, nil, parser.ParseComments)
 		if err != nil {
@@ -312,7 +311,7 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 						annotations := extractAnnotations(d.Doc)
 
 						// Check for @Controller
-						if ctrlAnn := findAnnotation(annotations, "Controller"); ctrlAnn != nil {
+						if ctrlAnn := findAnnotation(annotations, AnnotationController); ctrlAnn != nil {
 							controller, err := s.scanController(typeSpec, d.Doc, packageName, packagePath, filePath)
 							if err != nil {
 								return err
@@ -332,7 +331,7 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 			annotations := extractAnnotations(d.Doc)
 
 			// Check for @Provider
-			if provAnn := findAnnotation(annotations, "Provider"); provAnn != nil {
+			if provAnn := findAnnotation(annotations, AnnotationProvider); provAnn != nil {
 				provider, err := s.scanProvider(d, provAnn, packageName, packagePath, filePath)
 				if err != nil {
 					return err
@@ -341,7 +340,7 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 			}
 
 			// Check for @Middleware
-			if mwAnn := findAnnotation(annotations, "Middleware"); mwAnn != nil {
+			if mwAnn := findAnnotation(annotations, AnnotationMiddleware); mwAnn != nil {
 				middleware, err := s.scanMiddleware(d, mwAnn, packageName, packagePath, filePath)
 				if err != nil {
 					return err

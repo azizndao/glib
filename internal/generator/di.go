@@ -15,8 +15,8 @@ type ProviderData struct {
 	Name         string
 	ArgsString   string
 	ReturnsError bool
-	Lifecycle    string // "singleton" or "transient"
-	IsConfig     bool   // true if this is a config provider
+	Lifecycle    scanner.Lifecycle
+	IsConfig     bool // true if this is a config provider
 }
 
 // ControllerData represents data for a controller in the template
@@ -40,7 +40,7 @@ type MiddlewareData struct {
 	PackageName  string
 	FunctionName string
 	ArgsString   string
-	Signature    string // "old" or "new"
+	Signature    scanner.MiddlewareSignature
 }
 
 // generateDI generates the DI container (di.gen.go)
@@ -48,7 +48,7 @@ func (g *Generator) generateDI() (string, error) {
 	// Check if any middleware uses glib-style signature
 	needsGlibMiddleware := false
 	for _, mw := range g.project.Middleware {
-		if mw.Signature == "glib" {
+		if mw.Signature == scanner.MiddlewareSignatureGlib {
 			needsGlibMiddleware = true
 			break
 		}

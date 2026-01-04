@@ -26,7 +26,7 @@ func (s *Scanner) scanConfig(file *ast.File, packagePath, filePath string) ([]*C
 
 			// Check for @Config annotation
 			annotations := extractAnnotations(genDecl.Doc)
-			configAnn := findAnnotation(annotations, "Config")
+			configAnn := findAnnotation(annotations, AnnotationConfig)
 
 			if configAnn == nil {
 				continue // No @Config annotation, skip

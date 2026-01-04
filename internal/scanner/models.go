@@ -1,16 +1,147 @@
 package scanner
 
-// Handler pattern types
+import "fmt"
+
+// AnnotationType represents the type of annotation
+type AnnotationType string
+
 const (
-	PatternDataError = "data_error" // (T, error) - Returns data and error
-	PatternErrorOnly = "error_only" // error - Returns error only (no content)
-	PatternRawHTTP   = "raw_http"   // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
+	AnnotationController AnnotationType = "Controller" // @Controller annotation
+	AnnotationRoute      AnnotationType = "Route"      // @Route annotation
+	AnnotationProvider   AnnotationType = "Provider"   // @Provider annotation
+	AnnotationMiddleware AnnotationType = "Middleware" // @Middleware annotation
+	AnnotationConfig     AnnotationType = "Config"     // @Config annotation
 )
 
-// Middleware signature types
+// String returns the string representation of the annotation type
+func (a AnnotationType) String() string {
+	return string(a)
+}
+
+// IsValid checks if the annotation type is valid
+func (a AnnotationType) IsValid() bool {
+	switch a {
+	case AnnotationController, AnnotationRoute, AnnotationProvider, AnnotationMiddleware, AnnotationConfig:
+		return true
+	}
+	return false
+}
+
+// HTTPMethod represents an HTTP method
+type HTTPMethod string
+
 const (
-	MiddlewareSignatureStandard = "standard" // func(http.Handler) http.Handler
-	MiddlewareSignatureGlib     = "glib"     // func(glib.Request, glib.Next) glib.Response
+	MethodGet     HTTPMethod = "GET"
+	MethodPost    HTTPMethod = "POST"
+	MethodPut     HTTPMethod = "PUT"
+	MethodPatch   HTTPMethod = "PATCH"
+	MethodDelete  HTTPMethod = "DELETE"
+	MethodHead    HTTPMethod = "HEAD"
+	MethodOptions HTTPMethod = "OPTIONS"
+)
+
+// String returns the string representation of the HTTP method
+func (m HTTPMethod) String() string {
+	return string(m)
+}
+
+// IsValid checks if the HTTP method is valid
+func (m HTTPMethod) IsValid() bool {
+	switch m {
+	case MethodGet, MethodPost, MethodPut, MethodPatch, MethodDelete, MethodHead, MethodOptions:
+		return true
+	}
+	return false
+}
+
+// ParseHTTPMethod parses a string into an HTTPMethod
+func ParseHTTPMethod(s string) (HTTPMethod, error) {
+	method := HTTPMethod(s)
+	if !method.IsValid() {
+		return "", fmt.Errorf("invalid HTTP method: %s", s)
+	}
+	return method, nil
+}
+
+// HandlerPattern represents the pattern of a handler signature
+type HandlerPattern string
+
+const (
+	PatternDataError HandlerPattern = "data_error" // (T, error) - Returns data and error
+	PatternErrorOnly HandlerPattern = "error_only" // error - Returns error only (no content)
+	PatternRawHTTP   HandlerPattern = "raw_http"   // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
+)
+
+// String returns the string representation of the handler pattern
+func (p HandlerPattern) String() string {
+	return string(p)
+}
+
+// IsValid checks if the handler pattern is valid
+func (p HandlerPattern) IsValid() bool {
+	switch p {
+	case PatternDataError, PatternErrorOnly, PatternRawHTTP:
+		return true
+	}
+	return false
+}
+
+// MiddlewareSignature represents the signature type of middleware
+type MiddlewareSignature string
+
+const (
+	MiddlewareSignatureStandard MiddlewareSignature = "standard" // func(http.Handler) http.Handler
+	MiddlewareSignatureGlib     MiddlewareSignature = "glib"     // func(glib.Request, glib.Next) glib.Response
+)
+
+// String returns the string representation of the middleware signature
+func (s MiddlewareSignature) String() string {
+	return string(s)
+}
+
+// IsValid checks if the middleware signature is valid
+func (s MiddlewareSignature) IsValid() bool {
+	switch s {
+	case MiddlewareSignatureStandard, MiddlewareSignatureGlib:
+		return true
+	}
+	return false
+}
+
+// Lifecycle represents the lifecycle of a provider
+type Lifecycle string
+
+const (
+	LifecycleSingleton Lifecycle = "singleton" // Single instance shared across the application
+	LifecycleTransient Lifecycle = "transient" // New instance created for each request
+)
+
+// String returns the string representation of the lifecycle
+func (l Lifecycle) String() string {
+	return string(l)
+}
+
+// IsValid checks if the lifecycle is valid
+func (l Lifecycle) IsValid() bool {
+	switch l {
+	case LifecycleSingleton, LifecycleTransient:
+		return true
+	}
+	return false
+}
+
+// ParseLifecycle parses a string into a Lifecycle
+func ParseLifecycle(s string) (Lifecycle, error) {
+	lifecycle := Lifecycle(s)
+	if !lifecycle.IsValid() {
+		return "", fmt.Errorf("invalid lifecycle: %s (must be '%s' or '%s')", s, LifecycleSingleton, LifecycleTransient)
+	}
+	return lifecycle, nil
+}
+
+// Middleware target constants
+const (
+	TargetAll = "all" // Apply to all routes
 )
 
 // Project represents the complete scanned project
@@ -39,7 +170,7 @@ type Controller struct {
 // Handler represents a controller method annotated with @Route
 type Handler struct {
 	Name       string
-	Method     string
+	Method     HTTPMethod
 	Path       string
 	FullPath   string
 	SourceLine int
@@ -50,7 +181,7 @@ type Handler struct {
 
 // HandlerSignature represents a parsed handler signature
 type HandlerSignature struct {
-	Pattern               string
+	Pattern               HandlerPattern
 	Receiver              *Field
 	PathParams            []*PathParam
 	QueryParams           []*QueryParam
@@ -108,7 +239,7 @@ type Provider struct {
 	PackagePath  string
 	FilePath     string
 	SourceLine   int
-	Lifecycle    string // "singleton" or "transient"
+	Lifecycle    Lifecycle
 	ReturnType   *TypeInfo
 	Dependencies []*Field
 	ReturnsError bool
@@ -124,7 +255,7 @@ type Middleware struct {
 	SourceLine   int
 	Target       string // e.g., "all", "protected", "public,admin" - targeting expression
 	Order        int    // Execution order (default: 100)
-	Signature    string // "standard" or "glib" - see MiddlewareSignature constants
+	Signature    MiddlewareSignature
 	Dependencies []*Field
 }
 
@@ -173,7 +304,7 @@ type TypeInfo struct {
 
 // Annotation represents a parsed annotation from comments
 type Annotation struct {
-	Type  string            // e.g., "Controller", "Route", "Provider", "Middleware"
+	Type  AnnotationType    // e.g., "Controller", "Route", "Provider", "Middleware"
 	Value string            // Primary value (e.g., "/api/v1/posts", "GET /", "singleton")
 	Args  map[string]string // Additional arguments (future use)
 	Line  int

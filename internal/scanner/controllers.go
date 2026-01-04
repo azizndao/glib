@@ -14,7 +14,7 @@ func (s *Scanner) scanController(typeSpec *ast.TypeSpec, doc *ast.CommentGroup, 
 	s.currentPackagePath = packagePath
 
 	annotations := extractAnnotations(doc)
-	ctrlAnn := findAnnotation(annotations, "Controller")
+	ctrlAnn := findAnnotation(annotations, AnnotationController)
 	if ctrlAnn == nil {
 		return nil, fmt.Errorf("controller annotation not found")
 	}
@@ -93,7 +93,7 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller, packag
 
 		// Check for @Route annotation
 		annotations := extractAnnotations(funcDecl.Doc)
-		routeAnn := findAnnotation(annotations, "Route")
+		routeAnn := findAnnotation(annotations, AnnotationRoute)
 		if routeAnn == nil {
 			continue
 		}
@@ -101,12 +101,16 @@ func (s *Scanner) scanHandlers(file *ast.File, controllers []*Controller, packag
 		// Parse route annotation: method=POST path=/ tags=protected with=auth,admin
 		routeParams := parseRouteAnnotation(routeAnn.Value)
 
-		method := routeParams["method"]
+		methodStr := routeParams["method"]
 		path := routeParams["path"]
-		if method == "" || path == "" {
+		if methodStr == "" || path == "" {
 			continue
 		}
-		method = strings.ToUpper(method)
+		methodStr = strings.ToUpper(methodStr)
+		method, err := ParseHTTPMethod(methodStr)
+		if err != nil {
+			return fmt.Errorf("invalid HTTP method in handler %s.%s: %w", controller.Name, funcDecl.Name.Name, err)
+		}
 
 		// Parse tags from route annotation
 		var tags []string

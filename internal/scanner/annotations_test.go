@@ -17,35 +17,35 @@ func TestExtractAnnotations(t *testing.T) {
 			name:    "controller annotation",
 			comment: "// @Controller path=/api/v1/posts tags=api,public",
 			expected: []Annotation{
-				{Type: "Controller", Value: "path=/api/v1/posts tags=api,public"},
+				{Type: AnnotationController, Value: "path=/api/v1/posts tags=api,public"},
 			},
 		},
 		{
 			name:    "route annotation",
 			comment: "// @Route method=GET path=/{id}",
 			expected: []Annotation{
-				{Type: "Route", Value: "method=GET path=/{id}"},
+				{Type: AnnotationRoute, Value: "method=GET path=/{id}"},
 			},
 		},
 		{
 			name:    "provider singleton",
 			comment: "// @Provider singleton",
 			expected: []Annotation{
-				{Type: "Provider", Value: "singleton"},
+				{Type: AnnotationProvider, Value: LifecycleSingleton.String()},
 			},
 		},
 		{
 			name:    "provider transient",
 			comment: "// @Provider transient",
 			expected: []Annotation{
-				{Type: "Provider", Value: "transient"},
+				{Type: AnnotationProvider, Value: LifecycleTransient.String()},
 			},
 		},
 		{
 			name:    "middleware annotation",
 			comment: "// @Middleware name=auth target=protected order=10",
 			expected: []Annotation{
-				{Type: "Middleware", Value: "name=auth target=protected order=10"},
+				{Type: AnnotationMiddleware, Value: "name=auth target=protected order=10"},
 			},
 		},
 		{
@@ -147,10 +147,10 @@ func TestParseProviderAnnotation(t *testing.T) {
 		value    string
 		expected string
 	}{
-		{"singleton", "singleton"},
-		{"transient", "transient"},
-		{"", "transient"}, // Default
-		{" singleton ", "singleton"},
+		{LifecycleSingleton.String(), LifecycleSingleton.String()},
+		{LifecycleTransient.String(), LifecycleTransient.String()},
+		{"", LifecycleTransient.String()}, // Default
+		{" singleton ", LifecycleSingleton.String()},
 	}
 
 	for _, tt := range tests {

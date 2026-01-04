@@ -195,10 +195,10 @@ type Config struct {
 		providerNames[prov.Name] = true
 
 		// Verify lifecycle
-		if prov.Name == "NewLogger" && prov.Lifecycle != "transient" {
+		if prov.Name == "NewLogger" && prov.Lifecycle != LifecycleTransient {
 			t.Errorf("Expected NewLogger to be transient, got %s", prov.Lifecycle)
 		}
-		if prov.Name == "NewDatabase" && prov.Lifecycle != "singleton" {
+		if prov.Name == "NewDatabase" && prov.Lifecycle != LifecycleSingleton {
 			t.Errorf("Expected NewDatabase to be singleton, got %s", prov.Lifecycle)
 		}
 	}

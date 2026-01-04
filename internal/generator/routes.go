@@ -59,7 +59,7 @@ func (g *Generator) organizeControllerGroups() []*ControllerGroup {
 		routes := make([]*RouteData, 0, len(ctrl.Handlers))
 		for _, handler := range ctrl.Handlers {
 			routes = append(routes, &RouteData{
-				Method:      handler.Method,
+				Method:      handler.Method.String(),
 				Path:        strings.TrimPrefix(handler.Path, ctrl.RoutePrefix),
 				HandlerName: g.handlerWrapperName(ctrl, handler),
 				Tags:        handler.Tags,

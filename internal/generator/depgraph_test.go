@@ -13,7 +13,7 @@ func TestCriticalTransient_Simple(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -28,7 +28,7 @@ func TestCriticalTransient_Simple(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -69,7 +69,7 @@ func TestCriticalTransient_Chain(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -84,7 +84,7 @@ func TestCriticalTransient_Chain(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -99,7 +99,7 @@ func TestCriticalTransient_Chain(t *testing.T) {
 			},
 			{
 				Name:      "NewSingletonC",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.SingletonC",
 				},
@@ -139,7 +139,7 @@ func TestCriticalTransient_TransientChain(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -154,7 +154,7 @@ func TestCriticalTransient_TransientChain(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -169,7 +169,7 @@ func TestCriticalTransient_TransientChain(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientC",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientC",
 				},
@@ -209,7 +209,7 @@ func TestNonCriticalTransient(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonB",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonB",
 				},
@@ -217,7 +217,7 @@ func TestNonCriticalTransient(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientA",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientA",
 				},
@@ -250,7 +250,7 @@ func TestMixedUsage(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -265,7 +265,7 @@ func TestMixedUsage(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -300,7 +300,7 @@ func TestDiamondDependency(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -321,7 +321,7 @@ func TestDiamondDependency(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -336,7 +336,7 @@ func TestDiamondDependency(t *testing.T) {
 			},
 			{
 				Name:      "NewSingletonC",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.SingletonC",
 				},
@@ -351,7 +351,7 @@ func TestDiamondDependency(t *testing.T) {
 			},
 			{
 				Name:      "NewSingletonD",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.SingletonD",
 				},
@@ -404,7 +404,7 @@ func TestIsUsedBySingleton(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -419,7 +419,7 @@ func TestIsUsedBySingleton(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientB",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientB",
 				},
@@ -427,7 +427,7 @@ func TestIsUsedBySingleton(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientC",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientC",
 				},
@@ -479,7 +479,7 @@ func TestMultipleSingletonsUseSameTransient(t *testing.T) {
 		Providers: []*scanner.Provider{
 			{
 				Name:      "NewSingletonA",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonA",
 				},
@@ -494,7 +494,7 @@ func TestMultipleSingletonsUseSameTransient(t *testing.T) {
 			},
 			{
 				Name:      "NewSingletonB",
-				Lifecycle: "singleton",
+				Lifecycle: scanner.LifecycleSingleton,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "services.SingletonB",
 				},
@@ -509,7 +509,7 @@ func TestMultipleSingletonsUseSameTransient(t *testing.T) {
 			},
 			{
 				Name:      "NewTransientC",
-				Lifecycle: "transient",
+				Lifecycle: scanner.LifecycleTransient,
 				ReturnType: &scanner.TypeInfo{
 					FullName: "*services.TransientC",
 				},

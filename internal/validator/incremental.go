@@ -1,6 +1,9 @@
 package validator
 
 import (
+	"fmt"
+
+	"github.com/azizndao/glib/internal/cli/ui"
 	"github.com/azizndao/glib/internal/scanner"
 )
 
@@ -22,8 +25,7 @@ type IncrementalValidator struct {
 func NewIncrementalValidator(cacheDir string) *IncrementalValidator {
 	cache := NewValidationCache(cacheDir)
 	if err := cache.Load(); err != nil {
-		// Log error but continue - cache will be rebuilt
-		// Don't fail initialization due to cache load failure
+		fmt.Println(ui.Error("Failed to load validation cache"))
 	}
 
 	return &IncrementalValidator{
@@ -148,7 +150,10 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 	iv.validator.validateMiddlewareReferences(project)
 
 	// Save cache
-	iv.cache.Save()
+	err := iv.cache.Save()
+	if err != nil {
+		fmt.Println(ui.Error("Failed to save validation cache"))
+	}
 
 	// Return errors if any
 	if len(iv.validator.errors) > 0 {

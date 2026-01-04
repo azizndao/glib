@@ -89,12 +89,7 @@ func (v *Validator) validateController(ctrl *scanner.Controller) {
 func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Controller) {
 	location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.SourceLine)
 
-	// Validate HTTP method
-	validMethods := map[string]bool{
-		"GET": true, "POST": true, "PUT": true, "PATCH": true,
-		"DELETE": true, "HEAD": true, "OPTIONS": true,
-	}
-	if !validMethods[handler.Method] {
+	if !handler.Method.IsValid() {
 		v.addError(location, fmt.Sprintf("invalid HTTP method: %s", handler.Method))
 	}
 
@@ -328,8 +323,8 @@ func (v *Validator) validateProvider(prov *scanner.Provider) {
 	location := fmt.Sprintf("%s:%d", prov.FilePath, prov.SourceLine)
 
 	// Validate lifecycle
-	if prov.Lifecycle != "singleton" && prov.Lifecycle != "transient" {
-		v.addError(location, fmt.Sprintf("invalid provider lifecycle: %s (must be 'singleton' or 'transient')", prov.Lifecycle))
+	if !prov.Lifecycle.IsValid() {
+		v.addError(location, fmt.Sprintf("invalid provider lifecycle: %s", prov.Lifecycle))
 	}
 
 	// Validate return type
@@ -358,8 +353,8 @@ func (v *Validator) validateMiddleware(mw *scanner.Middleware) {
 	}
 
 	// Validate signature
-	if mw.Signature != "chi" && mw.Signature != "glib" {
-		v.addError(location, fmt.Sprintf("invalid middleware signature type: %s (must be 'chi' or 'glib')", mw.Signature))
+	if !mw.Signature.IsValid() {
+		v.addError(location, fmt.Sprintf("invalid middleware signature: %s", mw.Signature))
 	}
 }
 
@@ -369,7 +364,7 @@ func (v *Validator) validateUniqueRoutes(controllers []*scanner.Controller) {
 
 	for _, ctrl := range controllers {
 		for _, handler := range ctrl.Handlers {
-			key := handler.Method + " " + handler.FullPath
+			key := handler.Method.String() + " " + handler.FullPath
 			if existing, ok := seen[key]; ok {
 				location := fmt.Sprintf("%s:%d", ctrl.FilePath, handler.SourceLine)
 				existingLoc := fmt.Sprintf("%s:%d", ctrl.FilePath, existing.SourceLine)

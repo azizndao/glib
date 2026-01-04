@@ -30,7 +30,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 		// Controller annotation: @Controller path=/api/v1/posts tags=api,public
 		if match := controllerPattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
-				Type:  "Controller",
+				Type:  AnnotationController,
 				Value: strings.TrimSpace(match[1]),
 				Line:  int(comment.Pos()),
 			})
@@ -40,7 +40,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 		// Route annotation: @Route method=GET path=/{id} tags=protected with=auth,admin
 		if match := routePattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
-				Type:  "Route",
+				Type:  AnnotationRoute,
 				Value: strings.TrimSpace(match[1]),
 				Line:  int(comment.Pos()),
 			})
@@ -50,7 +50,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 		// Provider annotation: @Provider singleton
 		if match := providerPattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
-				Type:  "Provider",
+				Type:  AnnotationProvider,
 				Value: strings.TrimSpace(match[1]),
 				Line:  int(comment.Pos()),
 			})
@@ -60,7 +60,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 		// Middleware annotation: @Middleware name=auth target=protected order=10
 		if match := middlewarePattern.FindStringSubmatch(text); match != nil {
 			annotations = append(annotations, &Annotation{
-				Type:  "Middleware",
+				Type:  AnnotationMiddleware,
 				Value: strings.TrimSpace(match[1]),
 				Line:  int(comment.Pos()),
 			})
@@ -70,7 +70,7 @@ func extractAnnotations(commentGroup *ast.CommentGroup) []*Annotation {
 		// Config annotation: @Config
 		if configPattern.MatchString(text) {
 			annotations = append(annotations, &Annotation{
-				Type:  "Config",
+				Type:  AnnotationConfig,
 				Value: "", // No value for @Config
 				Line:  int(comment.Pos()),
 			})
@@ -162,7 +162,7 @@ func parseCommaSeparated(value string) []string {
 // Example: "name=auth target=protected order=10" returns map with parsed values
 func parseMiddlewareDefinition(value string) map[string]string {
 	return parseKeyValuePairs(value, map[string]string{
-		"target": "all",
+		"target": TargetAll,
 		"order":  "100",
 	})
 }
@@ -172,13 +172,13 @@ func parseMiddlewareDefinition(value string) map[string]string {
 func parseProviderAnnotation(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "transient" // Default
+		return LifecycleSingleton.String() // Default
 	}
 	return value
 }
 
 // findAnnotation finds an annotation by type in a list
-func findAnnotation(annotations []*Annotation, annotationType string) *Annotation {
+func findAnnotation(annotations []*Annotation, annotationType AnnotationType) *Annotation {
 	for _, ann := range annotations {
 		if ann.Type == annotationType {
 			return ann
@@ -188,7 +188,7 @@ func findAnnotation(annotations []*Annotation, annotationType string) *Annotatio
 }
 
 // findAnnotations finds all annotations by type in a list
-func findAnnotations(annotations []*Annotation, annotationType string) []*Annotation {
+func findAnnotations(annotations []*Annotation, annotationType AnnotationType) []*Annotation {
 	var result []*Annotation
 	for _, ann := range annotations {
 		if ann.Type == annotationType {
