@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/pkg/errs"
 	"github.com/google/uuid"
 )
 
@@ -19,32 +19,32 @@ type Controller struct {
 	UserSerivce *services.UserSerivce
 	PostSerivce *services.PostSerivce
 	Logger      *services.Logger // Transient provider
-	Translator  *i18n.Translator // I18n translator
+	I18n        *i18n.Translator // I18n translator
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]models.Post] {
-	fmt.Println(c.Translator.Success.PostCreated(ctx, "My First Post"))
+func (c *Controller) Index(ctx context.Context) ([]models.Post, error) {
+	fmt.Println(c.I18n.Success.PostCreated(ctx, "My First Post"))
 	posts, err := c.PostSerivce.GetPosts()
 	if err != nil {
-		return glib.Fail[[]models.Post](err)
+		return nil, err
 	}
-	return glib.OK(posts)
+	return posts, nil
 }
 
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*models.Post] {
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*models.Post, error) {
 	post, err := c.PostSerivce.GetPost(id)
 	if err != nil {
 		// Use localized error message
-		msg := c.Translator.Errors.Posts.NotFound(ctx, id.String())
-		return glib.NotFound[*models.Post](msg)
+		msg := c.I18n.Errors.Posts.NotFound(ctx, id.String())
+		return nil, errs.NewNotFound().WithMessage(msg)
 	}
-	return glib.OK(post)
+	return post, nil
 }
 
 // @Route method=POST path=/ tags=protected
-func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*models.Post] {
+func (c *Controller) Create(ctx context.Context, req CreatePostRequest) (*models.Post, error) {
 	post := &models.Post{
 		Title:     req.Title,
 		Body:      req.Body,
@@ -55,21 +55,21 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Res
 	}
 
 	if err := c.PostSerivce.CreatePost(post); err != nil {
-		return glib.Fail[*models.Post](err)
+		return nil, err
 	}
 
 	// Log localized success message
-	msg := c.Translator.Success.PostCreated(ctx, post.Title)
+	msg := c.I18n.Success.PostCreated(ctx, post.Title)
 	c.Logger.Info(msg)
 
-	return glib.Created(post)
+	return post, nil
 }
 
 // @Route method=PUT path=/{id} tags=protected
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) glib.Result[*models.Post] {
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) (*models.Post, error) {
 	post, err := c.PostSerivce.GetPost(id)
 	if err != nil {
-		return glib.Fail[*models.Post](err)
+		return nil, err
 	}
 
 	if req.Title != "" {
@@ -89,18 +89,18 @@ func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostReq
 	}
 
 	if err := c.PostSerivce.UpdatePost(post); err != nil {
-		return glib.Fail[*models.Post](err)
+		return nil, err
 	}
 
-	return glib.OK(post)
+	return post, nil
 }
 
 // @Route method=DELETE path=/{id} tags=protected
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := c.PostSerivce.DeletePost(id); err != nil {
-		return glib.Fail[any](err)
+		return err
 	}
-	return glib.NoContent[any]()
+	return nil
 }
 
 // @Route method=GET path=/export

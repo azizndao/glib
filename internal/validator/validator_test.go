@@ -25,7 +25,7 @@ func TestValidateController(t *testing.T) {
 						Method: "GET",
 						Path:   "/",
 						Signature: &scanner.HandlerSignature{
-							Pattern: scanner.PatternResult,
+							Pattern: scanner.PatternDataError,
 						},
 					},
 				},
@@ -85,7 +85,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "GET",
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
-					Pattern: scanner.PatternResult,
+					Pattern: scanner.PatternDataError,
 					PathParams: []*scanner.PathParam{
 						{
 							Name: "id",
@@ -120,7 +120,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "INVALID",
 				Path:   "/{id}",
 				Signature: &scanner.HandlerSignature{
-					Pattern: scanner.PatternResult,
+					Pattern: scanner.PatternDataError,
 					PathParams: []*scanner.PathParam{
 						{
 							Name: "id",
@@ -142,7 +142,7 @@ func TestValidateHandler(t *testing.T) {
 				Method: "GET",
 				Path:   "users",
 				Signature: &scanner.HandlerSignature{
-					Pattern: scanner.PatternResult,
+					Pattern: scanner.PatternDataError,
 				},
 			},
 			expectErrors: 1,

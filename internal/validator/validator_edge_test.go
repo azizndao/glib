@@ -51,7 +51,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Method: "GET",
 			Path:   "/{user-id}/{post_id}/{commentID}",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				PathParams: []*scanner.PathParam{
 					{Name: "user-id", Type: &scanner.TypeInfo{Name: "string", IsPrimitive: true, FullName: "string"}},
 					{Name: "post_id", Type: &scanner.TypeInfo{Name: "string", IsPrimitive: true, FullName: "string"}},
@@ -494,7 +494,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Method: "GET",
 			Path:   "/{id}/{name}",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				PathParams: []*scanner.PathParam{
 					{Name: "id", Type: &scanner.TypeInfo{Name: "int", IsPrimitive: true}},
 					// Missing "name" parameter
@@ -516,7 +516,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 			Method: "GET",
 			Path:   "/{id}",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				PathParams: []*scanner.PathParam{
 					{Name: "userId", Type: &scanner.TypeInfo{Name: "int", IsPrimitive: true}}, // Different name
 				},
@@ -545,7 +545,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 							Path:     "/",
 							FullPath: "/users",
 							Signature: &scanner.HandlerSignature{
-								Pattern: scanner.PatternResult,
+								Pattern: scanner.PatternDataError,
 							},
 						},
 					},
@@ -612,7 +612,7 @@ func TestValidator_QueryAndHeaderValidation(t *testing.T) {
 			Method: "GET",
 			Path:   "/search",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				QueryParams: []*scanner.QueryParam{
 					{
 						FieldName: "Query",
@@ -640,7 +640,7 @@ func TestValidator_QueryAndHeaderValidation(t *testing.T) {
 			Method: "GET",
 			Path:   "/search",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				QueryParams: []*scanner.QueryParam{
 					{FieldName: "Q", ParamName: "q", Type: &scanner.TypeInfo{Name: "string", IsPrimitive: true}},
 					{FieldName: "Page", ParamName: "page", Type: &scanner.TypeInfo{Name: "int", IsPrimitive: true}},
@@ -666,7 +666,7 @@ func TestValidator_QueryAndHeaderValidation(t *testing.T) {
 			Method: "GET",
 			Path:   "/",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				HeaderParams: []*scanner.HeaderParam{
 					{
 						FieldName:  "ContentType",
@@ -695,7 +695,7 @@ func TestValidator_QueryAndHeaderValidation(t *testing.T) {
 			Method: "GET",
 			Path:   "/",
 			Signature: &scanner.HandlerSignature{
-				Pattern: scanner.PatternResult,
+				Pattern: scanner.PatternDataError,
 				HeaderParams: []*scanner.HeaderParam{
 					{FieldName: "Auth", HeaderName: "Authorization", Type: &scanner.TypeInfo{Name: "string", IsPrimitive: true}},
 					{FieldName: "OptionalHeader", HeaderName: "X-Custom", Type: &scanner.TypeInfo{Name: "string", IsPointer: true}},

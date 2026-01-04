@@ -3,7 +3,6 @@ package {{.PkgName}}
 import (
 	"context"
 	
-	"github.com/azizndao/glib"
 	"github.com/google/uuid"
 )
 
@@ -15,31 +14,31 @@ type Controller struct {
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[[]{{.TypeName}}] {
+func (c *Controller) Index(ctx context.Context) ([]{{.TypeName}}, error) {
 	// TODO: implement
-	return glib.OK([]{{.TypeName}}{})
+	return []{{.TypeName}}{}, nil
 }
 
 // @Route method=GET path=/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*{{.TypeName}}] {
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*{{.TypeName}}, error) {
 	// TODO: implement
-	return glib.NotFound[*{{.TypeName}}]("{{.TypeName}} not found")
+	return nil, nil
 }
 
 // @Route method=POST path=/
-func (c *Controller) Create(ctx context.Context, req Create{{.TypeName}}Request) glib.Result[*{{.TypeName}}] {
+func (c *Controller) Create(ctx context.Context, req Create{{.TypeName}}Request) (*{{.TypeName}}, error) {
 	// TODO: implement
-	return glib.Created[*{{.TypeName}}](nil)
+	return nil, nil
 }
 
 // @Route method=PUT path=/{id}
-func (c *Controller) Update(ctx context.Context, id uuid.UUID, req Update{{.TypeName}}Request) glib.Result[*{{.TypeName}}] {
+func (c *Controller) Update(ctx context.Context, id uuid.UUID, req Update{{.TypeName}}Request) (*{{.TypeName}}, error) {
 	// TODO: implement
-	return glib.OK[*{{.TypeName}}](nil)
+	return nil, nil
 }
 
 // @Route method=DELETE path=/{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
 	// TODO: implement
-	return glib.NoContent[any]()
+	return nil
 }

@@ -47,6 +47,7 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString("\t\"net/http\"\n")
 	b.WriteString("\n")
 	b.WriteString("\t\"github.com/azizndao/glib\"\n")
+	b.WriteString("\t\"github.com/azizndao/glib/pkg/errs\"\n")
 	b.WriteString("\t\"github.com/azizndao/glib/utils\"\n")
 
 	// Add local imports
@@ -148,8 +149,8 @@ func (g *Generator) generateHandlerBody(ctrl *scanner.Controller, handler *scann
 	sig := handler.Signature
 
 	// Validate pattern
-	if sig.Pattern != scanner.PatternResult && sig.Pattern != scanner.PatternRawHTTP {
-		return "", fmt.Errorf("unsupported handler pattern: %s (only 'result' and 'raw_http' patterns are supported)", sig.Pattern)
+	if sig.Pattern != scanner.PatternDataError && sig.Pattern != scanner.PatternErrorOnly && sig.Pattern != scanner.PatternRawHTTP {
+		return "", fmt.Errorf("unsupported handler pattern: %s (only 'data_error', 'error_only', and 'raw_http' patterns are supported)", sig.Pattern)
 	}
 
 	data := map[string]any{

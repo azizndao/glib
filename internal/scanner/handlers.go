@@ -61,9 +61,10 @@ func (s *Scanner) parseHandlerSignature(funcDecl *ast.FuncDecl) (*HandlerSignatu
 }
 
 // analyzeSignature determines the handler pattern from parameters and returns
-// Supports two handler patterns:
-//   - Result: func(ctx context.Context, ...params) glib.Result[T]  (type-safe)
-//   - Raw HTTP: func(w http.ResponseWriter, r *http.Request)        (raw)
+// Supports three handler patterns:
+//   - (T, error): func(ctx context.Context, ...params) (T, error)  (returns data and error)
+//   - error: func(ctx context.Context, ...params) error            (returns error only, no content)
+//   - Raw HTTP: func(w http.ResponseWriter, r *http.Request)       (raw)
 func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*TypeInfo, funcDecl *ast.FuncDecl) (*HandlerSignature, error) {
 	// Check for Pattern: Raw HTTP handler
 	// Must have exactly 2 params: (http.ResponseWriter, *http.Request)
@@ -81,7 +82,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		return sig, nil
 	}
 
-	// Pattern: Type-safe handler with Result[T]
 	// Must have at least one parameter (context.Context)
 	if len(params) == 0 {
 		return nil, fmt.Errorf("handler must have at least one parameter (context.Context) or be a raw handler (w, r)")
@@ -93,21 +93,36 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 	}
 	sig.HasContext = true
 
-	// Must return exactly one value: glib.Result[T]
-	if len(returns) != 1 {
-		return nil, fmt.Errorf("handler must return exactly one value of type glib.Result[T], got %d return values", len(returns))
-	}
+	// Check return types to determine pattern
+	if len(returns) == 2 {
+		// Pattern: (T, error) - Returns data and error
+		if !returns[1].IsError {
+			return nil, fmt.Errorf("second return value must be error, got %s", returns[1].FullName)
+		}
 
-	returnType := returns[0]
+		sig.ResponseType = returns[0]
+		sig.Pattern = PatternDataError
+		sig.ReturnsError = true
 
-	// Check if return type is glib.Result[T]
-	if !s.isGlibResult(returnType) {
-		return nil, fmt.Errorf("handler must return glib.Result[T], got %s", returnType.FullName)
-	}
+		// Analyze response struct for header and status tags
+		metadata, err := s.analyzeResponseStruct(returns[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to analyze response struct: %w", err)
+		}
+		sig.ResponseMetadata = metadata
 
-	// Extract generic type parameter T from Result[T]
-	if len(returnType.TypeParams) > 0 {
-		sig.ResponseType = returnType.TypeParams[0]
+	} else if len(returns) == 1 {
+		// Pattern: error - Returns error only (no content)
+		if !returns[0].IsError {
+			return nil, fmt.Errorf("handler must return (T, error), error, or be a raw handler (w, r), got single return of type %s", returns[0].FullName)
+		}
+
+		sig.ResponseType = nil // No response data
+		sig.Pattern = PatternErrorOnly
+		sig.ReturnsError = true
+
+	} else {
+		return nil, fmt.Errorf("handler must return (T, error), error, or be a raw handler (w, r), got %d return values", len(returns))
 	}
 
 	// Parse remaining parameters (path params, query params, headers, and request body)
@@ -189,10 +204,6 @@ func (s *Scanner) analyzeSignature(sig *HandlerSignature, params, returns []*Typ
 		}
 	}
 
-	// Pattern: Unified Result[T] pattern
-	sig.Pattern = PatternResult
-	sig.ReturnsError = false // Result[T] handles errors internally
-
 	return sig, nil
 }
 
@@ -213,21 +224,6 @@ func (s *Scanner) isRawHTTPHandler(params []*TypeInfo) bool {
 	}
 
 	return true
-}
-
-// isGlibResult checks if a type is glib.Result[T]
-func (s *Scanner) isGlibResult(typeInfo *TypeInfo) bool {
-	if !typeInfo.IsGeneric {
-		return false
-	}
-
-	if typeInfo.Name != "Result" {
-		return false
-	}
-
-	// Check if it's from glib package
-	return typeInfo.PackageName == "glib" ||
-		typeInfo.PackagePath == "github.com/azizndao/glib"
 }
 
 // extractParamNames extracts parameter names from function declaration
@@ -376,4 +372,102 @@ func (s *Scanner) hasValidationTags(typeName string) bool {
 	}
 
 	return false
+}
+
+// analyzeResponseStruct extracts header and httpstatus tags from response type
+func (s *Scanner) analyzeResponseStruct(responseType *TypeInfo) (*ResponseMetadata, error) {
+	// Nil response is valid (e.g., for error-only handlers)
+	if responseType == nil {
+		return nil, nil
+	}
+
+	// Only analyze struct types from the same package
+	if responseType.IsPrimitive || responseType.IsSlice {
+		return nil, nil
+	}
+
+	// External packages or empty package name - skip analysis
+	if responseType.PackageName != "" && responseType.PackageName != s.currentPackageName {
+		return nil, nil
+	}
+
+	// Get struct type name (handle pointers)
+	typeName := responseType.Name
+	if typeName == "" {
+		return nil, nil
+	}
+
+	// Look up TypeSpec in current file
+	typeSpec, ok := s.typeSpecs[typeName]
+	if !ok {
+		// Not found in current file - not an error, just no metadata
+		return nil, nil
+	}
+
+	// Must be a struct type
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok {
+		return nil, nil
+	}
+
+	metadata := &ResponseMetadata{
+		HeaderFields: []*HeaderField{},
+	}
+
+	// Iterate through struct fields
+	for _, field := range structType.Fields.List {
+		if field.Tag == nil {
+			continue
+		}
+
+		// Parse struct tag
+		tagValue := field.Tag.Value
+		// Remove backticks
+		if len(tagValue) >= 2 && tagValue[0] == '`' && tagValue[len(tagValue)-1] == '`' {
+			tagValue = tagValue[1 : len(tagValue)-1]
+		}
+
+		// Get field name
+		if len(field.Names) == 0 {
+			continue
+		}
+		fieldName := field.Names[0].Name
+
+		// Parse field type
+		fieldType := s.parseType(field.Type)
+
+		// Check for header tag: header:"Location" or header:"ETag,omitempty"
+		if headerTag := parseStructTag(tagValue, "header"); headerTag != "" {
+			// Parse omitempty from header tag
+			omitEmpty := false
+			headerName := headerTag
+			if len(headerTag) > 10 && headerTag[len(headerTag)-10:] == ",omitempty" {
+				omitEmpty = true
+				headerName = headerTag[:len(headerTag)-10]
+			}
+
+			metadata.HeaderFields = append(metadata.HeaderFields, &HeaderField{
+				FieldName:  fieldName,
+				HeaderName: headerName,
+				Type:       fieldType,
+				OmitEmpty:  omitEmpty,
+			})
+		}
+
+		// Check for response:"httpstatus" tag
+		if responseTag := parseStructTag(tagValue, "response"); responseTag == "httpstatus" {
+			// Verify field type is int
+			if fieldType.Name != "int" || !fieldType.IsPrimitive {
+				return nil, fmt.Errorf("field %s with response:\"httpstatus\" tag must be of type int, got %s", fieldName, fieldType.FullName)
+			}
+			metadata.StatusCodeField = fieldName
+		}
+	}
+
+	// Return nil if no metadata found
+	if len(metadata.HeaderFields) == 0 && metadata.StatusCodeField == "" {
+		return nil, nil
+	}
+
+	return metadata, nil
 }

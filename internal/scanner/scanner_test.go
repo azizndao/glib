@@ -79,7 +79,6 @@ import (
 	"context"
 	"testproject/services"
 	
-	"github.com/azizndao/glib"
 	"github.com/google/uuid"
 )
 
@@ -95,18 +94,18 @@ type UserController struct {
 }
 
 // @Route method=GET path=/
-func (c *UserController) List(ctx context.Context) glib.Result[[]User] {
-	return glib.OK([]User{})
+func (c *UserController) List(ctx context.Context) ([]User, error) {
+	return []User{}, nil
 }
 
 // @Route method=GET path=/{id}
-func (c *UserController) Get(ctx context.Context, id uuid.UUID) glib.Result[*User] {
-	return glib.OK(&User{ID: id})
+func (c *UserController) Get(ctx context.Context, id uuid.UUID) (*User, error) {
+	return &User{ID: id}, nil
 }
 
 // @Route method=POST path=/ tags=protected
-func (c *UserController) Create(ctx context.Context, req CreateUserRequest) glib.Result[*User] {
-	return glib.Created(&User{})
+func (c *UserController) Create(ctx context.Context, req CreateUserRequest) (*User, error) {
+	return &User{}, nil
 }
 
 type CreateUserRequest struct {
@@ -441,15 +440,14 @@ go 1.21
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/posts tags=api
 type PostController struct {}
 
 // @Route method=GET path=/
-func (c *PostController) List(ctx context.Context) glib.Result[any] {
-	return glib.OK(nil)
+func (c *PostController) List(ctx context.Context) (any, error) {
+	return nil, nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "post.go"), []byte(controller1Content), 0644); err != nil {
@@ -460,15 +458,14 @@ func (c *PostController) List(ctx context.Context) glib.Result[any] {
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/comments tags=api
 type CommentController struct {}
 
 // @Route method=GET path=/
-func (c *CommentController) List(ctx context.Context) glib.Result[any] {
-	return glib.OK(nil)
+func (c *CommentController) List(ctx context.Context) (any, error) {
+	return nil, nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "comment.go"), []byte(controller2Content), 0644); err != nil {

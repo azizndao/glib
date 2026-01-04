@@ -1,0 +1,214 @@
+{{/* Error Only Pattern: Handlers that return only error (no response body) */}}
+		ctx := r.Context()
+		
+{{- if .Handler.Signature.PathParams}}
+		// Parse path parameters
+{{- range .Handler.Signature.PathParams}}
+{{- if eq .Type.PackageName "uuid"}}
+		{{.Name}}, err := utils.ParseUUID(r.PathValue("{{.Name}}"), "{{.Name}}")
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				WithMessage(fmt.Sprintf("invalid path parameter '{{.Name}}': %v", err)))
+			return
+		}
+{{- else if .Type.IsPrimitive}}
+{{- if eq .Type.Name "int"}}
+		{{.Name}}, err := utils.ParseInt(r.PathValue("{{.Name}}"), "{{.Name}}")
+{{- else if eq .Type.Name "int64"}}
+		{{.Name}}, err := utils.ParseInt64(r.PathValue("{{.Name}}"), "{{.Name}}")
+{{- else if eq .Type.Name "uint64"}}
+		{{.Name}}, err := utils.ParseUint64(r.PathValue("{{.Name}}"), "{{.Name}}")
+{{- else if eq .Type.Name "float64"}}
+		{{.Name}}, err := utils.ParseFloat64(r.PathValue("{{.Name}}"), "{{.Name}}")
+{{- else if eq .Type.Name "bool"}}
+		{{.Name}}, err := utils.ParseBool(r.PathValue("{{.Name}}"), "{{.Name}}")
+{{- else}}
+		{{.Name}} := r.PathValue("{{.Name}}")
+		var err error
+{{- end}}
+{{- if ne .Type.Name "string"}}
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				WithMessage(fmt.Sprintf("invalid path parameter '{{.Name}}': %v", err)))
+			return
+		}
+{{- end}}
+{{- else}}
+		{{.Name}} := r.PathValue("{{.Name}}")
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams}}
+		// Parse query parameters and headers into struct
+		var req {{typeRef .Handler.Signature.ParamsStructType}}
+{{- end}}
+
+{{- if .Handler.Signature.QueryParams}}
+		// Parse query parameters
+{{- range .Handler.Signature.QueryParams}}
+{{- if .Type.IsSlice}}
+		// Slice parameter: {{.ParamName}}
+		req.{{.FieldName}} = utils.GetQuerySlice(r, "{{.ParamName}}")
+{{- else if .IsOptional}}
+		// Optional parameter: {{.ParamName}}
+		if {{.ParamName}}Str, ok := utils.GetQueryParam(r, "{{.ParamName}}"); ok {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = &{{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			{{.ParamName}}Val := utils.ParseIntOrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "int64"}}
+			{{.ParamName}}Val := utils.ParseInt64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "uint64"}}
+			{{.ParamName}}Val := utils.ParseUint64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "bool"}}
+			{{.ParamName}}Val := utils.ParseBoolOrFalse({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.Name "float64"}}
+			{{.ParamName}}Val := utils.ParseFloat64OrZero({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.ParamName}}Val := utils.ParseUUIDOrNil({{.ParamName}}Str)
+			req.{{.FieldName}} = &{{.ParamName}}Val
+{{- end}}
+		}
+{{- else}}
+		// Required parameter: {{.ParamName}}
+		if {{.ParamName}}Str := r.URL.Query().Get("{{.ParamName}}"); {{.ParamName}}Str != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = {{.ParamName}}Str
+{{- else if eq .Type.Name "int"}}
+			req.{{.FieldName}} = utils.ParseIntOrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "int64"}}
+			req.{{.FieldName}} = utils.ParseInt64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "uint64"}}
+			req.{{.FieldName}} = utils.ParseUint64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.Name "bool"}}
+			req.{{.FieldName}} = utils.ParseBoolOrFalse({{.ParamName}}Str)
+{{- else if eq .Type.Name "float64"}}
+			req.{{.FieldName}} = utils.ParseFloat64OrZero({{.ParamName}}Str)
+{{- else if eq .Type.PackageName "uuid"}}
+			req.{{.FieldName}} = utils.ParseUUIDOrNil({{.ParamName}}Str)
+{{- end}}
+		}
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.HeaderParams}}
+		// Parse headers
+{{- range .Handler.Signature.HeaderParams}}
+{{- if .IsOptional}}
+		// Optional header: {{.HeaderName}}
+		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = &{{.FieldName}}Val
+{{- else if eq .Type.Name "int"}}
+			{{.FieldName}}Parsed := utils.ParseIntOrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "int64"}}
+			{{.FieldName}}Parsed := utils.ParseInt64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "uint64"}}
+			{{.FieldName}}Parsed := utils.ParseUint64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "bool"}}
+			{{.FieldName}}Parsed := utils.ParseBoolOrFalse({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.Name "float64"}}
+			{{.FieldName}}Parsed := utils.ParseFloat64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- else if eq .Type.PackageName "uuid"}}
+			{{.FieldName}}Parsed := utils.ParseUUIDOrNil({{.FieldName}}Val)
+			req.{{.FieldName}} = &{{.FieldName}}Parsed
+{{- end}}
+		}
+{{- else}}
+		// Required header: {{.HeaderName}}
+		if {{.FieldName}}Val := r.Header.Get("{{.HeaderName}}"); {{.FieldName}}Val != "" {
+{{- if eq .Type.Name "string"}}
+			req.{{.FieldName}} = {{.FieldName}}Val
+{{- else if eq .Type.Name "int"}}
+			req.{{.FieldName}} = utils.ParseIntOrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "int64"}}
+			req.{{.FieldName}} = utils.ParseInt64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "uint64"}}
+			req.{{.FieldName}} = utils.ParseUint64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.Name "bool"}}
+			req.{{.FieldName}} = utils.ParseBoolOrFalse({{.FieldName}}Val)
+{{- else if eq .Type.Name "float64"}}
+			req.{{.FieldName}} = utils.ParseFloat64OrZero({{.FieldName}}Val)
+{{- else if eq .Type.PackageName "uuid"}}
+			req.{{.FieldName}} = utils.ParseUUIDOrNil({{.FieldName}}Val)
+{{- end}}
+		}
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+{{- if not .Handler.Signature.RequestType}}
+
+		// Validate query/header parameters with language detection and section "query"
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+{{- end}}
+{{- end}}
+{{- end}}
+
+{{- if .Handler.Signature.RequestType}}
+{{- if not (or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams)}}
+		// Parse request body (pure JSON, no query/header params)
+		req, err := utils.ParseJSONBody[{{typeRef .Handler.Signature.RequestType}}](r)
+		if err != nil {
+			glib.WriteError(w, errs.NewBadRequest().
+				WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+			return
+		}
+{{- else}}
+		// Mixed params: struct has both query/header AND json fields
+		// Decode JSON body into the existing req struct
+		if r.ContentLength > 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				glib.WriteError(w, errs.NewBadRequest().
+					WithMessage(fmt.Sprintf("invalid request body: %v", err)))
+				return
+			}
+		}
+{{- end}}
+{{- if or .Handler.Signature.NeedsValidation .Handler.Signature.NeedsParamsValidation}}
+{{- if $.ValidationEnabled}}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+{{- end}}
+{{- end}}
+{{- end}}
+
+
+{{- if .Handler.Signature.PathParams}}
+		err = app.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams .Handler.Signature.RequestType}}, req{{end}})
+{{- else}}
+		err := app.controllers.{{.CtrlField}}.{{.Handler.Name}}(ctx{{range .Handler.Signature.PathParams}}, {{.Name}}{{end}}{{if or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams .Handler.Signature.RequestType}}, req{{end}})
+{{- end}}
+		if err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+		// Success - return 204 No Content for error-only handlers
+		w.WriteHeader(http.StatusNoContent)
+
+

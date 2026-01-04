@@ -34,15 +34,14 @@ require (
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/health
 type HealthController struct {}
 
 // @Route method=GET path=/
-func (c *HealthController) Get(ctx context.Context) glib.Result[string] {
-	return glib.OK("healthy")
+func (c *HealthController) Get(ctx context.Context) (string, error) {
+	return "healthy", nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "health.go"), []byte(controllerContent), 0o644); err != nil {

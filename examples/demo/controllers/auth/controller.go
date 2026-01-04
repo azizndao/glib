@@ -5,7 +5,7 @@ import (
 	"glib/demo/models"
 	"glib/demo/services"
 
-	"github.com/azizndao/glib"
+	"github.com/azizndao/glib/pkg/errs"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,13 +33,13 @@ func toUserResponse(user *models.User) *UserResponse {
 }
 
 // @Route method=POST path=/register
-func (c *Controller) Register(ctx context.Context, req RegisterRequest) glib.Result[*UserResponse] {
+func (c *Controller) Register(ctx context.Context, req RegisterRequest) (*UserResponse, error) {
 	c.Auditor.LogAction("user registration attempt: " + req.Username)
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return glib.Fail[*UserResponse](err)
+		return nil, err
 	}
 
 	newUser := &models.User{
@@ -55,21 +55,21 @@ func (c *Controller) Register(ctx context.Context, req RegisterRequest) glib.Res
 
 	err = c.UserService.CreateUser(newUser)
 	if err != nil {
-		return glib.Fail[*UserResponse](err)
+		return nil, err
 	}
 
 	c.Auditor.LogAction("user registered: " + newUser.Username)
-	return glib.Created(toUserResponse(newUser))
+	return toUserResponse(newUser), nil
 }
 
 // @Route method=POST path=/login
-func (c *Controller) Login(ctx context.Context, req LoginRequest) glib.Result[*LoginResponse] {
+func (c *Controller) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	c.Auditor.LogAction("login attempt: " + req.Username)
 
 	// Find user by username
 	users, err := c.UserService.GetUsers()
 	if err != nil {
-		return glib.Fail[*LoginResponse](err)
+		return nil, err
 	}
 
 	var foundUser *models.User
@@ -81,23 +81,23 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) glib.Result[*L
 	}
 
 	if foundUser == nil {
-		return glib.Unauthorized[*LoginResponse]("invalid credentials")
+		return nil, errs.NewUnauthorized().WithMessage("invalid credentials")
 	}
 
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(req.Password))
 	if err != nil {
-		return glib.Unauthorized[*LoginResponse]("invalid credentials")
+		return nil, errs.NewUnauthorized().WithMessage("invalid credentials")
 	}
 
 	if !foundUser.Active {
-		return glib.Forbidden[*LoginResponse]("account is inactive")
+		return nil, errs.NewForbidden().WithMessage("account is inactive")
 	}
 
 	// Generate JWT token
 	token, err := c.JWTService.GenerateToken(foundUser.ID, foundUser.Username, foundUser.Email)
 	if err != nil {
-		return glib.Fail[*LoginResponse](err)
+		return nil, err
 	}
 
 	c.Auditor.LogAction("user logged in: " + foundUser.Username)
@@ -107,39 +107,39 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) glib.Result[*L
 		Token: token,
 	}
 
-	return glib.OK(response)
+	return response, nil
 }
 
 // @Route method=GET path=/me tags=protected
-func (c *Controller) GetMe(ctx context.Context) glib.Result[*UserResponse] {
+func (c *Controller) GetMe(ctx context.Context) (*UserResponse, error) {
 	// TODO: Get user ID from context (set by auth middleware)
 	// For now, return the first user as a demo (NOT PRODUCTION READY)
 
 	users, err := c.UserService.GetUsers()
 	if err != nil {
-		return glib.Fail[*UserResponse](err)
+		return nil, err
 	}
 
 	if len(users) == 0 {
-		return glib.Unauthorized[*UserResponse]("not authenticated")
+		return nil, errs.NewUnauthorized().WithMessage("not authenticated")
 	}
 
 	// Return first user as demo
-	return glib.OK(toUserResponse(&users[0]))
+	return toUserResponse(&users[0]), nil
 }
 
 // @Route method=PUT path=/me tags=protected
-func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest) glib.Result[*UserResponse] {
+func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest) (*UserResponse, error) {
 	// TODO: Get user ID from context (set by auth middleware)
 	// For now, update the first user as a demo (NOT PRODUCTION READY)
 
 	users, err := c.UserService.GetUsers()
 	if err != nil {
-		return glib.Fail[*UserResponse](err)
+		return nil, err
 	}
 
 	if len(users) == 0 {
-		return glib.Unauthorized[*UserResponse]("not authenticated")
+		return nil, errs.NewUnauthorized().WithMessage("not authenticated")
 	}
 
 	user := users[0]
@@ -157,26 +157,26 @@ func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest
 
 	updatedUser, err := c.UserService.UpdateUser(user.ID, &user)
 	if err != nil {
-		return glib.Fail[*UserResponse](err)
+		return nil, err
 	}
 
 	c.Auditor.LogAction("profile updated: " + updatedUser.Username)
-	return glib.OK(toUserResponse(updatedUser))
+	return toUserResponse(updatedUser), nil
 }
 
 // @Route method=DELETE path=/logout tags=protected
-func (c *Controller) Logout(ctx context.Context) glib.Result[any] {
+func (c *Controller) Logout(ctx context.Context) error {
 	c.Auditor.LogAction("user logout")
 	// Token invalidation would go here (e.g., add to blacklist)
 	// For stateless JWT, client just deletes the token
-	return glib.NoContent[any]()
+	return nil
 }
 
 // @Route method=GET path=/users/{id}
-func (c *Controller) GetUser(ctx context.Context, id uuid.UUID) glib.Result[*UserResponse] {
+func (c *Controller) GetUser(ctx context.Context, id uuid.UUID) (*UserResponse, error) {
 	user, err := c.UserService.GetUser(id)
 	if err != nil {
-		return glib.NotFound[*UserResponse]("user not found")
+		return nil, errs.NewNotFound().WithMessage("user not found")
 	}
-	return glib.OK(toUserResponse(user))
+	return toUserResponse(user), nil
 }

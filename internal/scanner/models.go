@@ -2,8 +2,9 @@ package scanner
 
 // Handler pattern types
 const (
-	PatternResult  = "result"   // Result[T] - Type-safe handlers with glib.Result[T] return type
-	PatternRawHTTP = "raw_http" // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
+	PatternDataError = "data_error" // (T, error) - Returns data and error
+	PatternErrorOnly = "error_only" // error - Returns error only (no content)
+	PatternRawHTTP   = "raw_http"   // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
 )
 
 // Project represents the complete scanned project
@@ -51,11 +52,26 @@ type HandlerSignature struct {
 	ParamsStructType      *TypeInfo
 	RequestType           *TypeInfo
 	ResponseType          *TypeInfo
+	ResponseMetadata      *ResponseMetadata // Metadata from response struct tags
 	ReturnsError          bool
 	HasContext            bool
 	HasRawHTTP            bool
 	NeedsValidation       bool
 	NeedsParamsValidation bool
+}
+
+// ResponseMetadata represents metadata extracted from response struct tags
+type ResponseMetadata struct {
+	HeaderFields    []*HeaderField
+	StatusCodeField string // Field name with response:"httpstatus" tag
+}
+
+// HeaderField represents a response field with header tag
+type HeaderField struct {
+	FieldName  string
+	HeaderName string
+	Type       *TypeInfo
+	OmitEmpty  bool
 }
 
 // PathParam represents a path parameter in handler signature

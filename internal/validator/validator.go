@@ -110,8 +110,8 @@ func (v *Validator) validateHandler(handler *scanner.Handler, ctrl *scanner.Cont
 	}
 
 	// Validate handler pattern
-	if handler.Signature.Pattern != scanner.PatternResult && handler.Signature.Pattern != scanner.PatternRawHTTP {
-		v.addError(location, fmt.Sprintf("invalid handler signature: must return glib.Result[T] or use raw http.ResponseWriter/Request, got pattern '%s'", handler.Signature.Pattern))
+	if handler.Signature.Pattern != scanner.PatternDataError && handler.Signature.Pattern != scanner.PatternErrorOnly && handler.Signature.Pattern != scanner.PatternRawHTTP {
+		v.addError(location, fmt.Sprintf("invalid handler signature: must return (T, error), error, or use raw http.ResponseWriter/Request, got pattern '%s'", handler.Signature.Pattern))
 	}
 
 	// Validate path parameters match handler signature

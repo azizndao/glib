@@ -29,15 +29,14 @@ go 1.21
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/test
 type TestController struct {}
 
 // @Route method=GET path=/
-func (c *TestController) Get(ctx context.Context) glib.Result[string] {
-	return glib.OK("test")
+func (c *TestController) Get(ctx context.Context) (string, error) {
+	return "test", nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "test.go"), []byte(controllerContent), 0644); err != nil {
@@ -218,15 +217,14 @@ go 1.21
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/test
 type Controller1 struct {}
 
 // @Route method=GET path=/
-func (c *Controller1) Get(ctx context.Context) glib.Result[string] {
-	return glib.OK("test1")
+func (c *Controller1) Get(ctx context.Context) (string, error) {
+	return "test1", nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "controller1.go"), []byte(controller1Content), 0644); err != nil {
@@ -237,15 +235,14 @@ func (c *Controller1) Get(ctx context.Context) glib.Result[string] {
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/test
 type Controller2 struct {}
 
 // @Route method=GET path=/
-func (c *Controller2) Get(ctx context.Context) glib.Result[string] {
-	return glib.OK("test2")
+func (c *Controller2) Get(ctx context.Context) (string, error) {
+	return "test2", nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "controller2.go"), []byte(controller2Content), 0644); err != nil {
@@ -297,15 +294,14 @@ go 1.21
 
 import (
 	"context"
-	"github.com/azizndao/glib"
 )
 
 // @Controller path=/api/test
 type TestController struct {}
 
 // @Route method=GET path=/
-func (c *TestController) Get(ctx context.Context) glib.Result[string] {
-	return glib.OK("test")
+func (c *TestController) Get(ctx context.Context) (string, error) {
+	return "test", nil
 }
 `
 	if err := os.WriteFile(filepath.Join(controllersDir, "test.go"), []byte(controllerContent), 0644); err != nil {

@@ -50,12 +50,8 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		if cached, ok := iv.cache.Get(id, hash); ok {
 			// Use cached validation
 			iv.stats.CacheHits++
-			for _, err := range cached.Errors {
-				iv.validator.errors = append(iv.validator.errors, err)
-			}
-			for _, warn := range cached.Warnings {
-				iv.validator.warnings = append(iv.validator.warnings, warn)
-			}
+			iv.validator.errors = append(iv.validator.errors, cached.Errors...)
+			iv.validator.warnings = append(iv.validator.warnings, cached.Warnings...)
 		} else {
 			// Needs validation
 			iv.stats.CacheMisses++
@@ -90,12 +86,8 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		if cached, ok := iv.cache.Get(id, hash); ok {
 			// Use cached validation
 			iv.stats.CacheHits++
-			for _, err := range cached.Errors {
-				iv.validator.errors = append(iv.validator.errors, err)
-			}
-			for _, warn := range cached.Warnings {
-				iv.validator.warnings = append(iv.validator.warnings, warn)
-			}
+			iv.validator.errors = append(iv.validator.errors, cached.Errors...)
+			iv.validator.warnings = append(iv.validator.warnings, cached.Warnings...)
 		} else {
 			iv.stats.CacheMisses++
 			needsValidation[id] = true
@@ -127,12 +119,8 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		if cached, ok := iv.cache.Get(id, hash); ok {
 			// Use cached validation
 			iv.stats.CacheHits++
-			for _, err := range cached.Errors {
-				iv.validator.errors = append(iv.validator.errors, err)
-			}
-			for _, warn := range cached.Warnings {
-				iv.validator.warnings = append(iv.validator.warnings, warn)
-			}
+			iv.validator.errors = append(iv.validator.errors, cached.Errors...)
+			iv.validator.warnings = append(iv.validator.warnings, cached.Warnings...)
 		} else {
 			iv.stats.CacheMisses++
 			needsValidation[id] = true

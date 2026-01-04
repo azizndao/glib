@@ -47,9 +47,9 @@ type ProviderContainer struct {
 }
 
 type ControllerContainer struct {
-	AuthController    *auth.Controller
 	CommentController *comment.Controller
 	PostController    *post.Controller
+	AuthController    *auth.Controller
 }
 
 type MiddlewareContainer struct {
@@ -123,11 +123,6 @@ func (c *App) initProviders(ctx context.Context) error {
 }
 
 func (c *App) initControllers() error {
-	c.controllers.AuthController = &auth.Controller{
-		UserService: c.UserSerivce,
-		JWTService:  c.JWTService,
-		Auditor:     c.AuditorFactory(),
-	}
 	c.controllers.CommentController = &comment.Controller{
 		Logger:         c.LoggerFactory(),
 		CommentService: c.CommentService,
@@ -136,7 +131,12 @@ func (c *App) initControllers() error {
 		UserSerivce: c.UserSerivce,
 		PostSerivce: c.PostSerivce,
 		Logger:      c.LoggerFactory(),
-		Translator:  c.Translator,
+		I18n:        c.Translator,
+	}
+	c.controllers.AuthController = &auth.Controller{
+		UserService: c.UserSerivce,
+		JWTService:  c.JWTService,
+		Auditor:     c.AuditorFactory(),
 	}
 
 	return nil

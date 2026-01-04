@@ -2,8 +2,6 @@ package {{.PkgName}}
 
 import (
 	"context"
-	
-	"github.com/azizndao/glib"
 )
 
 // @Controller path={{.RoutePrefix}}
@@ -12,7 +10,7 @@ type Controller struct {
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) glib.Result[any] {
+func (c *Controller) Index(ctx context.Context) (any, error) {
 	// TODO: implement
-	return glib.OK[any](nil)
+	return nil, nil
 }
