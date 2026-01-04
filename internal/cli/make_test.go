@@ -143,7 +143,7 @@ func TestMakeProvider_Success(t *testing.T) {
 	}
 
 	// Verify provider file was created
-	providerPath := filepath.Join(tmpDir, "providers/database.go")
+	providerPath := filepath.Join(tmpDir, "services/database.go")
 	if _, err := os.Stat(providerPath); os.IsNotExist(err) {
 		t.Error("Expected database.go to be created")
 	}

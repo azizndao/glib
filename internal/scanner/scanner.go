@@ -41,6 +41,10 @@ type Scanner struct {
 	// I18n configuration
 	i18nEnabled   bool
 	i18nLocaleDir string
+	// File filtering configuration
+	excludeDirs  []string
+	includeFiles []string
+	excludeFiles []string
 }
 
 type ScannerOption func(*Scanner)
@@ -69,6 +73,27 @@ func WithI18n(localesDir string) ScannerOption {
 	}
 }
 
+// WithExcludeDirs sets directories to exclude from scanning
+func WithExcludeDirs(dirs []string) ScannerOption {
+	return func(s *Scanner) {
+		s.excludeDirs = dirs
+	}
+}
+
+// WithIncludeFiles sets file patterns to include (supports glob patterns like *.go, **/*.proto)
+func WithIncludeFiles(patterns []string) ScannerOption {
+	return func(s *Scanner) {
+		s.includeFiles = patterns
+	}
+}
+
+// WithExcludeFiles sets file patterns to exclude (supports glob patterns)
+func WithExcludeFiles(patterns []string) ScannerOption {
+	return func(s *Scanner) {
+		s.excludeFiles = patterns
+	}
+}
+
 func New(projectDir string, opts ...ScannerOption) (*Scanner, error) {
 	// Find module path from go.mod
 	modulePath, err := findModulePath(projectDir)
@@ -80,9 +105,13 @@ func New(projectDir string, opts ...ScannerOption) (*Scanner, error) {
 		fset:       token.NewFileSet(),
 		modulePath: modulePath,
 		projectDir: projectDir,
+		// Sensible defaults for file filtering
+		excludeDirs:  []string{"vendor", "node_modules", ".git", ".glib", "tmp"},
+		includeFiles: []string{"*.go"},
+		excludeFiles: []string{"*_test.go", "*.gen.go"},
 	}
 
-	// Apply options
+	// Apply options (can override defaults)
 	for _, opt := range opts {
 		opt(scanner)
 	}
@@ -116,20 +145,21 @@ func (s *Scanner) Scan() (*Project, error) {
 			return err
 		}
 
-		// Skip directories and non-Go files
-		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+		// Handle directories - check exclusions
+		if info.IsDir() {
+			if s.shouldExcludeDir(path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		// Skip generated files
-		if strings.HasSuffix(path, ".gen.go") {
+		// Check include patterns
+		if !s.shouldIncludeFile(path) {
 			return nil
 		}
 
-		// Skip vendor, node_modules, etc.
-		if strings.Contains(path, "/vendor/") ||
-			strings.Contains(path, "/node_modules/") ||
-			strings.Contains(path, "/.git/") {
+		// Check exclude patterns
+		if s.shouldExcludeFile(path) {
 			return nil
 		}
 
@@ -360,6 +390,87 @@ func findModulePath(projectDir string) (string, error) {
 	}
 
 	return "", fmt.Errorf("module directive not found in go.mod")
+}
+
+// shouldExcludeDir checks if directory should be excluded from scanning
+func (s *Scanner) shouldExcludeDir(path string) bool {
+	// Get relative path from project root to avoid matching system paths like /tmp/
+	relPath, err := filepath.Rel(s.projectDir, path)
+	if err != nil {
+		relPath = path
+	}
+
+	// Check if this is the project root
+	if relPath == "." {
+		return false
+	}
+
+	dirName := filepath.Base(path)
+	for _, pattern := range s.excludeDirs {
+		// Support both simple names and glob patterns
+		if matched, _ := filepath.Match(pattern, dirName); matched {
+			return true
+		}
+		// Check if any component of relative path matches pattern
+		parts := strings.Split(relPath, string(filepath.Separator))
+		for _, part := range parts {
+			if matched, _ := filepath.Match(pattern, part); matched {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// shouldIncludeFile checks if file matches include patterns
+func (s *Scanner) shouldIncludeFile(path string) bool {
+	if len(s.includeFiles) == 0 {
+		return true // No filters means include all
+	}
+
+	relPath, err := filepath.Rel(s.projectDir, path)
+	if err != nil {
+		relPath = path
+	}
+
+	for _, pattern := range s.includeFiles {
+		// Support glob patterns including **
+		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+			return true
+		}
+		// Support recursive patterns like **/*.go
+		if strings.Contains(pattern, "**") {
+			// Convert ** to match any path
+			globPattern := strings.ReplaceAll(pattern, "**", "*")
+			if matched, _ := filepath.Match(globPattern, relPath); matched {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// shouldExcludeFile checks if file matches exclude patterns
+func (s *Scanner) shouldExcludeFile(path string) bool {
+	relPath, err := filepath.Rel(s.projectDir, path)
+	if err != nil {
+		relPath = path
+	}
+
+	for _, pattern := range s.excludeFiles {
+		// Support glob patterns
+		if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+			return true
+		}
+		// Support recursive patterns like **/*.gen.go
+		if strings.Contains(pattern, "**") {
+			globPattern := strings.ReplaceAll(pattern, "**", "*")
+			if matched, _ := filepath.Match(globPattern, relPath); matched {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Stats returns scanning statistics

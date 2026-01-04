@@ -72,6 +72,16 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		}
 	}
 
+	// Apply file filtering from watch config
+	if len(cfg.Watch.ExcludeDirs) > 0 {
+		scanOpts = append(scanOpts, scanner.WithExcludeDirs(cfg.Watch.ExcludeDirs))
+	}
+	// Note: We don't pass include_files to scanner because it always scans *.go files
+	// The watch config's include_files is for file watching (e.g., *.toml for locale changes)
+	if len(cfg.Watch.ExcludeFiles) > 0 {
+		scanOpts = append(scanOpts, scanner.WithExcludeFiles(cfg.Watch.ExcludeFiles))
+	}
+
 	// Enable i18n scanning if configured
 	if cfg.I18n.Enabled && cfg.I18n.LocalesDir != "" {
 		scanOpts = append(scanOpts, scanner.WithI18n(cfg.I18n.LocalesDir))

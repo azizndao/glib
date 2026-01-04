@@ -34,20 +34,21 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 			return err
 		}
 
-		// Skip directories and non-Go files
-		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+		// Handle directories - check exclusions
+		if info.IsDir() {
+			if s.shouldExcludeDir(path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		// Skip generated files
-		if strings.HasSuffix(path, ".gen.go") {
+		// Check include patterns
+		if !s.shouldIncludeFile(path) {
 			return nil
 		}
 
-		// Skip vendor, node_modules, etc.
-		if strings.Contains(path, "/vendor/") ||
-			strings.Contains(path, "/node_modules/") ||
-			strings.Contains(path, "/.git/") {
+		// Check exclude patterns
+		if s.shouldExcludeFile(path) {
 			return nil
 		}
 

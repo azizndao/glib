@@ -63,7 +63,7 @@ func _getDefaultConfig() *glibConfig {
 	cfg.Make.Providers = "services"
 	cfg.Make.Middleware = "middleware"
 
-	// Watch defaults
+	// Watch defaults (also used by scanner for file filtering)
 	cfg.Watch.Debounce = 300
 	cfg.Watch.ExcludeDirs = []string{"vendor", "node_modules", ".git", ".glib", "tmp"}
 	cfg.Watch.IncludeFiles = []string{"*.go"}

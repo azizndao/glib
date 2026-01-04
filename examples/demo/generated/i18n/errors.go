@@ -9,9 +9,9 @@ import (
 // TranslatorErrors provides translations for errors
 type TranslatorErrors struct {
 	translator *Translator
-	Auth       *TranslatorErrorsAuth
-	Posts      *TranslatorErrorsPosts
 	Users      *TranslatorErrorsUsers
+	Posts      *TranslatorErrorsPosts
+	Auth       *TranslatorErrorsAuth
 	Comments   *TranslatorErrorsComments
 }
 
@@ -35,29 +35,24 @@ func (t *TranslatorErrors) Unauthorized(ctx context.Context) string {
 	return t.translator.translate(ctx, "errors.unauthorized")
 }
 
-// TranslatorErrorsAuth provides translations for errors.auth
-type TranslatorErrorsAuth struct {
+// TranslatorErrorsUsers provides translations for errors.users
+type TranslatorErrorsUsers struct {
 	translator *Translator
 }
 
-// AccountLocked translates: "Compte verrouillé après %d tentatives échouées"
-func (t *TranslatorErrorsAuth) AccountLocked(ctx context.Context, arg1 int) string {
-	return t.translator.translate(ctx, "errors.auth.account_locked", arg1)
+// EmailTaken translates: "L'email '%s' est déjà enregistré"
+func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
+	return t.translator.translate(ctx, "errors.users.email_taken", email)
 }
 
-// InvalidCredentials translates: "Email ou mot de passe invalide"
-func (t *TranslatorErrorsAuth) InvalidCredentials(ctx context.Context) string {
-	return t.translator.translate(ctx, "errors.auth.invalid_credentials")
+// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
+func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.invalid_email", id)
 }
 
-// TokenExpired translates: "Votre session a expiré il y a %d minutes"
-func (t *TranslatorErrorsAuth) TokenExpired(ctx context.Context, minutes int) string {
-	return t.translator.translate(ctx, "errors.auth.token_expired", minutes)
-}
-
-// TokenInvalid translates: "Jeton d'authentification invalide"
-func (t *TranslatorErrorsAuth) TokenInvalid(ctx context.Context) string {
-	return t.translator.translate(ctx, "errors.auth.token_invalid")
+// NotFound translates: "Utilisateur avec l'ID %s introuvable"
+func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
+	return t.translator.translate(ctx, "errors.users.not_found", id)
 }
 
 // TranslatorErrorsPosts provides translations for errors.posts
@@ -85,24 +80,29 @@ func (t *TranslatorErrorsPosts) TitleTooShort(ctx context.Context, arg1 int, arg
 	return t.translator.translate(ctx, "errors.posts.title_too_short", arg1, arg2)
 }
 
-// TranslatorErrorsUsers provides translations for errors.users
-type TranslatorErrorsUsers struct {
+// TranslatorErrorsAuth provides translations for errors.auth
+type TranslatorErrorsAuth struct {
 	translator *Translator
 }
 
-// EmailTaken translates: "L'email '%s' est déjà enregistré"
-func (t *TranslatorErrorsUsers) EmailTaken(ctx context.Context, email string) string {
-	return t.translator.translate(ctx, "errors.users.email_taken", email)
+// AccountLocked translates: "Compte verrouillé après %d tentatives échouées"
+func (t *TranslatorErrorsAuth) AccountLocked(ctx context.Context, arg1 int) string {
+	return t.translator.translate(ctx, "errors.auth.account_locked", arg1)
 }
 
-// InvalidEmail translates: "'%s' n'est pas une adresse email valide"
-func (t *TranslatorErrorsUsers) InvalidEmail(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.invalid_email", id)
+// InvalidCredentials translates: "Email ou mot de passe invalide"
+func (t *TranslatorErrorsAuth) InvalidCredentials(ctx context.Context) string {
+	return t.translator.translate(ctx, "errors.auth.invalid_credentials")
 }
 
-// NotFound translates: "Utilisateur avec l'ID %s introuvable"
-func (t *TranslatorErrorsUsers) NotFound(ctx context.Context, id string) string {
-	return t.translator.translate(ctx, "errors.users.not_found", id)
+// TokenExpired translates: "Votre session a expiré il y a %d minutes"
+func (t *TranslatorErrorsAuth) TokenExpired(ctx context.Context, minutes int) string {
+	return t.translator.translate(ctx, "errors.auth.token_expired", minutes)
+}
+
+// TokenInvalid translates: "Jeton d'authentification invalide"
+func (t *TranslatorErrorsAuth) TokenInvalid(ctx context.Context) string {
+	return t.translator.translate(ctx, "errors.auth.token_invalid")
 }
 
 // TranslatorErrorsComments provides translations for errors.comments

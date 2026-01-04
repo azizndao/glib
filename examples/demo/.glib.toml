@@ -13,9 +13,9 @@ providers = "services"
 middleware = "middleware"
 
 [watch]
-debounce = 300
+debounce = 500
 exclude_dirs = ["vendor", "node_modules", ".git", ".glib", "tmp"]
-include_files = ["*.go"]
+include_files = ["*.go", "*.toml"]
 exclude_files = ["*_test.go", "*.gen.go"]
 
 [validation]
