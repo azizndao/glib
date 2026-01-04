@@ -98,20 +98,17 @@ func (s *Scanner) scanMiddleware(funcDecl *ast.FuncDecl, annotation *Annotation,
 		dependencies = s.parseFields(funcDecl.Type.Params)
 	}
 
-	// Detect signature type: chi (func(http.Handler) http.Handler) or glib (middleware.Middleware)
-	signature := "chi" // default to chi standard
+	// Detect signature type: standard (func(http.Handler) http.Handler) or glib (func(Request, Next) Response)
+	signature := MiddlewareSignatureStandard // default to standard
 	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) == 1 {
 		returnType := funcDecl.Type.Results.List[0].Type
 
-		// Check if return type is middleware.Middleware (selector)
-		if s.isGlibType(returnType, "Middleware") {
-			signature = "glib"
-		} else if funcType, ok := returnType.(*ast.FuncType); ok {
+		if funcType, ok := returnType.(*ast.FuncType); ok {
 			// Check if return type is func(glib.Request, glib.Next) glib.Response
 			if s.isGlibMiddlewareSignature(funcType) {
-				signature = "glib"
+				signature = MiddlewareSignatureGlib
 			} else if s.isChiMiddlewareSignature(funcType) {
-				signature = "chi"
+				signature = MiddlewareSignatureStandard
 			}
 		}
 	}

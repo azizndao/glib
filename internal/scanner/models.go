@@ -7,6 +7,12 @@ const (
 	PatternRawHTTP   = "raw_http"   // Raw HTTP - Direct http.ResponseWriter and *http.Request handlers
 )
 
+// Middleware signature types
+const (
+	MiddlewareSignatureStandard = "standard" // func(http.Handler) http.Handler
+	MiddlewareSignatureGlib     = "glib"     // func(glib.Request, glib.Next) glib.Response
+)
+
 // Project represents the complete scanned project
 type Project struct {
 	Module      string
@@ -121,7 +127,7 @@ type Middleware struct {
 	SourceLine   int
 	Target       string // e.g., "all", "protected", "public,admin" - targeting expression
 	Order        int    // Execution order (default: 100)
-	Signature    string // "old" (http.Handler) or "new" (glib.Middleware)
+	Signature    string // "standard" or "glib" - see MiddlewareSignature constants
 	Dependencies []*Field
 }
 
