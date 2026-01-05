@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/BurntSushi/toml"
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 )
 
 // Supported locale constants
@@ -160,7 +160,7 @@ func (t *Translator) Middleware() func(http.Handler) http.Handler {
 			// Fallback to Accept-Language header
 			if locale == t.defaultLocale {
 				acceptLang := r.Header.Get("Accept-Language")
-				detected := utils.DetectLanguage(acceptLang, t.defaultLocale)
+				detected := parsers.DetectLanguage(acceptLang, t.defaultLocale)
 				for _, s := range t.supportedLocales {
 					if s == detected {
 						locale = detected
@@ -200,7 +200,7 @@ func LocaleDetectorMiddleware(defaultLocale string, supported []string) func(htt
 			// Fallback to Accept-Language header
 			if locale == defaultLocale {
 				acceptLang := r.Header.Get("Accept-Language")
-				detected := utils.DetectLanguage(acceptLang, defaultLocale)
+				detected := parsers.DetectLanguage(acceptLang, defaultLocale)
 				for _, s := range supported {
 					if s == detected {
 						locale = detected

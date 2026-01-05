@@ -3,7 +3,7 @@
 		// Parse path parameters
 {{- range .Handler.Signature.PathParams}}
 {{- if eq .Type.PackageName "uuid"}}
-	{{.Name}}, err := utils.ParseUUID(r.PathValue("{{.Name}}"), "{{.Name}}")
+	{{.Name}}, err := parsers.ParseUUID(r.PathValue("{{.Name}}"), "{{.Name}}")
 	if err != nil {
 		glib.WriteError(w, errs.NewBadRequest().
 			Msgf("invalid path parameter '%s': %v", "{{.Name}}", err).Err())
@@ -11,15 +11,15 @@
 	}
 {{- else if .Type.IsPrimitive}}
 {{- if eq .Type.Name "int"}}
-		{{.Name}}, err := utils.ParseInt(r.PathValue("{{.Name}}"), "{{.Name}}")
+		{{.Name}}, err := parsers.ParseInt(r.PathValue("{{.Name}}"), "{{.Name}}")
 {{- else if eq .Type.Name "int64"}}
-		{{.Name}}, err := utils.ParseInt64(r.PathValue("{{.Name}}"), "{{.Name}}")
+		{{.Name}}, err := parsers.ParseInt64(r.PathValue("{{.Name}}"), "{{.Name}}")
 {{- else if eq .Type.Name "uint64"}}
-		{{.Name}}, err := utils.ParseUint64(r.PathValue("{{.Name}}"), "{{.Name}}")
+		{{.Name}}, err := parsers.ParseUint64(r.PathValue("{{.Name}}"), "{{.Name}}")
 {{- else if eq .Type.Name "float64"}}
-		{{.Name}}, err := utils.ParseFloat64(r.PathValue("{{.Name}}"), "{{.Name}}")
+		{{.Name}}, err := parsers.ParseFloat64(r.PathValue("{{.Name}}"), "{{.Name}}")
 {{- else if eq .Type.Name "bool"}}
-		{{.Name}}, err := utils.ParseBool(r.PathValue("{{.Name}}"), "{{.Name}}")
+		{{.Name}}, err := parsers.ParseBool(r.PathValue("{{.Name}}"), "{{.Name}}")
 {{- else}}
 		{{.Name}} := r.PathValue("{{.Name}}")
 		var err error

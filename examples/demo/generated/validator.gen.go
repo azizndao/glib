@@ -3,7 +3,7 @@
 package generated
 
 import (
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 	glib "github.com/azizndao/glib/validator"
 	locales_fr "github.com/go-playground/locales/fr"
 	ut "github.com/go-playground/universal-translator"
@@ -32,7 +32,7 @@ func initValidator() *glib.Validator {
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
 // Falls back to "fr" if no language specified or no match found
 func DetectLanguageOrDefault(acceptLanguage string) string {
-	lang := utils.DetectLanguage(acceptLanguage, "fr")
+	lang := parsers.DetectLanguage(acceptLanguage, "fr")
 
 	// Validate that the detected language is in our supported list
 	switch lang {

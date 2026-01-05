@@ -49,7 +49,7 @@ func (g *Generator) generateParsers() (string, error) {
 	b.WriteString("\n")
 	b.WriteString("\t\"github.com/azizndao/glib\"\n")
 	b.WriteString("\t\"github.com/azizndao/glib/errs\"\n")
-	b.WriteString("\t\"github.com/azizndao/glib/utils\"\n")
+	b.WriteString("\t\"github.com/azizndao/glib/utils/parsers\"\n")
 
 	// Add local imports
 	if len(localImports) > 0 {

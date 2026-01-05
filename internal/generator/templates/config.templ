@@ -4,7 +4,7 @@ package {{ .PackageName }}
 import (
 	"fmt"
 
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 	"{{ .ConfigImportPath }}"
 )
 
@@ -44,38 +44,38 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 {{- else }}
 	{{- if .Type.IsSlice }}
 		{{- if eq .Type.Name "string" }}
-	cfg.{{ .ParentPath }}{{ .Name }} = utils.GetEnvSlice("{{ .EnvName }}", "{{ .DefaultValue }}")
+	cfg.{{ .ParentPath }}{{ .Name }} = parsers.GetEnvSlice("{{ .EnvName }}", "{{ .DefaultValue }}")
 		{{- else }}
 	// Unsupported slice type: {{ .Type.FullName }}
 		{{- end }}
 	{{- else if eq .Type.Name "string" }}
-	cfg.{{ .ParentPath }}{{ .Name }} = utils.GetEnvOr("{{ .EnvName }}", "{{ .DefaultValue }}")
+	cfg.{{ .ParentPath }}{{ .Name }} = parsers.GetEnvOr("{{ .EnvName }}", "{{ .DefaultValue }}")
 	{{- else if eq .Type.Name "int" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvInt("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvInt("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
 		return nil, err
 	}
 	{{- else if eq .Type.Name "int64" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvInt64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvInt64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
 		return nil, err
 	}
 	{{- else if eq .Type.Name "uint64" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvUint64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvUint64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
 		return nil, err
 	}
 	{{- else if eq .Type.Name "bool" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvBool("{{ .EnvName }}", {{ if .DefaultValue }}{{ .DefaultValue }}{{ else }}false{{ end }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvBool("{{ .EnvName }}", {{ if .DefaultValue }}{{ .DefaultValue }}{{ else }}false{{ end }}); err != nil {
 		return nil, err
 	}
 	{{- else if eq .Type.Name "float64" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvFloat64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvFloat64("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
 		return nil, err
 	}
 	{{- else if eq .Type.FullName "time.Duration" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvDuration("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvDuration("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
 		return nil, err
 	}
 	{{- else if or (eq .Type.FullName "url.URL") (eq .Type.FullName "*url.URL") }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = utils.GetEnvURL("{{ .EnvName }}"); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvURL("{{ .EnvName }}"); err != nil {
 		return nil, err
 	}
 	{{- else }}

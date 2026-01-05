@@ -6,6 +6,7 @@ package {{.PackageName}}
 // Routes are organized by controller using chi's Route/Group/Use for clean code structure.
 func (app *App) RegisterRoutes() error {
 {{- range .ControllerGroups}}
+
 	// {{.Controller.Name}} - {{.Prefix}}
 	app.Router.Route("{{.Prefix}}", func(r chi.Router) {
 		{{- if .Middleware}}

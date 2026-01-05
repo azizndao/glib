@@ -4,26 +4,26 @@ package generated
 import (
 	"glib/demo/configs"
 
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 )
 
 func loadConfig() (*configs.Config, error) {
 	cfg := &configs.Config{}
 	var err error
 
-	cfg.Server.Host = utils.GetEnvOr("APP_HOST", "0.0.0.0")
+	cfg.Server.Host = parsers.GetEnvOr("APP_HOST", "0.0.0.0")
 
-	if cfg.Server.Port, err = utils.GetEnvInt("APP_PORT", 8080); err != nil {
+	if cfg.Server.Port, err = parsers.GetEnvInt("APP_PORT", 8080); err != nil {
 		return nil, err
 	}
 
-	cfg.Server.Env = utils.GetEnvOr("APP_ENV", "development")
+	cfg.Server.Env = parsers.GetEnvOr("APP_ENV", "development")
 
-	if cfg.Server.Timeout, err = utils.GetEnvDuration("ROUTER_TIMEOUT", 60); err != nil {
+	if cfg.Server.Timeout, err = parsers.GetEnvDuration("ROUTER_TIMEOUT", 60); err != nil {
 		return nil, err
 	}
 
-	cfg.Database.Filename = utils.GetEnvOr("DB_FILENAME", "data.db")
+	cfg.Database.Filename = parsers.GetEnvOr("DB_FILENAME", "data.db")
 
 	return cfg, nil
 }
@@ -32,13 +32,13 @@ func loadRedisConfig() (*configs.RedisConfig, error) {
 	cfg := &configs.RedisConfig{}
 	var err error
 
-	cfg.Host = utils.GetEnvOr("REDIS_HOST", "localhost")
+	cfg.Host = parsers.GetEnvOr("REDIS_HOST", "localhost")
 
-	if cfg.Port, err = utils.GetEnvInt("REDIS_PORT", 6379); err != nil {
+	if cfg.Port, err = parsers.GetEnvInt("REDIS_PORT", 6379); err != nil {
 		return nil, err
 	}
 
-	cfg.Password = utils.GetEnvOr("REDIS_PASSWORD", "")
+	cfg.Password = parsers.GetEnvOr("REDIS_PASSWORD", "")
 
 	return cfg, nil
 }
@@ -46,9 +46,9 @@ func loadRedisConfig() (*configs.RedisConfig, error) {
 func loadStorageConfig() (*configs.StorageConfig, error) {
 	cfg := &configs.StorageConfig{}
 
-	cfg.Driver = utils.GetEnvOr("STORAGE_DRIVER", "")
+	cfg.Driver = parsers.GetEnvOr("STORAGE_DRIVER", "")
 
-	cfg.Local.Root = utils.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
+	cfg.Local.Root = parsers.GetEnvOr("STORAGE_LOCAL_ROOT", "storage")
 
 	return cfg, nil
 }

@@ -11,7 +11,7 @@ import (
 	"slices"
 
 	"github.com/BurntSushi/toml"
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 )
 
 // Supported locale constants
@@ -160,7 +160,7 @@ func (t *Translator) Middleware() func(http.Handler) http.Handler {
 {{- if .HasHeaderDetection}}
 			// Fallback to Accept-Language header
 			if locale == t.defaultLocale {
-				if detected := utils.DetectLanguage(r.Header.Get("Accept-Language"), t.defaultLocale); slices.Contains(t.supportedLocales, detected) {
+				if detected := parsers.DetectLanguage(r.Header.Get("Accept-Language"), t.defaultLocale); slices.Contains(t.supportedLocales, detected) {
 					locale = detected
 				}
 			}
@@ -190,7 +190,7 @@ func LocaleDetectorMiddleware(defaultLocale string, supported []string) func(htt
 {{- if .HasHeaderDetection}}
 			// Fallback to Accept-Language header
 			if locale == defaultLocale {
-				if detected := utils.DetectLanguage(r.Header.Get("Accept-Language"), defaultLocale); slices.Contains(supported, detected) {
+				if detected := parsers.DetectLanguage(r.Header.Get("Accept-Language"), defaultLocale); slices.Contains(supported, detected) {
 					locale = detected
 				}
 			}

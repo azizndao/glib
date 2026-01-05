@@ -8,22 +8,22 @@
 {{- if eq .Type.Name "string"}}
 			req.{{.FieldName}} = &{{.FieldName}}Val
 {{- else if eq .Type.Name "int"}}
-			{{.FieldName}}Parsed := utils.ParseIntOrZero({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseIntOrZero({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- else if eq .Type.Name "int64"}}
-			{{.FieldName}}Parsed := utils.ParseInt64OrZero({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseInt64OrZero({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- else if eq .Type.Name "uint64"}}
-			{{.FieldName}}Parsed := utils.ParseUint64OrZero({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseUint64OrZero({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- else if eq .Type.Name "bool"}}
-			{{.FieldName}}Parsed := utils.ParseBoolOrFalse({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseBoolOrFalse({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- else if eq .Type.Name "float64"}}
-			{{.FieldName}}Parsed := utils.ParseFloat64OrZero({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseFloat64OrZero({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- else if eq .Type.PackageName "uuid"}}
-			{{.FieldName}}Parsed := utils.ParseUUIDOrNil({{.FieldName}}Val)
+			{{.FieldName}}Parsed := parsers.ParseUUIDOrNil({{.FieldName}}Val)
 			req.{{.FieldName}} = &{{.FieldName}}Parsed
 {{- end}}
 		}
@@ -33,17 +33,17 @@
 {{- if eq .Type.Name "string"}}
 			req.{{.FieldName}} = {{.FieldName}}Val
 {{- else if eq .Type.Name "int"}}
-			req.{{.FieldName}} = utils.ParseIntOrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseIntOrZero({{.FieldName}}Val)
 {{- else if eq .Type.Name "int64"}}
-			req.{{.FieldName}} = utils.ParseInt64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseInt64OrZero({{.FieldName}}Val)
 {{- else if eq .Type.Name "uint64"}}
-			req.{{.FieldName}} = utils.ParseUint64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseUint64OrZero({{.FieldName}}Val)
 {{- else if eq .Type.Name "bool"}}
-			req.{{.FieldName}} = utils.ParseBoolOrFalse({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseBoolOrFalse({{.FieldName}}Val)
 {{- else if eq .Type.Name "float64"}}
-			req.{{.FieldName}} = utils.ParseFloat64OrZero({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseFloat64OrZero({{.FieldName}}Val)
 {{- else if eq .Type.PackageName "uuid"}}
-			req.{{.FieldName}} = utils.ParseUUIDOrNil({{.FieldName}}Val)
+			req.{{.FieldName}} = parsers.ParseUUIDOrNil({{.FieldName}}Val)
 {{- end}}
 		}
 {{- end}}

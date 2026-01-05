@@ -2,7 +2,7 @@
 {{- if .Handler.Signature.RequestType}}
 {{- if not (or .Handler.Signature.QueryParams .Handler.Signature.HeaderParams)}}
 	// Parse request body (pure JSON, no query/header params)
-	req, err := utils.ParseJSONBody[{{typeRef .Handler.Signature.RequestType}}](r)
+	req, err := parsers.ParseJSONBody[{{typeRef .Handler.Signature.RequestType}}](r)
 	if err != nil {
 		glib.WriteError(w, errs.NewBadRequest().
 			Msgf("invalid request body: %v", err).Err())

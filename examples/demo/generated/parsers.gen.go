@@ -7,7 +7,7 @@ import (
 
 	"github.com/azizndao/glib"
 	"github.com/azizndao/glib/errs"
-	"github.com/azizndao/glib/utils"
+	"github.com/azizndao/glib/utils/parsers"
 
 	"glib/demo/controllers/auth"
 	"glib/demo/controllers/comment"
@@ -20,7 +20,7 @@ func handleAuthControllerRegister(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.RegisterRequest](r)
+		req, err := parsers.ParseJSONBody[auth.RegisterRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -43,7 +43,7 @@ func handleAuthControllerLogin(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.LoginRequest](r)
+		req, err := parsers.ParseJSONBody[auth.LoginRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -85,7 +85,7 @@ func handleAuthControllerUpdateProfile(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[auth.UpdateProfileRequest](r)
+		req, err := parsers.ParseJSONBody[auth.UpdateProfileRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -132,7 +132,7 @@ func handleAuthControllerGetUser(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -174,7 +174,7 @@ func handleCommentControllerShow(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -201,7 +201,7 @@ func handleCommentControllerCreate(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[comment.CreateCommentRequest](r)
+		req, err := parsers.ParseJSONBody[comment.CreateCommentRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -229,7 +229,7 @@ func handleCommentControllerUpdate(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -237,7 +237,7 @@ func handleCommentControllerUpdate(app *App) http.HandlerFunc {
 		}
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[comment.UpdateCommentRequest](r)
+		req, err := parsers.ParseJSONBody[comment.UpdateCommentRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -265,7 +265,7 @@ func handleCommentControllerDelete(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -313,7 +313,7 @@ func handlePostControllerShow(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -340,7 +340,7 @@ func handlePostControllerCreate(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[post.CreatePostRequest](r)
+		req, err := parsers.ParseJSONBody[post.CreatePostRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -368,7 +368,7 @@ func handlePostControllerUpdate(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())
@@ -376,7 +376,7 @@ func handlePostControllerUpdate(app *App) http.HandlerFunc {
 		}
 
 		// Parse request body (pure JSON, no query/header params)
-		req, err := utils.ParseJSONBody[post.UpdatePostRequest](r)
+		req, err := parsers.ParseJSONBody[post.UpdatePostRequest](r)
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
@@ -404,7 +404,7 @@ func handlePostControllerDelete(app *App) http.HandlerFunc {
 		ctx := r.Context()
 
 		// Parse path parameters
-		id, err := utils.ParseUUID(r.PathValue("id"), "id")
+		id, err := parsers.ParseUUID(r.PathValue("id"), "id")
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid path parameter '%s': %v", "id", err).Err())

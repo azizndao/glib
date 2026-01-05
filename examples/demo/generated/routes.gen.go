@@ -7,6 +7,7 @@ import "github.com/go-chi/chi/v5"
 // RegisterRoutes registers all HTTP routes with their corresponding handlers.
 // Routes are organized by controller using chi's Route/Group/Use for clean code structure.
 func (app *App) RegisterRoutes() error {
+
 	// Controller - /api/v1/auth
 	app.Router.Route("/api/v1/auth", func(r chi.Router) {
 		r.Post("/register", handleAuthControllerRegister(app))
@@ -20,6 +21,7 @@ func (app *App) RegisterRoutes() error {
 			r.Delete("/logout", handleAuthControllerLogout(app))
 		})
 	})
+
 	// Controller - /api/v1/comment
 	app.Router.Route("/api/v1/comment", func(r chi.Router) {
 		// Controller-level middleware
@@ -34,6 +36,7 @@ func (app *App) RegisterRoutes() error {
 			r.Delete("/{id}", handleCommentControllerDelete(app))
 		})
 	})
+
 	// Controller - /api/v1/post
 	app.Router.Route("/api/v1/post", func(r chi.Router) {
 		// Controller-level middleware
