@@ -153,10 +153,10 @@ Features:
 	}
 
 	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from .glib.toml or false)")
-	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: from .glib.toml or 4)")
-	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled from .glib.toml)")
-	cmd.Flags().IntVar(&debounce, "debounce", 0, "Debounce duration in milliseconds (default: from .glib.toml or 300)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from .config.toml or false)")
+	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: from .config.toml or 4)")
+	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled from .config.toml)")
+	cmd.Flags().IntVar(&debounce, "debounce", 0, "Debounce duration in milliseconds (default: from .config.toml or 300)")
 
 	return cmd
 }

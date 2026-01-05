@@ -100,7 +100,7 @@ glib init
 my-api/
 ├── go.mod
 ├── go.sum
-├── .glib.toml                 # Glib configuration
+├── .config.toml                 # Glib configuration
 ├── main.go                    # Application entry point
 ├── config.go                  # Config struct
 └── controllers/
@@ -226,10 +226,10 @@ glib dev --debounce 500 --exclude-dirs vendor,tmp,node_modules
 
 **Configuration:**
 
-All settings can be configured via CLI flags or `.glib.toml`:
+All settings can be configured via CLI flags or `.config.toml`:
 
 ```toml
-# .glib.toml
+# .config.toml
 [watch]
 debounce = 500
 exclude_dirs = ["vendor", "tmp", "node_modules"]
@@ -527,17 +527,17 @@ glib help make
 
 ### Configuration Priority
 
-Glib uses `.glib.toml` for project configuration with the following priority order:
+Glib uses `.config.toml` for project configuration with the following priority order:
 
 1. **CLI flags** (highest priority)
-2. **`.glib.toml` file** (project configuration)
+2. **`.config.toml` file** (project configuration)
 3. **Hardcoded defaults** (fallback)
 
 This approach provides both flexibility through CLI overrides and project-specific defaults through the configuration file.
 
-### `.glib.toml` Configuration File
+### `.config.toml` Configuration File
 
-Create a `.glib.toml` file in your project root:
+Create a `.config.toml` file in your project root:
 
 ```toml
 version = "2"
@@ -597,14 +597,14 @@ default_language = "en"
 ### Example Usage
 
 ```bash
-# Use custom output directory from .glib.toml
+# Use custom output directory from .config.toml
 glib generate
 
 # Override with CLI flags (highest priority)
 glib generate --output custom_gen --workers 16
 
 # Custom project structure
-# .glib.toml:
+# .config.toml:
 # [generate]
 # output = "internal/generated"
 # [make]
@@ -623,7 +623,7 @@ Glib 2.0 **doesn't enforce** any particular structure. Here are common patterns:
 my-api/
 ├── main.go
 ├── config.go
-├── .glib.toml                 # Glib configuration
+├── .config.toml                 # Glib configuration
 ├── posts.go                   # PostsController
 ├── comments.go                # CommentsController
 ├── providers.go               # All providers
@@ -640,7 +640,7 @@ my-api/
 my-api/
 ├── main.go
 ├── config.go
-├── .glib.toml                 # Glib configuration
+├── .config.toml                 # Glib configuration
 ├── posts/
 │   ├── controller.go          # @Controller
 │   ├── models.go
@@ -665,7 +665,7 @@ my-api/
 ├── cmd/
 │   └── api/
 │       └── main.go
-├── .glib.toml                 # Glib configuration
+├── .config.toml                 # Glib configuration
 ├── internal/
 │   ├── config/
 │   │   └── config.go

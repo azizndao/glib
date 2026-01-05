@@ -81,10 +81,10 @@ This will:
 
 **Configuration:**
 
-You can customize the file watcher behavior using `.glib.toml`:
+You can customize the file watcher behavior using `.config.toml`:
 
 ```toml
-# .glib.toml
+# .config.toml
 [watch]
 debounce = 500
 exclude_dirs = ["vendor", "tmp", "node_modules"]
@@ -106,7 +106,7 @@ Or override with CLI flags:
 
 ```
 demo/
-├── .glib.toml            # Glib configuration
+├── .config.toml            # Glib configuration
 ├── controllers/          # HTTP controllers
 │   ├── auth/
 │   │   ├── controller.go # Auth endpoints (register, login, profile)
@@ -436,7 +436,7 @@ APP_PORT=3000 ./demo
 
 ### Glib Configuration
 
-The demo includes a `.glib.toml` file for Glib CLI configuration:
+The demo includes a `.config.toml` file for Glib CLI configuration:
 
 ```toml
 version = "2"

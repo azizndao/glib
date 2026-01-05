@@ -26,10 +26,10 @@ func newInitCmd() *cobra.Command {
 Creates a new project with:
   - main.go (application entry point)
   - configs/config.go (configuration struct with @Config annotation)
-  - .glib.toml (Glib CLI configuration)
+  - .config.toml (Glib CLI configuration)
   - .gitignore (Git ignore file)
 
-Configuration is managed via .glib.toml and can be overridden with CLI flags.
+Configuration is managed via .config.toml and can be overridden with CLI flags.
 
 Optional:
   --example  Include example health check controller

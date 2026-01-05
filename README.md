@@ -540,7 +540,7 @@ Creates:
 - Project structure
 - Sample `main.go` and `bootstrap.go`
 - Configuration struct with `@Config` annotation
-- `.glib.toml` configuration file
+- `.config.toml` configuration file
 - Example controller (with `--example` flag)
 
 **Options:**
@@ -624,15 +624,15 @@ Features:
 
 ## Configuration
 
-Glib uses `.glib.toml` for project configuration. Configuration is resolved in this priority order:
+Glib uses `.config.toml` for project configuration. Configuration is resolved in this priority order:
 
 1. **CLI flags** (highest priority)
-2. **`.glib.toml` file** (project configuration)
+2. **`.config.toml` file** (project configuration)
 3. **Hardcoded defaults** (fallback)
 
-### `.glib.toml` Configuration
+### `.config.toml` Configuration
 
-Create a `.glib.toml` file in your project root:
+Create a `.config.toml` file in your project root:
 
 ```toml
 version = "2"
@@ -691,7 +691,7 @@ default_language = "en"
 
 ### Example Configuration
 
-Using `.glib.toml`:
+Using `.config.toml`:
 
 ```toml
 version = "2"

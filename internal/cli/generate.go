@@ -36,11 +36,11 @@ Generates:
 	}
 
 	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Project root directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: from .glib.toml or 'generated')")
-	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: from .glib.toml or false)")
+	cmd.Flags().StringVar(&opts.output, "output", "", "Output directory (default: from .config.toml or 'generated')")
+	cmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Verbose output (default: from .config.toml or false)")
 	cmd.Flags().BoolVar(&opts.watch, "watch", false, "Watch mode")
-	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (default: from .glib.toml or 4)")
-	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: cache enabled from .glib.toml)")
+	cmd.Flags().IntVar(&opts.workers, "workers", 0, "Number of parallel workers (default: from .config.toml or 4)")
+	cmd.Flags().BoolVar(&opts.noCache, "no-cache", false, "Disable file caching (default: cache enabled from .config.toml)")
 	cmd.Flags().BoolVar(&opts.clearCache, "clear-cache", false, "Clear cache before scanning")
 
 	return cmd

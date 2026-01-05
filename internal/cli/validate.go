@@ -49,7 +49,7 @@ func runValidate(opts *validateOptions) error {
 		}
 	}
 
-	// Load config from .glib.toml
+	// Load config from .config.toml
 	cfg, err := loadConfigs()
 	if err != nil {
 		return err

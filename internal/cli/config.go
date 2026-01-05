@@ -8,10 +8,10 @@ import (
 	"github.com/azizndao/glib/internal/cli/ui"
 )
 
-const glibConfigFile = ".glib.toml"
+const configFile = ".config.toml"
 
 // glibConfig represents the CLI configuration
-// Configuration is loaded from: CLI args > .glib.toml > default
+// Configuration is loaded from: CLI args > .config.toml > default
 type glibConfig struct {
 	Version  string `toml:"version"`
 	Verbose  bool   `toml:"verbose"`
@@ -87,18 +87,18 @@ func getDefaultConfig() *glibConfig {
 
 func loadConfigs() (*glibConfig, error) {
 	cfg := getDefaultConfig()
-	file, err := os.ReadFile(glibConfigFile)
+	file, err := os.ReadFile(configFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to read config file: %w", err)
 		}
 		// Config file doesn't exist, create it with defaults
-		fmt.Println(ui.Infof("Writing default config to %s", glibConfigFile))
+		fmt.Println(ui.Infof("Writing default config to %s", configFile))
 		jsonStr, err := toml.Marshal(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal default config: %w", err)
 		}
-		if err := os.WriteFile(glibConfigFile, jsonStr, 0o600); err != nil {
+		if err := os.WriteFile(configFile, jsonStr, 0o600); err != nil {
 			return nil, fmt.Errorf("failed to write config file: %w", err)
 		}
 		// Return the default config (no need to unmarshal)
