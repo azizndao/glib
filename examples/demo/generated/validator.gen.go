@@ -5,9 +5,11 @@ package generated
 import (
 	"github.com/azizndao/glib/utils/parsers"
 	glib "github.com/azizndao/glib/validator"
+	locales_en "github.com/go-playground/locales/en"
 	locales_fr "github.com/go-playground/locales/fr"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	trans_en "github.com/go-playground/validator/v10/translations/en"
 	trans_fr "github.com/go-playground/validator/v10/translations/fr"
 )
 
@@ -17,13 +19,17 @@ func initValidator() *glib.Validator {
 
 	// Create locale instances
 	locale_fr := locales_fr.New()
+	locale_en := locales_en.New()
 
 	// Initialize UniversalTranslator with fr as fallback
-	uni := ut.New(locale_fr, locale_fr)
+	uni := ut.New(locale_fr, locale_fr, locale_en)
 
 	// Register translations for each language
 	if trans, _ := uni.GetTranslator("fr"); trans != nil {
 		_ = trans_fr.RegisterDefaultTranslations(v, trans)
+	}
+	if trans, _ := uni.GetTranslator("en"); trans != nil {
+		_ = trans_en.RegisterDefaultTranslations(v, trans)
 	}
 
 	return glib.NewValidatorWithTranslator(v, uni, "fr")
@@ -37,6 +43,8 @@ func DetectLanguageOrDefault(acceptLanguage string) string {
 	// Validate that the detected language is in our supported list
 	switch lang {
 	case "fr":
+		return lang
+	case "en":
 		return lang
 	}
 

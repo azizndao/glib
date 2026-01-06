@@ -1,4 +1,4 @@
-// Package parsers.provides helper functions for parsing request parameters,
+// Package parsers provides helper functions for parsing request parameters,
 // environment variables, and common type conversions.
 //
 // These utilities are used by glib's code generation and are also available

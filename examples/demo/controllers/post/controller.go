@@ -23,7 +23,7 @@ type Controller struct {
 }
 
 // @Route method=GET path=/
-func (c *Controller) Index(ctx context.Context) ([]models.Post, error) {
+func (c *Controller) Index(ctx context.Context, params PostPaginationParams) ([]models.Post, error) {
 	fmt.Println(c.I18n.Success.PostCreated(ctx, "My First Post"))
 	posts, err := c.PostSerivce.GetPosts()
 	if err != nil {

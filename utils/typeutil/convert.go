@@ -1,4 +1,4 @@
-package convert
+package typeutil
 
 import (
 	"encoding/json"
