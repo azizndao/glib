@@ -26,5 +26,5 @@ func (r CreateCommentRequest) Validate() bool {
 }
 
 type UpdateCommentRequest struct {
-	Content string `json:"content" validate:"omitempty,min=1,max=1000"`
+	Content string `json:"content"`
 }

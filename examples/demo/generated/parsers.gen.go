@@ -27,6 +27,14 @@ func handleAuthControllerRegister(app *App) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+
 		data, err := app.controllers.AuthController.Register(ctx, req)
 		if err != nil {
 			glib.WriteError(w, err)
@@ -47,6 +55,14 @@ func handleAuthControllerLogin(app *App) http.HandlerFunc {
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
+			return
+		}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
 			return
 		}
 
@@ -208,6 +224,14 @@ func handleCommentControllerCreate(app *App) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+
 		data, err := app.controllers.CommentController.Create(ctx, req)
 		if err != nil {
 			glib.WriteError(w, err)
@@ -293,11 +317,28 @@ func handlePostControllerIndex(app *App) http.HandlerFunc {
 
 		ctx := r.Context()
 
-		// Parse request body (pure JSON, no query/header params)
-		req, err := parsers.ParseJSONBody[post.PostPaginationParams](r)
-		if err != nil {
-			glib.WriteError(w, errs.NewBadRequest().
-				Msgf("invalid request body: %v", err).Err())
+		// Parse query parameters and headers into struct
+		var req post.PostPaginationParams
+
+		// Parse query parameters
+		// Required parameter: page
+		if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+			req.Page = parsers.ParseIntOrZero(pageStr)
+		}
+		// Required parameter: per_page
+		if per_pageStr := r.URL.Query().Get("per_page"); per_pageStr != "" {
+			req.PerPage = parsers.ParseIntOrZero(per_pageStr)
+		}
+		// Required parameter: sort
+		if sortStr := r.URL.Query().Get("sort"); sortStr != "" {
+			req.Sort = sortStr
+		}
+
+		// Validate query/header parameters with language detection and section "query"
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
+			glib.WriteError(w, err)
 			return
 		}
 
@@ -355,6 +396,14 @@ func handlePostControllerCreate(app *App) http.HandlerFunc {
 			return
 		}
 
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
+			return
+		}
+
 		data, err := app.controllers.PostController.Create(ctx, req)
 		if err != nil {
 			glib.WriteError(w, err)
@@ -388,6 +437,14 @@ func handlePostControllerUpdate(app *App) http.HandlerFunc {
 		if err != nil {
 			glib.WriteError(w, errs.NewBadRequest().
 				Msgf("invalid request body: %v", err).Err())
+			return
+		}
+
+		// Validate request with language detection
+		acceptLang := r.Header.Get("Accept-Language")
+		lang := DetectLanguageOrDefault(acceptLang)
+		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
+			glib.WriteError(w, err)
 			return
 		}
 

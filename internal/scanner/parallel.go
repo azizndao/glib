@@ -159,6 +159,13 @@ func (s *Scanner) ScanParallel() (*Project, error) {
 func (s *Scanner) scanHandlersForControllers(project *Project, fileMap map[string]*ast.File) error {
 	// Group files by package path
 	packageFiles := make(map[string]map[string]*ast.File)
+	packagesWithControllers := make(map[string]bool)
+
+	// First, identify all packages that have controllers and add files from fileMap
+	for _, ctrl := range project.Controllers {
+		packagesWithControllers[ctrl.PackagePath] = true
+	}
+
 	for filePath, file := range fileMap {
 		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
 		if err != nil {
@@ -173,6 +180,11 @@ func (s *Scanner) scanHandlersForControllers(project *Project, fileMap map[strin
 			packageFiles[packagePath] = make(map[string]*ast.File)
 		}
 		packageFiles[packagePath][filePath] = file
+	}
+
+	// Ensure all files in packages with controllers are available for type resolution
+	if err := s.ensurePackageFilesForTypeResolution(packageFiles, packagesWithControllers, fileMap); err != nil {
+		return err
 	}
 
 	// Scan handlers

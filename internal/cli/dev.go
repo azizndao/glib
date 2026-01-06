@@ -253,13 +253,13 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	}
 	watcher, err := NewFileWatcher(".", outputDir, watchCfg)
 	if err != nil {
-		pm.Stop()
+		_ = pm.Stop()
 		return fmt.Errorf("failed to create watcher: %w", err)
 	}
 
 	changes, watchErrors, err := watcher.Start()
 	if err != nil {
-		pm.Stop()
+		_ = pm.Stop()
 		return fmt.Errorf("failed to start watcher: %w", err)
 	}
 

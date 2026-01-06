@@ -99,7 +99,16 @@ func (s *Scanner) ScanIncremental(changedFiles []string) (*Project, error) {
 	_ = s.cache.Save()
 
 	// Second pass: scan handlers for all controllers
+	// Build map of package paths to files, and identify packages that need ALL files parsed
 	packageFiles := make(map[string]map[string]*ast.File)
+	packagesWithControllers := make(map[string]bool)
+
+	// First, identify all packages that have controllers
+	for _, ctrl := range project.Controllers {
+		packagesWithControllers[ctrl.PackagePath] = true
+	}
+
+	// Add files from fileMap to packageFiles
 	for filePath, file := range fileMap {
 		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
 		if err != nil {
@@ -114,6 +123,11 @@ func (s *Scanner) ScanIncremental(changedFiles []string) (*Project, error) {
 			packageFiles[packagePath] = make(map[string]*ast.File)
 		}
 		packageFiles[packagePath][filePath] = file
+	}
+
+	// Ensure all files in packages with controllers are available for type resolution
+	if err := s.ensurePackageFilesForTypeResolution(packageFiles, packagesWithControllers, fileMap); err != nil {
+		return nil, err
 	}
 
 	// Scan handlers
