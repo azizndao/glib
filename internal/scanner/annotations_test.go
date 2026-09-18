@@ -77,7 +77,7 @@ func TestExtractAnnotations(t *testing.T) {
 
 			for i, ann := range anns {
 				if ann.Type != tt.expected[i].Type {
-					t.Errorf("expected type %s, got %s", tt.expected[i].Type, ann.Type)
+					t.Errorf("expected type %s, got %s", expType(tt.expected[i].Type), ann.Type)
 				}
 				if ann.Value != tt.expected[i].Value {
 					t.Errorf("expected value %s, got %s", tt.expected[i].Value, ann.Value)
@@ -87,55 +87,80 @@ func TestExtractAnnotations(t *testing.T) {
 	}
 }
 
-func TestParseRouteAnnotation(t *testing.T) {
+func expType(t AnnotationType) AnnotationType {
+	return t
+}
+
+func TestParseControllerAnnotation(t *testing.T) {
 	tests := []struct {
-		value          string
-		expectedMethod string
-		expectedPath   string
+		name     string
+		value    string
+		expected map[string]string
 	}{
-		{"method=GET path=/users", "GET", "/users"},
-		{"method=POST path=/users", "POST", "/users"},
-		{"method=PUT path=/users/{id}", "PUT", "/users/{id}"},
-		{"method=DELETE path=/users/{id}", "DELETE", "/users/{id}"},
-		{"method=PATCH path=/users/{id}", "PATCH", "/users/{id}"},
-		{"method=get path=/users", "get", "/users"},
+		{
+			name:  "path only",
+			value: "path=/api/v1/posts",
+			expected: map[string]string{
+				"path": "/api/v1/posts",
+				"tags": "",
+			},
+		},
+		{
+			name:  "path and tags",
+			value: "path=/api/v1/posts tags=api,public",
+			expected: map[string]string{
+				"path": "/api/v1/posts",
+				"tags": "api,public",
+			},
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.value, func(t *testing.T) {
-			result := parseRouteAnnotation(tt.value)
-			method := result["method"]
-			path := result["path"]
-			if method != tt.expectedMethod {
-				t.Errorf("expected method %s, got %s", tt.expectedMethod, method)
-			}
-			if path != tt.expectedPath {
-				t.Errorf("expected path %s, got %s", tt.expectedPath, path)
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseControllerAnnotation(tt.value)
+			for k, v := range tt.expected {
+				if result[k] != v {
+					t.Errorf("expected %s=%s, got %s=%s", k, v, k, result[k])
+				}
 			}
 		})
 	}
 }
 
-func TestParseMiddlewareAnnotation(t *testing.T) {
+func TestParseRouteAnnotation(t *testing.T) {
 	tests := []struct {
+		name     string
 		value    string
-		expected []string
+		expected map[string]string
 	}{
-		{"auth", []string{"auth"}},
-		{"auth,ratelimit", []string{"auth", "ratelimit"}},
-		{"auth, ratelimit, cors", []string{"auth", "ratelimit", "cors"}},
-		{"", nil},
+		{
+			name:  "method and path",
+			value: "method=GET path=/",
+			expected: map[string]string{
+				"method": "GET",
+				"path":   "/",
+				"tags":   "",
+				"with":   "",
+			},
+		},
+		{
+			name:  "with tags and with",
+			value: "method=POST path=/ tags=protected with=auth,admin",
+			expected: map[string]string{
+				"method": "POST",
+				"path":   "/",
+				"tags":   "protected",
+				"with":   "auth,admin",
+			},
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.value, func(t *testing.T) {
-			result := parseMiddlewareAnnotation(tt.value)
-			if len(result) != len(tt.expected) {
-				t.Fatalf("expected %d items, got %d", len(tt.expected), len(result))
-			}
-			for i, v := range result {
-				if v != tt.expected[i] {
-					t.Errorf("expected %s, got %s", tt.expected[i], v)
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRouteAnnotation(tt.value)
+			for k, v := range tt.expected {
+				if result[k] != v {
+					t.Errorf("expected %s=%s, got %s=%s", k, v, k, result[k])
 				}
 			}
 		})
@@ -149,7 +174,7 @@ func TestParseProviderAnnotation(t *testing.T) {
 	}{
 		{LifecycleSingleton.String(), LifecycleSingleton.String()},
 		{LifecycleTransient.String(), LifecycleTransient.String()},
-		{"", LifecycleTransient.String()}, // Default
+		{"", LifecycleSingleton.String()}, // Default
 		{" singleton ", LifecycleSingleton.String()},
 	}
 

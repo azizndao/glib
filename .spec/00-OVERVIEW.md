@@ -1,325 +1,168 @@
-# Glib 2.0 - Code Generation Framework
+# Glib - Overview & Architecture
 
 ## Executive Summary
 
-**Glib 2.0** is a complete redesign of the Glib framework, transforming it into a **code generation-first** web framework for Go. The framework uses static analysis and code generation to eliminate boilerplate, provide compile-time safety, and deliver an exceptional developer experience.
+**Glib** is a **code-generation-first** web framework for Go. It uses static analysis of Go AST and comment annotations to eliminate web boilerplate, ensure compile-time safety, and deliver an idiomatic Go developer experience.
+
+With Glib, developers write standard Go functions and structs decorated with lightweight comment annotations. Glib scans the codebase and generates optimized, reflection-free HTTP routing, dependency injection wiring, parameter binding, request validation, and error serialization.
+
+---
 
 ## Core Philosophy
 
-1. **Code Generation Over Runtime Reflection** - All wiring happens at compile-time
-2. **Type Safety Everywhere** - No `interface{}`, no string keys, no runtime type assertions
-3. **Flexible Structure** - Users organize code however they want
-4. **Standard Go** - Uses `net/http`, standard library patterns, integrates with `go generate`
-5. **Convention as Option** - Conventions help but never constrain
+1. **Code Generation Over Runtime Reflection** - All DI wiring, routing, and request parsing are generated at compile time.
+2. **Idiomatic Go Everywhere** - Handlers return standard Go `(T, error)` or `error` tuples; no proprietary result wrappers required.
+3. **Type Safety by Default** - Parameter extraction, query parsing, and DI injection are fully typed with no empty interface casting.
+4. **Flexible Organization** - Organize your codebase however you like: layered, flat, or domain-driven.
+5. **Standard Tooling Compatible** - Compatible with `go build`, `go generate`, and the standard Go ecosystem.
+
+---
 
 ## Key Features
 
-### 1. Dependency Injection (Compile-Time)
+### 1. Compile-Time Dependency Injection
 
-- Annotated provider functions with `@Provider`
-- Auto-wiring by type (no tags needed)
-- Dependency graph validation at compile-time
-- Generated initialization code (Wire-style)
+- Annotated provider functions with `// @Provider singleton` or `// @Provider transient`.
+- Auto-wiring by type into controller structs—no struct tags required.
+- Compile-time dependency graph validation with cycle detection and topological sorting.
+- Zero reflection at runtime.
 
-### 2. HTTP Routing (Flexible Handlers)
+### 2. Flexible HTTP Routing & Handlers
 
-- `@Controller` and `@Route` annotations
-- 2 flexible handler signature patterns (Result[T] and Raw HTTP)
-- Support for raw `net/http` or type-safe Result[T]
-- Auto-parsing from path/query/headers/body for Result[T] pattern
+- Annotate structs with `// @Controller` and methods with `// @Route`.
+- Built on top of `github.com/go-chi/chi/v5` for high-performance, standard-compliant routing.
+- Supports 3 handler signatures:
+    - `(T, error)`: Standard data + error handlers (~90% of endpoints)
+    - `error`: Error-only handlers (e.g. `204 No Content` for `DELETE`)
+    - `(http.ResponseWriter, *http.Request)`: Full raw control for streaming, SSE, and file uploads.
+- Automatic parameter binding from path wildcards, `query:` structs, `header:` structs, and `json:` bodies.
 
 ### 3. Middleware System
 
-- `@Middleware` annotation for discovery
-- Tag-based targeting (`target=all`, `target=api`, `target=protected`)
-- Handler-level override with `with` attribute
-- Execution order control via `order` attribute
-- Standard `net/http` middleware signature
+- `// @Middleware` annotation with automatic discovery.
+- Tag-based targeting (`target=all`, `target=api`, `target=protected`).
+- Per-route explicit overrides via `with=auth,ratelimit` or `with=none`.
+- Priority execution order control via `order` attribute.
+- Dual signature support:
+    - Native Glib middleware: `func(glib.Request, glib.Next) glib.Response`
+    - Standard Chi/HTTP middleware: `func(http.Handler) http.Handler`
 
-### 4. Type-Safe Configuration
+### 4. Automatic Request Validation
 
-- Auto-discover `type Config struct`
-- Generate loader from environment variables
-- Validation at startup
-- Type-safe access throughout app
+- Integrated with `github.com/go-playground/validator/v10`.
+- Struct validation tags (`validate:"required,min=3,email"`) on request models.
+- Support for `validator.Validable` interface (`Validate() bool`) for conditional validation.
+- Goyave-style structured validation error responses.
 
-### 5. Hot Reload Development
+### 5. Structured Error Handling
 
-- `glib dev` command
-- Watches for code changes
-- Auto-regenerates code
-- Integrates with Air for hot reload
+- Encore.dev-inspired structured error model in `github.com/azizndao/glib/errs`.
+- Predefined error codes (`InvalidArgument`, `NotFound`, `PermissionDenied`, `Unauthenticated`, `AlreadyExists`, etc.) mapped directly to HTTP status codes.
+- Fluent builder pattern `errs.B()` and helper constructors (`errs.NewNotFound()`, `errs.NewBadRequest()`, etc.).
 
-## Architecture Overview
+### 6. Type-Safe Internationalization (i18n)
+
+- Automatic code generation from TOML translation files in `locales/`.
+- Type-safe translators for errors, success messages, and validation messages in `generated/i18n`.
+- Automatic locale detection from request headers and query parameters.
+
+### 7. Type-Safe Configuration
+
+- `@Config` annotation on struct types with `env:` and `default:` tags.
+- Auto-generated configuration loaders during bootstrap.
+
+### 8. Developer CLI & Hot Reload
+
+- `glib dev` with native file watching, incremental scanning, and fast server restarts.
+- Scaffolding commands: `glib init`, `glib make controller`, `glib make provider`, `glib make middleware`.
+- Validation tool: `glib validate`.
+
+---
+
+## Architecture Diagram
 
 ```
-User Code (Declarative)
-├── Any Project Structure
-│   ├── Flat, layered, feature-based, or custom
-│   ├── Controllers with @Controller and @Route
-│   ├── Providers with @Provider
-│   ├── Middleware with @Middleware
-│   └── Config struct anywhere
-│
-└── Annotations → Code Generator
-
-Generated Code (Type-Safe)
-├── generated/
-│   ├── glib.gen.go      # Application bootstrap
-│   ├── di.gen.go        # DI container (topologically sorted)
-│   ├── routes.gen.go    # Route registration
-│   └── parsers.gen.go   # Handler wrappers (Result[T] + Raw HTTP)
-│
-└── Standard Go Build
-
-Final Binary
-└── Zero runtime overhead, fully type-safe
+┌─────────────────────────────────────────────────────────────┐
+│ 1. User Application Code                                    │
+│    ├── Controllers (@Controller, @Route)                    │
+│    ├── Providers (@Provider singleton/transient)            │
+│    ├── Middleware (@Middleware)                             │
+│    ├── Configs (@Config)                                    │
+│    └── Locales (locales/*.toml)                             │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ AST Scanner & Semantic Validation
+┌──────────────────────────────▼──────────────────────────────┐
+│ 2. Code Generation Engine                                   │
+│    ├── Dependency Graph Analysis & Cycle Detection          │
+│    ├── Route Tree Construction & Middleware Resolution      │
+│    └── Template Execution (Parsers, DI, Config, i18n)       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Generated Output
+┌──────────────────────────────▼──────────────────────────────┐
+│ 3. Generated Code (generated/)                              │
+│    ├── di.gen.go        # Topologically sorted container    │
+│    ├── routes.gen.go    # Chi router route registrations    │
+│    ├── parsers.gen.go   # Type-safe wrappers & parsers      │
+│    ├── config.gen.go    # Environment variable loader       │
+│    ├── validator.gen.go # Request validator initialization  │
+│    └── i18n/            # Type-safe translation packages     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Bootstrap & Runtime Execution
+┌──────────────────────────────▼──────────────────────────────┐
+│ 4. HTTP Runtime (glib & chi)                                │
+│    - app.InitContainer(ctx) initializes dependencies        │
+│    - app.RegisterRoutes() attaches handlers to chi.Router   │
+│    - Handlers execute with zero reflection overhead         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Design Decisions (Locked)
+---
 
-| Decision               | Choice              | Rationale                            |
-| ---------------------- | ------------------- | ------------------------------------ |
-| **Router**             | Standard `net/http` | No abstractions, full control        |
-| **DI Tags**            | None needed         | Auto-wire by type from `@Controller` |
-| **Structure**          | User decides        | No enforced conventions              |
-| **Config Location**    | Auto-discover       | Find `type Config struct` anywhere   |
-| **Generated Code**     | `generated/` dir    | 4 files (no errors.gen.go)           |
-| **Handler Signatures** | 2 patterns          | Result[T] and Raw HTTP               |
-| **Middleware**         | Standard `net/http` | `func(http.Handler) http.Handler`    |
-| **Build System**       | Standard `go build` | No custom tooling                    |
-| **Hot Reload**         | Built-in watcher    | Native file watching with debounce   |
+## Comparison: Traditional Go Frameworks vs Glib
 
-## Comparison: Glib 1.0 vs 2.0
+| Feature                  | Traditional Go Frameworks                       | Glib                                                            |
+| :----------------------- | :---------------------------------------------- | :-------------------------------------------------------------- |
+| **Dependency Injection** | Manual wiring or runtime reflection (Dig/Fx)    | Compile-time auto-wiring & topological sort                     |
+| **Route Registration**   | Manual per-endpoint route definitions           | Auto-generated from `@Controller` & `@Route`                    |
+| **Request Binding**      | Manual JSON decode, query parsing, path parsing | Auto-generated type-safe parsers                                |
+| **Validation**           | Manual calls to validator in every handler      | Auto-validated before handler invocation                        |
+| **Error Handling**       | Inconsistent status codes and JSON formats      | Structured error codes mapped to HTTP statuses                  |
+| **Performance**          | Reflection overhead during request handling     | Direct function calls with zero handler reflection              |
+| **Development**          | Manual rebuilds or complex external tools       | Native hot reload with incremental code generation (`glib dev`) |
 
-| Feature                | Glib 1.0                  | Glib 2.0                |
-| ---------------------- | ------------------------- | ----------------------- |
-| **DI Registration**    | Manual, runtime           | Auto, compile-time      |
-| **Type Safety**        | `interface{}` casts       | Fully typed             |
-| **Route Registration** | Manual per route          | Auto from annotations   |
-| **Request Parsing**    | Manual `ctx.BodyParser()` | Auto-generated parsers  |
-| **Config Access**      | String keys               | Type-safe fields        |
-| **Boilerplate**        | High                      | Minimal                 |
-| **Error Detection**    | Runtime panics            | Compile-time errors     |
-| **Development**        | Manual restart            | Hot reload with codegen |
+---
 
-## Handler Signature Flexibility
-
-Glib supports **2 handler patterns** for maximum flexibility:
+## Handler Signatures at a Glance
 
 ```go
-// Pattern 1: Result[T] - Type-safe JSON handlers (~95% of endpoints)
-func (c *Controller) Handle(ctx context.Context, req Request) glib.Result[Response]
+// Pattern 1: Data + Error (Standard JSON API)
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*models.Post, error)
 
-// Pattern 2: Raw HTTP - Full control for streaming, files, etc. (~5% of endpoints)
-func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
+// Pattern 2: Error Only (No Content responses)
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error
+
+// Pattern 3: Raw HTTP (Streaming, SSE, custom formats)
+func (c *Controller) Stream(w http.ResponseWriter, r *http.Request)
 ```
+
+---
 
 ## Development Workflow
 
 ```bash
-# 1. Create new project
-glib init myapp
+# 1. Initialize project
+glib init myapp --example
 cd myapp
 
-# 2. Write code with annotations
-# - Define controllers with @Controller
-# - Define providers with @Provider
-# - Define middleware with @Middleware
+# 2. Add controllers, providers, middleware
+glib make controller posts
+glib make provider database
+glib make middleware auth
 
-# 3. Generate code
+# 3. Develop with hot reload
+glib dev
+
+# 4. Generate and build for production
 glib generate
-
-# 4. Development with hot reload
-glib dev  # Watches files, regenerates, restarts
-
-# 5. Build for production
 go build -o myapp
 ```
-
-## Project Structure (User's Choice)
-
-### Option 1: Flat
-
-```
-myapp/
-├── main.go
-├── config.go
-├── auth.go        # @Controller
-├── posts.go       # @Controller
-└── database.go    # @Provider
-```
-
-### Option 2: Feature-Based
-
-```
-myapp/
-├── main.go
-├── features/
-│   ├── auth/
-│   │   ├── controller.go
-│   │   └── service.go
-│   └── posts/
-│       ├── controller.go
-│       └── service.go
-```
-
-### Option 3: Layered
-
-```
-myapp/
-├── main.go
-├── controllers/
-├── services/
-├── repositories/
-└── providers/
-```
-
-**All work!** Scanner finds annotations anywhere.
-
-## Generated Code Example
-
-**User writes:**
-
-```go
-// @Controller path=/api/posts tags=api
-type PostsController struct {
-    DB *gorm.DB  // Auto-injected!
-}
-
-// @Route method=GET path=/{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    post, err := c.DB.First(&Post{}, id)
-    if err != nil {
-        return glib.NotFound[*Post]("post not found")
-    }
-    return glib.OK(post)
-}
-```
-
-**Generator creates:**
-
-```go
-// generated/parsers.gen.go
-func handlePostsControllerShow(container *container) http.HandlerFunc {
-    handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        ctx := r.Context()
-
-        // Extract path param
-        idStr := r.PathValue("id")
-        id, err := uuid.Parse(idStr)
-        if err != nil {
-            glib.BadRequest[*Post](
-                fmt.Sprintf("invalid path parameter 'id': %v", err)).Write(w)
-            return
-        }
-
-        // Call handler
-        result := container.controllers.postsController.Show(ctx, id)
-
-        // Write result
-        result.Write(w)
-    }))
-
-    return handler.ServeHTTP
-}
-```
-
-## Success Metrics
-
-### Boilerplate Reduction
-
-- **DI Setup:** 100% reduction (0 lines needed)
-- **Route Registration:** 100% reduction (0 lines needed)
-- **Request Parsing:** 90% reduction (auto-generated)
-- **Config Access:** Type-safe (no string keys)
-
-### Developer Experience
-
-- **Time to "Hello World":** < 2 minutes
-- **Time to CRUD API:** < 15 minutes
-- **Error Detection:** Compile-time vs runtime
-- **Type Safety:** 100% (no `interface{}`)
-
-### Performance
-
-- **No runtime reflection:** All wiring at compile-time
-- **Zero overhead:** Generated code = hand-written code
-- **Build time:** +1-2s for code generation (acceptable)
-
-## Implementation Status
-
-- [x] Architecture Design
-- [x] Annotation Syntax Defined
-- [x] Handler Patterns Defined
-- [ ] CLI Implementation (Phase 1)
-- [ ] Scanner Implementation (Phase 2)
-- [ ] Code Generator (Phase 3)
-- [ ] Hot Reload Integration (Phase 4)
-- [ ] Testing & Documentation (Phase 5)
-
-## Documentation Structure
-
-- **00-OVERVIEW.md** - This file (architecture, philosophy)
-- **01-ANNOTATIONS.md** - Complete annotation reference
-- **02-HANDLERS.md** - Handler signature patterns
-- **03-CODE-GENERATION.md** - How code generation works
-- **04-CLI.md** - CLI commands and usage
-- **05-EXAMPLES.md** - Full example applications
-- **06-MIGRATION.md** - Migrating from Glib 1.0
-- **07-IMPLEMENTATION.md** - Phase-by-phase implementation plan
-
-## Questions & Answers
-
-### Why code generation instead of runtime reflection?
-
-- Compile-time safety catches errors before deployment
-- Zero runtime overhead (performance = hand-written code)
-- Better IDE support (generated code is readable)
-- Easier debugging (can step through generated code)
-
-### Why not use existing solutions like Wire?
-
-- Wire was archived (no longer maintained)
-- Glib 2.0 is more than just DI (routing, config, middleware)
-- Integrated experience (one tool for everything)
-- Framework-specific optimizations
-
-### Do I have to follow conventions?
-
-- No! Organize code however you want
-- Scanner finds annotations anywhere
-- Conventions are documented but optional
-
-### Can I mix generated and manual code?
-
-- Yes! Generated code is just Go code
-- You can call generated functions manually
-- You can extend generated types
-- You can override generated behavior
-
-### Is this a breaking change from Glib 1.0?
-
-- Yes, completely breaking
-- Glib 2.0 is a separate major version
-- Migration guide provided
-- Both versions can coexist
-
-## Next Steps
-
-1. Review this specification
-2. Finalize any open design questions (see 07-IMPLEMENTATION.md)
-3. Begin Phase 1: CLI Foundation
-4. Iterate based on feedback
-
-## Contact & Feedback
-
-- GitHub Issues: For bugs and feature requests
-- Discussions: For questions and ideas
-- Discord: For real-time chat
-
----
-
-**Status:** Design Complete, Implementation Pending  
-**Target:** Glib 2.0.0-alpha.1  
-**Timeline:** 4-6 weeks for initial release

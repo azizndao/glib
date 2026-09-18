@@ -2,19 +2,26 @@
 
 **Code-generation-first web framework for Go**
 
-Glib uses annotation-based code generation to eliminate boilerplate and let you focus on business logic. Write annotations in comments, and Glib generates all the HTTP handling, routing, dependency injection, and error serialization code.
+Glib uses annotation-based code generation to eliminate web boilerplate in Go. Annotate your controllers, routes, dependency providers, and middleware with simple comments, and Glib generates type-safe HTTP routing, dependency injection, parameter binding, request validation, and error serialization.
+
+---
 
 ## Features
 
-- **Annotation-Based**: Define routes, controllers, middleware, and DI providers using simple annotations
-- **Code Generation**: Generates optimized, type-safe HTTP handlers and routing code
-- **Result[T] Pattern**: Type-safe responses with explicit HTTP status control and fluent API
-- **Automatic Validation**: Request validation using `validate:` tags with auto-generated validation code
-- **Raw HTTP Support**: Full control for streaming, SSE, file uploads when needed
-- **Dependency Injection**: Built-in DI container with singleton and transient lifecycles
-- **Structured Errors**: Encore.dev-style error handling with HTTP status mapping and ValidationErrors support
-- **Hot Reload**: Native development server with incremental code regeneration and automatic restart
-- **CLI Tools**: Generate boilerplate, validate annotations, and manage development workflow
+- **Annotation-Driven**: Define controllers, routes, middleware, and dependency injection providers with clean Go comments.
+- **Code Generation First**: Fast AST-based scanner compiles type-safe routing, DI container, and parameter parsers with no runtime reflection.
+- **Idiomatic Go Handlers**: Use natural Go handler signatures (`(T, error)`, `error`, or raw `(http.ResponseWriter, *http.Request)`).
+- **Built-in Dependency Injection**: Supports `singleton` and `transient` lifecycles with automatic topological dependency resolution.
+- **Automatic Request Binding & Validation**: Automatically binds path parameters, query parameters (`query:`), headers (`header:`), and JSON bodies (`json:`) with `validate:` tags (`go-playground/validator/v10`).
+- **Response Metadata Support**: Control response HTTP status codes and response headers via struct tags (`response:"httpstatus"`, `header:"..."`).
+- **First-Class Middleware**: Type-safe native middleware (`func(glib.Request, glib.Next) glib.Response`) or standard Chi/HTTP middleware with tag-based auto-targeting and explicit overrides (`with=...`).
+- **Structured Error Handling**: Encore-style structured error codes with automatic HTTP status mapping, builder helpers (`errs.B()`), and Goyave-style nested validation error details.
+- **Built-in Internationalization (i18n)**: Generate type-safe translators for errors, success messages, and validation messages from TOML locale files.
+- **Configuration Management**: Declare app configs using `@Config` structs with `env:` and `default:` tags.
+- **Native Hot Reload**: `glib dev` provides instant file watching, incremental code regeneration, and server restart.
+- **Developer CLI**: Complete toolchain to scaffold components (`glib make`), validate annotations (`glib validate`), and generate code (`glib generate`).
+
+---
 
 ## Quick Start
 
@@ -27,15 +34,18 @@ go install github.com/azizndao/glib/cmd/glib@latest
 ### Create a New Project
 
 ```bash
-# Initialize new project
-glib init my-app
+# Initialize a new project with example health controller
+glib init my-app --example
 cd my-app
 
-# Generate a controller
+# Generate boilerplate for controllers, providers, or middleware
 glib make controller posts
+glib make provider database
 
-# Generate code and run
+# Generate all code
 glib generate
+
+# Run the server
 go run .
 ```
 
@@ -45,594 +55,670 @@ go run .
 glib dev
 ```
 
-This will:
+`glib dev` will:
 
-1. Run initial code generation
-2. Build and start your server
-3. Watch for file changes (`.go` files)
-4. Auto-regenerate code incrementally (fast!)
-5. Rebuild and restart server automatically
+1. Scan project annotations and generate code incrementally.
+2. Build and start your server.
+3. Watch for `.go` file modifications with debouncing.
+4. Auto-regenerate code and restart the server on changes.
 
-Press `Ctrl+C` to stop the development server.
+---
 
-## Example
+## End-to-End Example
 
-### Define a Controller
+### 1. Define a Controller
+
+Controllers are structs annotated with `// @Controller`. Dependencies are automatically injected by type. Handlers use standard Go return signatures `(T, error)` or `error`.
 
 ```go
-package controllers
+// controllers/posts/controller.go
+package posts
 
 import (
     "context"
+    "errors"
+
     "github.com/google/uuid"
-    "github.com/azizndao/glib"
+    "gorm.io/gorm"
+
     "github.com/azizndao/glib/errs"
+    "my-app/models"
+    "my-app/services"
 )
 
 // @Controller path=/api/v1/posts tags=api
-type PostsController struct {
-    DB *gorm.DB  // Auto-injected
+type Controller struct {
+    DB     *gorm.DB         // Auto-injected singleton provider
+    Logger *services.Logger // Auto-injected transient provider
+}
+
+// Request & query models with validation tags
+type ListPostsQuery struct {
+    Page    int    `query:"page" validate:"required,min=1"`
+    PerPage int    `query:"per_page" validate:"required,min=1,max=100"`
+    Search  string `query:"q" validate:"omitempty,max=50"`
+}
+
+type CreatePostRequest struct {
+    Title   string    `json:"title" validate:"required,min=3,max=200"`
+    Content string    `json:"content" validate:"required,min=10"`
+    Tags    []string  `json:"tags" validate:"omitempty,dive,min=2"`
+    AuthorID uuid.UUID `json:"author_id" validate:"required,uuid4"`
 }
 
 // @Route method=GET path=/
-func (c *PostsController) Index(ctx context.Context) glib.Result[[]*Post] {
-    var posts []*Post
-    err := c.DB.Find(&posts).Error
-    if err != nil {
-        return glib.Fail[[]*Post](err)
+func (c *Controller) Index(ctx context.Context, query ListPostsQuery) ([]models.Post, error) {
+    var posts []models.Post
+    db := c.DB.Limit(query.PerPage).Offset((query.Page - 1) * query.PerPage)
+    if query.Search != "" {
+        db = db.Where("title LIKE ?", "%"+query.Search+"%")
     }
-    return glib.OK(posts)
+    if err := db.Find(&posts).Error; err != nil {
+        return nil, errs.B().Code(errs.Internal).Msg("failed to fetch posts").Cause(err).Err()
+    }
+    return posts, nil
 }
 
 // @Route method=GET path=/{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    var post Post
-    err := c.DB.First(&post, id).Error
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return glib.NotFound[*Post]("post not found")
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*models.Post, error) {
+    var post models.Post
+    if err := c.DB.First(&post, "id = ?", id).Error; err != nil {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
+            return nil, errs.NewNotFound().WithMessage("post not found")
+        }
+        return nil, errs.B().Code(errs.Internal).Msg("database error").Cause(err).Err()
     }
-    if err != nil {
-        return glib.Fail[*Post](err)
-    }
-    return glib.OK(&post)
+    return &post, nil
 }
 
-// Request model with automatic validation
-type CreatePostRequest struct {
-    Title   string `json:"title" validate:"required,min=3,max=200"`
-    Content string `json:"content" validate:"required,min=10"`
+// @Route method=POST path=/ tags=protected
+func (c *Controller) Create(ctx context.Context, req CreatePostRequest) (*models.Post, error) {
+    post := &models.Post{
+        ID:       uuid.New(),
+        Title:    req.Title,
+        Content:  req.Content,
+        AuthorID: req.AuthorID,
+    }
+
+    if err := c.DB.Create(post).Error; err != nil {
+        return nil, errs.B().Code(errs.Internal).Msg("failed to create post").Cause(err).Err()
+    }
+
+    return post, nil // POST automatically responds with HTTP 201 Created
 }
 
-// @Route method=POST path=/
-func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
-    // Validation happens automatically before this handler is called!
-    post := &Post{
-        Title:   req.Title,
-        Content: req.Content,
+// @Route method=DELETE path=/{id} tags=protected
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
+    res := c.DB.Delete(&models.Post{}, "id = ?", id)
+    if res.Error != nil {
+        return errs.B().Code(errs.Internal).Msg("failed to delete post").Cause(res.Error).Err()
     }
-    err := c.DB.Create(post).Error
-    if err != nil {
-        return glib.Fail[*Post](err)
+    if res.RowsAffected == 0 {
+        return errs.NewNotFound().WithMessage("post not found")
     }
-    return glib.Created(post)
-}
-
-// @Route method=DELETE path=/{id}
-func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    result := c.DB.Delete(&Post{}, id)
-    if result.Error != nil {
-        return glib.Fail[any](result.Error)
-    }
-    if result.RowsAffected == 0 {
-        return glib.NotFound[any]("post not found")
-    }
-    return glib.NoContent[any]()
+    return nil // DELETE error-only handler automatically responds with HTTP 204 No Content
 }
 ```
 
-### Define a Provider
+### 2. Define Providers (Dependency Injection)
+
+Providers are constructor functions annotated with `// @Provider <lifecycle>`. Glib supports `singleton` and `transient` lifecycles.
 
 ```go
+// services/database.go
+package services
+
+import (
+    "fmt"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
+    "my-app/configs"
+)
+
 // @Provider singleton
-func NewDatabase(cfg *Config) (*gorm.DB, error) {
-    dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s",
+func NewDatabase(cfg *configs.Config) (*gorm.DB, error) {
+    dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
         cfg.Database.Host,
         cfg.Database.Port,
         cfg.Database.Name,
         cfg.Database.User,
         cfg.Database.Password,
     )
+    return gorm.Open(postgres.Open(dsn), &gorm.Config{})
+}
+```
 
-    db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+```go
+// services/logger.go
+package services
+
+import (
+    "log/slog"
+    "os"
+)
+
+type Logger struct {
+    *slog.Logger
+}
+
+// @Provider transient
+func NewLogger() *Logger {
+    return &Logger{
+        Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+    }
+}
+```
+
+### 3. Define Middleware
+
+Glib supports native middleware (`func(glib.Request, glib.Next) glib.Response`) as well as standard `func(http.Handler) http.Handler` signatures.
+
+```go
+// middleware/auth.go
+package middleware
+
+import (
+    "strings"
+
+    "github.com/azizndao/glib"
+    "github.com/azizndao/glib/errs"
+    "my-app/services"
+)
+
+// @Middleware name=auth target=protected order=10
+func Auth(jwtService *services.JWTService) func(glib.Request, glib.Next) glib.Response {
+    return func(req glib.Request, next glib.Next) glib.Response {
+        authHeader := req.Header("Authorization")
+        if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+            return glib.Response{
+                Err: errs.NewUnauthorized().WithMessage("authorization token required"),
+            }
+        }
+
+        token := strings.TrimPrefix(authHeader, "Bearer ")
+        claims, err := jwtService.ValidateToken(token)
+        if err != nil {
+            return glib.Response{Err: err}
+        }
+
+        // Attach user info to request context
+        req = req.WithValue("user_id", claims.UserID)
+
+        // Proceed down middleware chain
+        resp := next(req)
+
+        // Post-processing: attach response header
+        resp.Header().Set("X-User-ID", claims.UserID.String())
+        return resp
+    }
+}
+```
+
+### 4. Define Configuration
+
+Declare application configurations using `@Config` structs with `env:` and `default:` tags.
+
+```go
+// configs/config.go
+package configs
+
+import "fmt"
+
+// @Config
+type Config struct {
+    Server struct {
+        Host string `env:"APP_HOST" default:"0.0.0.0"`
+        Port int    `env:"APP_PORT" default:"8080"`
+    }
+    Database struct {
+        Host     string `env:"DB_HOST" default:"localhost"`
+        Port     int    `env:"DB_PORT" default:"5432"`
+        Name     string `env:"DB_NAME" default:"app_db"`
+        User     string `env:"DB_USER" default:"postgres"`
+        Password string `env:"DB_PASSWORD" default:"secret"`
+    }
+}
+
+func (c *Config) Addr() string {
+    return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+}
+```
+
+### 5. Application Bootstrap (`main.go` & `bootstrap.go`)
+
+Glib generates an `InitContainer(ctx)` function that initializes all providers, controllers, middleware, and the routing tree (`*generated.App`).
+
+```go
+// bootstrap.go
+package main
+
+import (
+    "context"
+    "net/http"
+    "time"
+
+    "github.com/go-chi/chi/v5/middleware"
+    "my-app/generated"
+)
+
+func Bootstrap(ctx context.Context) (*http.Server, error) {
+    // 1. Initialize DI container & router
+    app, err := generated.InitContainer(ctx)
     if err != nil {
         return nil, err
     }
 
-    return db, nil
-}
+    // 2. Add global Chi middleware
+    app.Router.Use(middleware.RequestID)
+    app.Router.Use(middleware.RealIP)
+    app.Router.Use(middleware.Logger)
+    app.Router.Use(middleware.Recoverer)
 
-// @Provider singleton
-func NewConfig() (*Config, error) {
-    return LoadConfig(), nil
-}
-```
-
-### Define Middleware
-
-```go
-// @Middleware auth
-func AuthMiddleware() func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            token := r.Header.Get("Authorization")
-            if token == "" {
-                http.Error(w, "Unauthorized", http.StatusUnauthorized)
-                return
-            }
-            // Validate token...
-            next.ServeHTTP(w, r)
-        })
+    // 3. Register generated routes
+    if err := app.RegisterRoutes(); err != nil {
+        return nil, err
     }
+
+    return &http.Server{
+        Addr:         app.Config.Addr(),
+        Handler:      app.Router,
+        ReadTimeout:  15 * time.Second,
+        WriteTimeout: 15 * time.Second,
+    }, nil
 }
 ```
 
-### Generate and Run
-
-```bash
-# Generate all code
-glib generate
-
-# Run the server
-go run .
-```
-
-### Bootstrap in main.go
-
 ```go
+// main.go
 package main
 
 import (
     "context"
     "log"
     "net/http"
-
-    "myapp/generated"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 )
 
 func main() {
     ctx := context.Background()
-
-    // Bootstrap generates the entire app with DI, routes, and middleware
-    handler, err := generated.Bootstrap(ctx)
+    server, err := Bootstrap(ctx)
     if err != nil {
         log.Fatalf("bootstrap failed: %v", err)
     }
 
-    // Start server
-    log.Println("Server starting on :8080")
-    if err := http.ListenAndServe(":8080", handler); err != nil {
-        log.Fatalf("server failed: %v", err)
-    }
+    go func() {
+        log.Printf("🚀 Server running on %s", server.Addr)
+        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatalf("server error: %v", err)
+        }
+    }()
+
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
+
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    _ = server.Shutdown(shutdownCtx)
 }
 ```
 
-## Annotations
+---
 
-### @Controller
+## Annotations Reference
 
-Defines a controller with a route prefix and optional tags.
+### `@Controller`
+
+Marks a struct as an HTTP controller.
 
 ```go
 // @Controller path=/api/v1/posts tags=api,protected
 type PostsController struct {
-    // Dependencies are auto-injected by type
+    DB *gorm.DB // Injected from provider
 }
 ```
 
-### @Route
+- `path`: Base route prefix for all handlers in this controller (e.g. `/api/v1/posts`).
+- `tags`: Comma-separated tags used for middleware auto-targeting (e.g. `api,protected`).
 
-Defines a route handler with optional tags and middleware.
+### `@Route`
+
+Marks a controller method as an HTTP route handler.
 
 ```go
-// @Route method=GET path=/{id} tags=protected with=cache
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    // ...
-}
+// @Route method=GET path=/{id} tags=protected with=auth,ratelimit
+func (c *PostsController) Show(ctx context.Context, id uuid.UUID) (*Post, error)
 ```
 
-Supported HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`
+- `method`: HTTP method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`).
+- `path`: Route path relative to the controller's prefix (e.g. `/`, `/{id}`, `/search`).
+- `tags`: Optional comma-separated tags for middleware targeting.
+- `with`: Explicit middleware list (e.g. `with=auth,ratelimit`) or `with=none` to bypass targeted middleware.
 
-### @Provider
+### `@Provider`
 
-Defines a dependency provider function.
+Marks a constructor function as a dependency provider for the DI container.
 
 ```go
 // @Provider singleton
-func NewDatabase() (*gorm.DB, error) {
-    // ...
-}
+func NewDatabase(cfg *Config) (*gorm.DB, error)
 
 // @Provider transient
-func NewRequestID() (string, error) {
-    return uuid.NewString(), nil
-}
+func NewLogger() *Logger
 ```
 
-Lifecycles:
+- `singleton`: Instantiated once during `InitContainer` and reused across all requests and controllers.
+- `transient`: A factory is generated; injected controllers receive a fresh instance per controller initialization.
+- Return types can be `(T, error)` or `T`.
 
-- `singleton` - Created once, shared across all requests
-- `transient` - Created for each request/injection
+### `@Middleware`
 
-### @Middleware
-
-Defines a middleware function with targeting and ordering.
+Marks a middleware constructor function.
 
 ```go
 // @Middleware name=auth target=protected order=10
-func AuthMiddleware() func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            // Middleware logic
-            next.ServeHTTP(w, r)
-        })
-    }
+func Auth(jwtService *services.JWTService) func(glib.Request, glib.Next) glib.Response
+```
+
+- `name`: Unique name of the middleware.
+- `target`: Tag to target automatically (`all`, `protected`, `api`, etc.).
+- `order`: Integer execution priority (lower executes earlier, default `100`).
+
+### `@Config`
+
+Marks a configuration struct to be automatically loaded from environment variables during startup.
+
+```go
+// @Config
+type Config struct {
+    Port int    `env:"PORT" default:"8080"`
+    Host string `env:"HOST" default:"localhost"`
 }
 ```
 
-**Attributes:**
-
-- `name` - Middleware identifier (required)
-- `target` - Tag to target (`all`, `api`, `protected`, etc.)
-- `order` - Execution order (lower = earlier, default 0)
+---
 
 ## Handler Patterns
 
-Glib supports **2 handler patterns**:
+Glib supports 3 handler signatures:
 
-### Result[T] Pattern (Recommended)
+### 1. Data & Error Pattern: `(T, error)`
+
+The standard pattern for endpoints that return JSON data.
 
 ```go
-func (c *Controller) Handle(ctx context.Context, params...) glib.Result[T]
+func (c *Controller) Handler(ctx context.Context, [params...]) (T, error)
 ```
 
-**Use for:** Most API endpoints - CRUD operations, queries, commands
+- **Default Status Code**:
+    - `POST` handlers return `201 Created`
+    - `GET`, `PUT`, `PATCH` handlers return `200 OK`
+- When `error` is non-nil, Glib serializes the structured error with the matching HTTP status code.
 
-**Features:**
+### 2. Error Only Pattern: `error`
 
-- Explicit HTTP status control
-- Type-safe generic responses
-- Fluent API for common responses
-- Automatic error handling
-
-**Available Result Helpers:**
+Ideal for operations that return no content on success (e.g., `DELETE` or empty `PUT`/`POST`).
 
 ```go
-// Success responses
-glib.OK[T](data)           // 200 OK
-glib.Created[T](data)      // 201 Created
-glib.Accepted[T](data)     // 202 Accepted
-glib.NoContent[T]()        // 204 No Content
-
-// Error responses
-glib.Fail[T](err)          // Auto-extract status from errs.Error
-glib.BadRequest[T](msg)    // 400
-glib.Unauthorized[T](msg)  // 401
-glib.Forbidden[T](msg)     // 403
-glib.NotFound[T](msg)      // 404
-glib.Conflict[T](msg)      // 409
-glib.InternalError[T](msg) // 500
-
-// Redirects
-glib.MovedPermanently[T](url)    // 301
-glib.Found[T](url)                // 302
-glib.TemporaryRedirect[T](url)   // 307
-glib.PermanentRedirect[T](url)   // 308
-
-// Custom
-glib.WithStatus[T](data, code)   // Custom status
-glib.WithError[T](err, code)     // Custom error
-
-// Fluent headers
-result.WithHeader("X-Custom", "value")
-result.WithHeaders(headers)
+func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error
 ```
 
-**Examples:**
+- **Default Status Code**:
+    - `DELETE` handlers return `204 No Content`
+    - When returning `nil`, an empty HTTP response is sent with no body.
+
+### 3. Raw HTTP Pattern: `(http.ResponseWriter, *http.Request)`
+
+For low-level control over streaming, Server-Sent Events (SSE), WebSockets, file downloads, or custom protocols.
 
 ```go
-// @Route method=GET path=/posts
-func (c *Controller) Index(ctx context.Context) glib.Result[[]Post] {
-    posts := c.Service.GetAll()
-    return glib.OK(posts)
-}
-
-// @Route method=GET path=/posts/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    post, err := c.Service.GetByID(id)
-    if err != nil {
-        return glib.NotFound[*Post]("post not found")
-    }
-    return glib.OK(post)
-}
-
-// @Route method=POST path=/posts
-func (c *Controller) Create(ctx context.Context, req CreateRequest) glib.Result[*Post] {
-    post, err := c.Service.Create(req)
-    if err != nil {
-        return glib.Fail[*Post](err)  // Auto-maps errs.Error to HTTP status
-    }
-    return glib.Created(post)
-}
-
-// @Route method=DELETE path=/posts/{id}
-func (c *Controller) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    if err := c.Service.Delete(id); err != nil {
-        return glib.Fail[any](err)
-    }
-    return glib.NoContent[any]()
-}
-```
-
-### Raw HTTP Pattern (Advanced)
-
-```go
-func (c *Controller) Handle(w http.ResponseWriter, r *http.Request)
-```
-
-**Use for:** Streaming, SSE, file uploads, websockets, custom protocols
-
-**Features:**
-
-- Full control over response
-- No automatic parsing/marshalling
-- Direct access to HTTP primitives
-
-**Examples:**
-
-```go
-// @Route method=GET path=/export
-func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/csv")
-    w.Header().Set("Content-Disposition", "attachment; filename=posts.csv")
-    fmt.Fprintln(w, "id,title,created_at")
-    // Write CSV data...
-}
-
-// @Route method=GET path=/stream
-func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
+// @Route method=GET path=/events
+func (c *Controller) Events(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/event-stream")
-    flusher := w.(http.Flusher)
+    flusher, _ := w.(http.Flusher)
     for {
         select {
         case <-r.Context().Done():
             return
-        case event := <-c.Events:
-            fmt.Fprintf(w, "data: %s\n\n", event)
+        case msg := <-c.EventChan:
+            fmt.Fprintf(w, "data: %s\n\n", msg)
             flusher.Flush()
         }
     }
 }
 ```
 
-## Error Handling
+---
 
-Glib uses Encore.dev-style structured errors with automatic HTTP status mapping:
+## Request Binding & Validation
+
+Glib analyzes your handler parameters and automatically generates binding and validation code.
+
+### Path Parameters
+
+Parameters typed as primitives (`int`, `string`, `int64`, etc.) or `uuid.UUID` with names matching common path identifiers (`id`, `uuid`, `key`, `slug`, `*Id`, `*Key`) are automatically extracted from URL path wildcards:
 
 ```go
-import (
-    "github.com/azizndao/glib"
-    "github.com/azizndao/glib/errs"
-)
+// @Route method=GET path=/{id}
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Post, error)
+```
 
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    var post Post
-    if err := c.DB.First(&post, id).Error; err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return glib.NotFound[*Post]("post not found")
-        }
+### Query & Header Structs
 
-        // Wrap database error with structured error
-        return glib.Fail[*Post](
-            errs.B().
-                Code(errs.Internal).
-                Msg("failed to fetch post").
-                Cause(err).
-                Err(),
-        )
-    }
-    return glib.OK(&post)
+Define a struct with `query:` and `header:` tags to parse query strings and request headers:
+
+```go
+type SearchFilter struct {
+    Query     string `query:"q" validate:"required,min=2"`
+    Limit     int    `query:"limit" validate:"omitempty,min=1,max=100"`
+    ClientVer string `header:"X-Client-Version"`
+}
+
+// @Route method=GET path=/search
+func (c *Controller) Search(ctx context.Context, filter SearchFilter) ([]Post, error)
+```
+
+### JSON Request Bodies
+
+Structs with `json:` tags (or without query/header tags) are parsed from the JSON request body:
+
+```go
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Username string `json:"username" validate:"required,min=3,max=30"`
+    Age      int    `json:"age" validate:"gte=18,lte=120"`
+}
+
+// @Route method=POST path=/users
+func (c *Controller) Create(ctx context.Context, req CreateUserRequest) (*User, error)
+```
+
+### Conditional Validation (`validator.Validable`)
+
+Implement `validator.Validable` to conditionally enable or skip validation:
+
+```go
+func (r CreateUserRequest) Validate() bool {
+    return true // Return false to bypass validation tags
 }
 ```
 
-### Error Codes and HTTP Status Mapping
+### Validation Error Format
 
-- `InvalidArgument` → 400 Bad Request
-- `Unauthenticated` → 401 Unauthorized
-- `PermissionDenied` → 403 Forbidden
-- `NotFound` → 404 Not Found
-- `AlreadyExists` → 409 Conflict
-- `Internal` → 500 Internal Server Error
-- `Unavailable` → 503 Service Unavailable
-
-### Validation Errors
-
-Glib provides **automatic request validation** using `go-playground/validator`. Simply add `validate:` tags to your request structs, and validation code is auto-generated.
-
-**Define Request with Validation Tags:**
-
-```go
-type CreatePostRequest struct {
-    Title    string    `json:"title" validate:"required,min=3,max=200"`
-    Body     string    `json:"body" validate:"required,min=10"`
-    Email    string    `json:"email" validate:"required,email"`
-    Age      int       `json:"age" validate:"gte=18,lte=120"`
-    Website  string    `json:"website" validate:"omitempty,url"`
-    AuthorID uuid.UUID `json:"author_id" validate:"required,uuid4"`
-}
-```
-
-**Validation is Automatic:**
-
-When you run `glib generate`, the parser code automatically validates request bodies before calling your handler. No manual validation code needed!
-
-**Common Validation Tags:**
-
-- `required` - Field must be present
-- `email` - Must be valid email
-- `min=N`, `max=N` - String length or numeric range
-- `gte=N`, `lte=N` - Greater/less than or equal
-- `url`, `uri` - Valid URL/URI
-- `uuid`, `uuid4` - Valid UUID
-- `oneof=a b c` - Value must be one of the options
-- `omitempty` - Skip validation if field is empty/nil
-
-**Generated JSON Response (on validation failure):**
+Validation errors produce structured Goyave-style responses with HTTP status `400 Bad Request`:
 
 ```json
 {
     "error": {
         "code": "invalid_argument",
         "message": "Validation failed",
-        "details": [
-            {
-                "field": "email",
-                "messages": ["must be a valid email address"]
-            },
-            {
-                "field": "title",
-                "messages": ["must be at least 3 characters"]
+        "details": {
+            "body": {
+                "email": {
+                    "errors": ["email must be a valid email address"]
+                },
+                "username": {
+                    "errors": ["username must be at least 3 characters"]
+                }
             }
-        ]
+        }
     }
 }
 ```
 
-**Manual Validation (when needed):**
+---
 
-You can also manually create validation errors:
+## Response Metadata (Headers & Status Codes)
+
+Customize response HTTP status codes and headers by tagging fields on your response struct:
 
 ```go
-validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-    {Field: "custom_field", Messages: []string{"custom validation message"}},
-})
+type CreatePostResponse struct {
+    StatusCode int       `json:"-" response:"httpstatus"`  // Custom HTTP status
+    Location   string    `json:"-" header:"Location"`      // Set Location header
+    ETag       string    `json:"-" header:"ETag,omitempty"` // Set ETag header if non-empty
 
+    ID         uuid.UUID `json:"id"`
+    Title      string    `json:"title"`
+}
+
+// @Route method=POST path=/
+func (c *Controller) Create(ctx context.Context, req CreatePostRequest) (*CreatePostResponse, error) {
+    post := c.service.Create(req)
+    return &CreatePostResponse{
+        StatusCode: 201,
+        Location:   "/api/v1/posts/" + post.ID.String(),
+        ETag:       `"v1-hash"`,
+        ID:         post.ID,
+        Title:      post.Title,
+    }, nil
+}
+```
+
+---
+
+## Error Handling
+
+Glib features structured errors via `github.com/azizndao/glib/errs` inspired by Encore.dev.
+
+### Error Codes & HTTP Status Mapping
+
+| Error Code                | HTTP Status                 | Description                                   |
+| :------------------------ | :-------------------------- | :-------------------------------------------- |
+| `errs.InvalidArgument`    | `400 Bad Request`           | Client specified invalid argument             |
+| `errs.FailedPrecondition` | `400 Bad Request`           | System not in state required for execution    |
+| `errs.OutOfRange`         | `400 Bad Request`           | Operation out of valid range                  |
+| `errs.Unauthenticated`    | `401 Unauthorized`          | Request lacks valid credentials               |
+| `errs.PermissionDenied`   | `403 Forbidden`             | Caller lacks permission                       |
+| `errs.NotFound`           | `404 Not Found`             | Requested resource not found                  |
+| `errs.AlreadyExists`      | `409 Conflict`              | Resource already exists                       |
+| `errs.Aborted`            | `409 Conflict`              | Operation aborted due to concurrency conflict |
+| `errs.ResourceExhausted`  | `429 Too Many Requests`     | Rate limit or quota exceeded                  |
+| `errs.Canceled`           | `499 Client Closed Request` | Operation canceled by caller                  |
+| `errs.Internal`           | `500 Internal Server Error` | Unexpected internal server error              |
+| `errs.Unknown`            | `500 Internal Server Error` | Unknown error                                 |
+| `errs.DataLoss`           | `500 Internal Server Error` | Unrecoverable data loss                       |
+| `errs.Unimplemented`      | `501 Not Implemented`       | Operation not implemented                     |
+| `errs.Unavailable`        | `503 Service Unavailable`   | Service temporarily unavailable               |
+| `errs.DeadlineExceeded`   | `504 Gateway Timeout`       | Operation deadline expired                    |
+
+### Error Construction Helpers
+
+```go
+// 1. Shorthand helper constructors
+err := errs.NewNotFound().WithMessage("user not found")
+err := errs.NewUnauthorized().WithMessage("invalid token")
+err := errs.NewBadRequest().WithMessage("malformed request")
+err := errs.NewForbidden().WithMessage("access denied")
+err := errs.NewConflict().WithMessage("email already registered")
+err := errs.NewInternal().WithMessage("something went wrong")
+
+// 2. Fluent Builder Pattern
 err := errs.B().
-    Code(errs.InvalidArgument).
-    Msg("Validation failed").
-    Details(validationErrs).
+    Code(errs.PermissionDenied).
+    Msg("user does not have admin permissions").
+    Cause(underlyingErr).
     Err()
 
-return glib.Fail[*Post](err)
+// 3. Wrapping existing errors
+err := errs.Wrap(sqlErr, "database query failed")
+err := errs.WrapCode(sqlErr, errs.NotFound, "record not found")
 ```
 
-## CLI Commands
+---
 
-### `glib init [dir]`
+## Internationalization (i18n)
 
-Initialize a new Glib project.
+Glib includes built-in code generation for typed translation of errors, success responses, and validation messages.
 
-```bash
-glib init my-app
+### 1. Define Locale Files (`locales/en.toml`, `locales/fr.toml`)
+
+```toml
+# locales/en.toml
+[errors.posts]
+not_found = "Post with ID '{id}' was not found"
+
+[success]
+post_created = "Post '{title}' created successfully"
 ```
 
-Creates:
+### 2. Configure i18n in `.config.toml`
 
-- Project structure
-- Sample `main.go` and `bootstrap.go`
-- Configuration struct with `@Config` annotation
-- `.config.toml` configuration file
-- Example controller (with `--example` flag)
-
-**Options:**
-
-- `--example` - Include example health check controller
-- `--minimal` - Minimal setup without examples or comments
-- `--module` - Specify Go module name (auto-detected if omitted)
-
-### `glib make controller <name>`
-
-Generate a controller boilerplate.
-
-```bash
-glib make controller posts
+```toml
+[i18n]
+enabled = true
+locales_dir = "locales"
+default_locale = "en"
+supported_locales = ["en", "fr"]
+detect_from = ["header", "query"]
+query_param = "lang"
 ```
 
-Creates `controllers/posts_controller.go` with CRUD methods.
+### 3. Use in Controllers & Services
 
-### `glib make provider <name>`
+```go
+// @Controller path=/api/v1/posts
+type Controller struct {
+    I18n *i18n.Translator // Auto-injected
+}
 
-Generate a provider boilerplate.
-
-```bash
-glib make provider database
+func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*Post, error) {
+    post, err := c.service.Find(id)
+    if err != nil {
+        msg := c.I18n.Errors.Posts.NotFound(ctx, id.String())
+        return nil, errs.NewNotFound().WithMessage(msg)
+    }
+    return post, nil
+}
 ```
 
-### `glib make middleware <name>`
+---
 
-Generate middleware boilerplate.
+## CLI Commands Reference
 
-```bash
-glib make middleware auth
-```
+| Command                        | Description                                | Flags                                                                                         |
+| :----------------------------- | :----------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| `glib init [dir]`              | Initialize a new Glib project              | `--module <name>`, `--example`, `--minimal`                                                   |
+| `glib make controller <name>`  | Generate a controller and models file      | `--path <dir>`, `--prefix <route>`, `--no-example`                                            |
+| `glib make provider <name>`    | Generate a DI provider boilerplate         | `--path <dir>`, `--no-example`                                                                |
+| `glib make middleware <name>`  | Generate a middleware boilerplate          | `--path <dir>`, `--no-example`                                                                |
+| `glib generate` (alias: `gen`) | Scan annotations and generate Go code      | `--dir <path>`, `--output <dir>`, `--workers <n>`, `--verbose`, `--no-cache`, `--clear-cache` |
+| `glib validate`                | Validate annotations and route definitions | `--dir <path>`, `--verbose`                                                                   |
+| `glib dev`                     | Start development server with hot reload   | `--port <port>`, `--workers <n>`, `--debounce <ms>`, `--verbose`, `--no-cache`                |
+| `glib version`                 | Print the Glib CLI version                 |                                                                                               |
 
-### `glib generate`
+---
 
-Scan and generate all code.
+## Configuration (`.config.toml`)
 
-```bash
-glib generate [--verbose] [--dir <path>]
-```
+Project configuration is resolved in order:
 
-Generates:
-
-- `generated/glib.gen.go` - Bootstrap function
-- `generated/di.gen.go` - Dependency injection container
-- `generated/routes.gen.go` - Route registration
-- `generated/parsers.gen.go` - Handler wrappers
-
-### `glib validate`
-
-Validate annotations without generating code.
-
-```bash
-glib validate
-```
-
-### `glib dev`
-
-Start development server with native hot reload.
-
-```bash
-glib dev [--port 8080] [--verbose] [--workers 4] [--no-cache] [--debounce 300]
-```
-
-Features:
-
-- Auto-regenerates code on file changes (incremental!)
-- Rebuilds and restarts server automatically
-- Native file watching (no external dependencies)
-- Debouncing for rapid file changes (default: 300ms)
-- Press Ctrl+C to stop
-
-**Options:**
-
-- `--port` - Server port (default: 8080, or from PORT env var)
-- `--verbose` - Show detailed statistics
-- `--workers` - Number of parallel workers (default: 4)
-- `--no-cache` - Disable incremental caching
-- `--debounce` - File watch debounce in ms (default: 300)
-
-## Configuration
-
-Glib uses `.config.toml` for project configuration. Configuration is resolved in this priority order:
-
-1. **CLI flags** (highest priority)
-2. **`.config.toml` file** (project configuration)
-3. **Hardcoded defaults** (fallback)
-
-### `.config.toml` Configuration
-
-Create a `.config.toml` file in your project root:
+1. **CLI Flags** (highest precedence)
+2. **`.config.toml`** (project configuration file)
+3. **Defaults** (fallback)
 
 ```toml
 version = "2"
@@ -646,7 +732,7 @@ cache = true
 
 [make]
 controllers = "controllers"
-providers = "providers"
+providers = "services"
 middleware = "middleware"
 
 [watch]
@@ -659,140 +745,100 @@ exclude_files = ["*_test.go", "*.gen.go"]
 enabled = false
 languages = ["en"]
 default_language = "en"
+
+[i18n]
+enabled = false
+locales_dir = "locales"
+default_locale = "en"
+supported_locales = ["en"]
+detect_from = ["header", "query"]
+query_param = "lang"
 ```
-
-### Configuration Options
-
-**Generation:**
-
-- `generate.output` - Output directory (default: `generated`)
-- `generate.package` - Package name (default: `generated`)
-- `generate.workers` - Number of parallel workers (default: `4`)
-- `generate.cache` - Enable caching (default: `true`)
-
-**Make Command:**
-
-- `make.controllers` - Controllers directory (default: `controllers`)
-- `make.providers` - Providers directory (default: `providers`)
-- `make.middleware` - Middleware directory (default: `middleware`)
-
-**Dev/Watch:**
-
-- `watch.debounce` - Watch debounce in ms (default: `300`)
-- `watch.exclude_dirs` - Excluded directories (default: `["vendor", "node_modules", ".git", ".glib", "tmp"]`)
-- `watch.include_files` - File patterns to watch (default: `["*.go"]`)
-- `watch.exclude_files` - Excluded file patterns (default: `["*_test.go", "*.gen.go"]`)
-
-**Validation:**
-
-- `validation.enabled` - Enable validation (default: `false`)
-- `validation.languages` - Supported languages (default: `["en"]`)
-- `validation.default_language` - Default language (default: `"en"`)
-
-### Example Configuration
-
-Using `.config.toml`:
-
-```toml
-version = "2"
-verbose = true
-
-[generate]
-output = "gen"
-workers = 8
-
-[make]
-controllers = "internal/controllers"
-providers = "internal/providers"
-```
-
-Override with CLI flags:
-
-```bash
-glib generate --output custom-gen --workers 16
-```
-
-## Project Structure
-
-```
-my-app/
-├── controllers/           # Your controllers
-│   ├── posts_controller.go
-│   └── users_controller.go
-├── providers/            # Your DI providers
-│   └── database.go
-├── middleware/           # Your middleware
-│   └── auth.go
-├── configs/              # Your app configuration
-│   └── config.go
-├── generated/            # Generated code (don't edit)
-│   ├── config.gen.go
-│   ├── di.gen.go
-│   ├── routes.gen.go
-│   └── parsers.gen.go
-├── main.go              # Your entry point
-├── bootstrap.go         # Your bootstrap logic
-├── .env                 # App environment variables
-└── go.mod
-```
-
-## Examples
-
-See the `examples/demo` directory for a complete working example with:
-
-- Post controller with CRUD operations
-- Comment controller with nested routes
-- Request/response models
-- Configuration management
-
-```bash
-cd examples/demo
-../../bin/glib generate
-go run .
-```
-
-## Architecture
-
-Glib follows a code-generation-first architecture:
-
-1. **Annotations** - You write annotations in Go comments
-2. **Scanner** - AST-based scanner extracts annotations and analyzes code
-3. **Validator** - Validates routes, dependencies, and handler signatures
-4. **Generator** - Generates optimized, type-safe code
-5. **Runtime** - Your app uses the generated code at runtime
-
-### Generated Code
-
-The generated code is optimized and type-safe:
-
-- No reflection at runtime
-- Direct function calls
-- Type-safe request parsing
-- Proper error handling
-- Import resolution for cross-package types
-- Topological sorting for dependency injection
-
-### Handler Patterns
-
-Glib uses **2 handler patterns**:
-
-- **Result[T]**: `func(ctx, params...) glib.Result[T]` - Type-safe with explicit status control (~95% of endpoints)
-- **Raw HTTP**: `func(w, r)` - Full control for streaming, SSE, file uploads (~5% of endpoints)
-
-## Requirements
-
-- Go 1.21 or later
-
-## Contributing
-
-Contributions are welcome! Please read the specifications in `.spec/` directory before contributing.
-
-## License
-
-MIT License - see LICENSE file for details.
 
 ---
 
-**Status**: Experimental - Under active development
+## Project Structure
 
-For detailed specifications and implementation details, see the `.spec/` directory.
+A typical Glib application layout:
+
+```
+my-app/
+├── .config.toml              # Glib CLI & code generation settings
+├── .env                      # Application environment variables
+├── go.mod
+├── go.sum
+├── main.go                   # Server initialization and graceful shutdown
+├── bootstrap.go              # App bootstrap, router middleware & route registration
+├── configs/
+│   └── config.go             # @Config struct definitions
+├── controllers/
+│   ├── auth/
+│   │   ├── controller.go     # @Controller with route handlers
+│   │   └── models.go         # Request / response structs
+│   └── posts/
+│       ├── controller.go
+│       └── models.go
+├── services/
+│   ├── database.go           # @Provider singleton for DB connection
+│   ├── jwt.go                # @Provider singleton for auth tokens
+│   └── logger.go             # @Provider transient for structured logging
+├── middleware/
+│   └── auth.go               # @Middleware definitions
+├── locales/                  # Optional translation files
+│   ├── en.toml
+│   └── fr.toml
+└── generated/                # Auto-generated code (DO NOT EDIT)
+    ├── config.gen.go         # Environment loader for @Config structs
+    ├── di.gen.go             # Dependency injection container
+    ├── routes.gen.go         # Chi router route registrations
+    ├── parsers.gen.go        # HTTP parameter parsers & handler wrappers
+    ├── validator.gen.go      # Request validator initialization
+    └── i18n/                 # Generated typed i18n packages
+```
+
+---
+
+## Architecture & Code Generation
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Source Code with Annotations                             │
+│    (@Controller, @Route, @Provider, @Middleware, @Config)   │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ AST Scanning (Parallel)
+┌──────────────────────────────▼──────────────────────────────┐
+│ 2. Scanner & Semantic Validation                            │
+│    - Extracts routes, handlers, and struct tags             │
+│    - Validates types, signatures, and dependency graph      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Code Generation
+┌──────────────────────────────▼──────────────────────────────┐
+│ 3. Generated Code (generated/)                              │
+│    - di.gen.go (Topologically sorted container)             │
+│    - routes.gen.go (Chi route tree setup)                   │
+│    - parsers.gen.go (Type-safe request & response binding)  │
+│    - config.gen.go, validator.gen.go, i18n/                 │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Runtime Execution
+┌──────────────────────────────▼──────────────────────────────┐
+│ 4. HTTP Runtime (Zero reflection in handlers)               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Requirements
+
+- **Go**: 1.22 or later
+
+---
+
+## Contributing
+
+Contributions are welcome! Please open an issue or pull request on GitHub.
+
+---
+
+## License
+
+MIT License. See [LICENSE](file:///home/azizndao/repos/web/glib/LICENSE) for details.

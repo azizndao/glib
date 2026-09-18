@@ -1,582 +1,169 @@
-# 04. Error Handling
+# 04. Error Handling System
 
-**Status:** Specification (Under Development)  
-**Last Updated:** 2025-12-31
+Specification and reference for structured error handling in Glib.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Result[T] Error Handling](#resultt-error-handling)
-3. [Error Types](#error-types)
-4. [HTTP Status Codes](#http-status-codes)
-5. [Error Builder API](#error-builder-api)
-6. [ValidationErrors](#validationerrors)
-7. [Generated Error Handling](#generated-error-handling)
-8. [Custom Error Types](#custom-error-types)
-9. [Best Practices](#best-practices)
+2. [Error Codes & HTTP Status Mapping](#error-codes--http-status-mapping)
+3. [Error Construction & Helpers](#error-construction--helpers)
+4. [Error Wrapping & Stack Preservation](#error-wrapping--stack-preservation)
+5. [Validation Errors (Goyave Style)](#validation-errors-goyave-style)
+6. [JSON Error Response Format](#json-error-response-format)
+7. [Best Practices](#best-practices)
 
 ---
 
 ## Overview
 
-Glib uses **Encore.dev-style error handling** with structured errors that automatically map to HTTP status codes.
+Glib provides a robust, structured error model in package `github.com/azizndao/glib/errs` inspired by Encore.dev.
 
 ### Design Principles
 
-1. **Type-safe errors** - Compile-time checking
-2. **HTTP code mapping** - Errors know their status codes
-3. **Structured metadata** - Errors can carry context
-4. **User-friendly messages** - Separate internal/external messages
-5. **Stack traces** - Debug information in development
-
-### Error Flow (Result[T] Pattern)
-
-```
-Handler Returns glib.Result[T]
-    ↓
-Result.Write(w) Method Called
-    ↓
-Check Result.Error()
-    ↓
-If Error: Extract HTTP Status & Write JSON
-    ↓
-If Success: Write Data as JSON
-    ↓
-Send to Client
-```
+1. **Explicit Error Codes**: Handlers attach domain error codes (`NotFound`, `InvalidArgument`, `PermissionDenied`, etc.) at the source.
+2. **Automatic HTTP Mapping**: Glib maps error codes directly to HTTP status codes without manual status setting.
+3. **Structured Details**: Errors can attach structured validation errors, metadata, and underlying causes.
+4. **Safe Serialization**: Sensitive internal error details are not exposed to clients unless explicitly marked as user details.
 
 ---
 
-## Result[T] Error Handling
+## Error Codes & HTTP Status Mapping
 
-Glib uses the `Result[T]` type for handlers, which provides explicit error control:
+The `errs.ErrCode` enum defines canonical error states:
 
-### Using Result[T] with Errors
-
-```go
-import (
-    "github.com/azizndao/glib"
-    "github.com/azizndao/glib/errs"
-)
-
-// @Route GET /posts/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    if id == uuid.Nil {
-        return glib.BadRequest[*Post]("invalid id")
-    }
-    
-    post, err := c.Service.GetByID(id)
-    if err != nil {
-        return glib.Fail[*Post](err)  // Auto-extracts status from errs.Error
-    }
-    
-    return glib.OK(post)
-}
-```
-
-### Result[T] Error Helpers
-
-Quick error responses without building `errs.Error`:
-
-```go
-// Common errors
-glib.BadRequest[T](msg)      // 400
-glib.Unauthorized[T](msg)    // 401
-glib.Forbidden[T](msg)       // 403
-glib.NotFound[T](msg)        // 404
-glib.Conflict[T](msg)        // 409
-glib.InternalError[T](msg)   // 500
-
-// Auto-mapping from errs.Error
-glib.Fail[T](err)            // Extracts status from errs.Error
-```
+| Error Code                | HTTP Status Code            | Description / Usage                            |
+| :------------------------ | :-------------------------- | :--------------------------------------------- |
+| `errs.InvalidArgument`    | `400 Bad Request`           | Client specified invalid argument or payload   |
+| `errs.FailedPrecondition` | `400 Bad Request`           | System not in state required for execution     |
+| `errs.OutOfRange`         | `400 Bad Request`           | Parameter or operation out of valid range      |
+| `errs.Unauthenticated`    | `401 Unauthorized`          | Request lacks valid authentication credentials |
+| `errs.PermissionDenied`   | `403 Forbidden`             | Caller lacks permission for this operation     |
+| `errs.NotFound`           | `404 Not Found`             | Requested entity does not exist                |
+| `errs.AlreadyExists`      | `409 Conflict`              | Attempted creation of existing entity          |
+| `errs.Aborted`            | `409 Conflict`              | Operation aborted due to concurrency conflict  |
+| `errs.ResourceExhausted`  | `429 Too Many Requests`     | Rate limit or quota exhausted                  |
+| `errs.Canceled`           | `499 Client Closed`         | Request canceled by caller                     |
+| `errs.Internal`           | `500 Internal Server Error` | Unexpected internal failure                    |
+| `errs.Unknown`            | `500 Internal Server Error` | Unspecified or unclassified error              |
+| `errs.DataLoss`           | `500 Internal Server Error` | Unrecoverable data corruption                  |
+| `errs.Unimplemented`      | `501 Not Implemented`       | Operation not implemented                      |
+| `errs.Unavailable`        | `503 Service Unavailable`   | Service temporarily unavailable                |
+| `errs.DeadlineExceeded`   | `504 Gateway Timeout`       | Timeout expired before completion              |
 
 ---
 
-## Error Types
+## Error Construction & Helpers
 
-### Using Result[T] Helpers (Recommended)
+### 1. Shorthand Constructor Helpers
 
-```go
-// @Route GET /posts/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    post, err := c.Service.GetByID(id)
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return glib.NotFound[*Post]("post not found")
-    }
-    if err != nil {
-        return glib.InternalError[*Post]("database error")
-    }
-    return glib.OK(post)
-}
-```
-
-### Using Structured Errors with glib.Fail()
-
-```go
-// @Route GET /posts/{id}
-func (c *Controller) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    post, err := c.Service.GetByID(id)
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        structuredErr := errs.B().
-            Code(errs.NotFound).
-            Msg("post not found").
-            Meta("id", id.String()).
-            Err()
-        return glib.Fail[*Post](structuredErr)  // Auto-maps to 404
-    }
-    if err != nil {
-        return glib.Fail[*Post](err)
-    }
-    return glib.OK(post)
-}
-```
-
-**Benefits:**
-- Explicit HTTP status codes via `glib.Fail()`
-- Structured metadata and details
-- Better error messages
-- Automatic JSON formatting
-
----
-
-## HTTP Status Codes
-
-### Error Code Mapping
-
-Glib provides predefined error codes that map to HTTP status codes:
-
-```go
-package errs
-
-type Code int
-
-const (
-    // 4xx Client Errors
-    InvalidArgument  Code = 400  // Bad Request
-    Unauthenticated  Code = 401  // Unauthorized
-    PermissionDenied Code = 403  // Forbidden
-    NotFound         Code = 404  // Not Found
-    AlreadyExists    Code = 409  // Conflict
-    
-    // 5xx Server Errors
-    Internal         Code = 500  // Internal Server Error
-    Unavailable      Code = 503  // Service Unavailable
-)
-```
-
-### Complete Mapping Table
-
-| Error Code | HTTP Status | Use Case |
-|------------|-------------|----------|
-| `InvalidArgument` | 400 | Invalid input, validation failed |
-| `Unauthenticated` | 401 | Missing or invalid authentication |
-| `PermissionDenied` | 403 | Authenticated but not authorized |
-| `NotFound` | 404 | Resource doesn't exist |
-| `AlreadyExists` | 409 | Resource conflict (duplicate) |
-| `Internal` | 500 | Unexpected server error |
-| `Unavailable` | 503 | Service temporarily unavailable |
-
----
-
-## Error Builder API
-
-### Basic Error
-
-```go
-err := errs.B().
-    Code(errs.NotFound).
-    Msg("post not found").
-    Err()
-```
-
-### Error with Metadata
-
-```go
-err := errs.B().
-    Code(errs.InvalidArgument).
-    Msg("validation failed").
-    Meta("field", "email").
-    Meta("reason", "invalid format").
-    Err()
-```
-
-**Generated JSON:**
-
-```json
-{
-  "error": {
-    "code": "invalid_argument",
-    "message": "validation failed",
-    "meta": {
-      "field": "email",
-      "reason": "invalid format"
-    }
-  }
-}
-```
-
-### Error with Details
-
-```go
-err := errs.B().
-    Code(errs.InvalidArgument).
-    Msg("validation failed").
-    Meta("user_id", userID).
-    Err()
-
-return glib.Fail[*Post](err)
-```
-
-**Generated JSON:**
-
-```json
-{
-  "error": {
-    "code": "invalid_argument",
-    "message": "validation failed"
-  }
-}
-```
-
-Note: Meta fields are for internal logging only, not exposed in API responses.
-
-### Wrapping Errors
-
-```go
-err := errs.B().
-    Code(errs.Internal).
-    Msg("failed to create post").
-    Cause(dbErr).  // Wrap underlying error
-    Err()
-```
-
-**Benefits:**
-- Preserves error chain for `errors.Is()` / `errors.As()`
-- Internal error details hidden from client
-- Full stack trace in logs
-
----
-
-## ValidationErrors
-
-Glib provides built-in support for structured validation errors with field-level details.
-
-### ValidationError Type
-
-```go
-// pkg/errs/details.go
-
-type ValidationError struct {
-    Field    string   `json:"field"`
-    Messages []string `json:"messages"`
-}
-
-type ValidationErrors struct {
-    Errors []ValidationError `json:"errors"`
-}
-```
-
-### Creating ValidationErrors
+For quick errors with a message:
 
 ```go
 import "github.com/azizndao/glib/errs"
 
-// @Route POST /posts
-func (c *Controller) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
-    // Manual validation
-    var validationErrs []errs.ValidationError
-    
-    if len(req.Title) < 3 {
-        validationErrs = append(validationErrs, errs.ValidationError{
-            Field:    "title",
-            Messages: []string{"must be at least 3 characters"},
-        })
-    }
-    
-    if req.Content == "" {
-        validationErrs = append(validationErrs, errs.ValidationError{
-            Field:    "content",
-            Messages: []string{"field is required"},
-        })
-    }
-    
-    if len(validationErrs) > 0 {
-        err := errs.B().
-            Code(errs.InvalidArgument).
-            Msg("Validation failed").
-            Details(errs.NewValidationErrors(validationErrs)).
-            Err()
-        return glib.Fail[*Post](err)
-    }
-    
-    post, err := c.Service.Create(req)
-    if err != nil {
-        return glib.Fail[*Post](err)
-    }
-    return glib.Created(post)
-}
+err := errs.NewNotFound().WithMessage("post not found")
+err := errs.NewBadRequest().WithMessage("invalid parameters")
+err := errs.NewUnauthorized().WithMessage("token expired")
+err := errs.NewForbidden().WithMessage("insufficient privileges")
+err := errs.NewConflict().WithMessage("email already taken")
+err := errs.NewInternal().WithMessage("database connection dropped")
 ```
 
-### Generated Response Format
+### 2. Fluent Builder Pattern (`errs.B()`)
 
-**Request:**
-```bash
-POST /api/v1/posts
-{
-  "title": "ab",
-  "content": ""
-}
-```
-
-**Response (400):**
-```json
-{
-  "error": {
-    "code": "invalid_argument",
-    "message": "Validation failed",
-    "details": [
-      {
-        "field": "title",
-        "messages": ["must be at least 3 characters"]
-      },
-      {
-        "field": "content",
-        "messages": ["field is required"]
-      }
-    ]
-  }
-}
-```
-
-### ValidationErrors Builder API
+For full control over code, message, cause, and details:
 
 ```go
-// Create empty ValidationErrors
-validationErrs := &errs.ValidationErrors{}
+err := errs.B().
+    Code(errs.PermissionDenied).
+    Msg("user does not have permission to delete this post").
+    Cause(underlyingErr).
+    Err()
+```
 
-// Add errors one by one
-validationErrs.AddError("email", "must be a valid email")
-validationErrs.AddError("email", "field is required")
-validationErrs.AddError("password", "must be at least 8 characters")
+---
 
-// Create from slice
-validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-    {Field: "email", Messages: []string{"invalid format", "required"}},
-    {Field: "password", Messages: []string{"too short"}},
-})
+## Error Wrapping & Stack Preservation
 
-// Use in error
+Convert standard Go errors into structured `*errs.Error` objects:
+
+```go
+// Wrap with Unknown code by default
+if err := db.Save(user).Error; err != nil {
+    return nil, errs.Wrap(err, "failed to save user")
+}
+
+// Wrap with specific code
+if err := db.First(user, id).Error; err != nil {
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        return nil, errs.WrapCode(err, errs.NotFound, "user not found")
+    }
+    return nil, errs.WrapCode(err, errs.Internal, "database query error")
+}
+```
+
+---
+
+## Validation Errors (Goyave Style)
+
+When request validation fails (either automatically via `validate:` tags or manually), Glib outputs Goyave-style structured field validation errors.
+
+### Programmatic Validation Errors
+
+```go
+import "github.com/azizndao/glib/validator"
+
+valErrs := validator.NewValidationErrors()
+valErrs.AddBodyError([]string{"email"}, "email format is invalid")
+valErrs.AddQueryError([]string{"per_page"}, "must be between 1 and 100")
+
 err := errs.B().
     Code(errs.InvalidArgument).
-    Msg("Validation failed").
-    Details(validationErrs).
+    Msg("validation failed").
+    Details(valErrs).
     Err()
-
-return glib.Fail[*Post](err)
-```
-
-### Error Detail Conversion
-
-The framework's `Result[T].Write()` method converts `errs.ErrDetails` to the JSON response format:
-
-```go
-// pkg/errs/details.go
-
-// ValidationErrors contains field-level validation errors
-type ValidationErrors struct {
-    Errors []ValidationError
-}
-
-type ValidationError struct {
-    Field    string
-    Messages []string
-}
-
-// Convert to JSON format
-func (v *ValidationErrors) ToJSON() map[string][]string {
-    result := make(map[string][]string)
-    for _, err := range v.Errors {
-        result[err.Field] = err.Messages
-    }
-    return result
-}
 ```
 
 ---
 
-## Generated Error Handling
+## JSON Error Response Format
 
-Error handling is now built into the `Result[T]` type via the `Write(w http.ResponseWriter)` method.
+All errors serialized by Glib conform to a consistent top-level JSON schema:
 
-### Result[T].Write() Method
+```json
+{
+    "error": {
+        "code": "not_found",
+        "message": "post not found"
+    }
+}
+```
 
-Located in `writer.go`:
+With validation details:
 
-```go
-// Write writes the Result to an http.ResponseWriter
-func (r Result[T]) Write(w http.ResponseWriter) {
-    // Set custom headers
-    for key, values := range r.Headers {
-        for _, value := range values {
-            w.Header().Add(key, value)
+```json
+{
+    "error": {
+        "code": "invalid_argument",
+        "message": "Validation failed",
+        "details": {
+            "body": {
+                "title": {
+                    "errors": ["title must be at least 3 characters"]
+                },
+                "author_id": {
+                    "errors": ["author_id is required"]
+                }
+            },
+            "query": {
+                "page": {
+                    "errors": ["page must be at least 1"]
+                }
+            }
         }
     }
-    
-    // Handle error response
-    if r.err != nil {
-        writeErrorJSON(w, r.StatusCode, r.err)
-        return
-    }
-    
-    // Handle no-content response
-    if r.StatusCode == http.StatusNoContent {
-        w.WriteHeader(r.StatusCode)
-        return
-    }
-    
-    // Write success response
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(r.StatusCode)
-    if err := json.NewEncoder(w).Encode(r.Data); err != nil {
-        log.Printf("failed to encode response: %v", err)
-    }
-}
-```
-
-### Handler Wrapper Integration
-
-**Result[T] pattern wrapper:**
-
-```go
-func handlePostsControllerCreate(container *container) http.HandlerFunc {
-    handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        ctx := r.Context()
-        
-        // Parse request
-        var req CreatePostRequest
-        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-            glib.BadRequest[*Post]("invalid JSON").Write(w)
-            return
-        }
-        
-        // Call handler
-        result := container.controllers.postsController.Create(ctx, req)
-        
-        // Write result using Result.Write() method
-        result.Write(w)
-    }))
-    
-    // Apply middleware if needed
-    // handler = container.middleware.authMiddleware(handler)
-    
-    return handler.ServeHTTP
-}
-```
-
----
-
-## Custom Error Types
-
-### Domain-Specific Errors
-
-```go
-// posts/errors.go
-package posts
-
-import (
-    "github.com/azizndao/glib"
-    "github.com/azizndao/glib/errs"
-)
-
-// Predefined errors
-func ErrPostNotFound(id string) glib.Result[*Post] {
-    err := errs.B().
-        Code(errs.NotFound).
-        Msg("post not found").
-        Meta("id", id).
-        Err()
-    return glib.Fail[*Post](err)
-}
-
-func ErrPostDeleted() glib.Result[*Post] {
-    err := errs.B().
-        Code(errs.NotFound).
-        Msg("post has been deleted").
-        Err()
-    return glib.Fail[*Post](err)
-}
-
-func ErrUnauthorized() glib.Result[*Post] {
-    return glib.Forbidden[*Post]("you don't have permission to modify this post")
-}
-```
-
-**Usage:**
-
-```go
-// @Route GET /posts/{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    post, err := c.Service.GetByID(id)
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return ErrPostNotFound(id.String())  // Returns glib.Result[*Post]
-    }
-    
-    if post.DeletedAt != nil {
-        return ErrPostDeleted()
-    }
-    
-    return glib.OK(post)
-}
-
-// @Route DELETE /posts/{id}
-func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    user := auth.GetUser(ctx)
-    post, _ := c.Service.GetByID(id)
-    
-    if post.AuthorID != user.ID {
-        return ErrUnauthorized()  // Type mismatch - won't compile!
-    }
-    
-    // Fix: Use correct type
-    if post.AuthorID != user.ID {
-        return glib.Forbidden[any]("you don't have permission to modify this post")
-    }
-    
-    if err := c.Service.Delete(id); err != nil {
-        return glib.Fail[any](err)
-    }
-    return glib.NoContent[any]()
-}
-```
-
-### Error Factory Functions
-
-```go
-func ValidationFailed[T any](errors []errs.ValidationError) glib.Result[T] {
-    err := errs.B().
-        Code(errs.InvalidArgument).
-        Msg("Validation failed").
-        Details(errs.NewValidationErrors(errors)).
-        Err()
-    return glib.Fail[T](err)
-}
-
-func DatabaseError[T any](operation string, cause error) glib.Result[T] {
-    err := errs.B().
-        Code(errs.Internal).
-        Msg("database operation failed").
-        Meta("operation", operation).
-        Cause(cause).
-        Err()
-    return glib.Fail[T](err)
-}
-
-// Usage
-if err := c.DB.Create(post).Error; err != nil {
-    return DatabaseError[*Post]("create", err)
 }
 ```
 
@@ -584,372 +171,6 @@ if err := c.DB.Create(post).Error; err != nil {
 
 ## Best Practices
 
-### 1. Use Result[T] Helpers for Simple Cases
-
-```go
-// ✅ Good - Clear and concise
-if post == nil {
-    return glib.NotFound[*Post]("post not found")
-}
-
-// ❌ Bad - Unnecessarily verbose
-if post == nil {
-    err := errs.B().Code(errs.NotFound).Msg("post not found").Err()
-    return glib.Fail[*Post](err)
-}
-```
-
-### 2. Use glib.Fail() for Complex Errors
-
-```go
-// ✅ Good - Rich error with metadata
-if err := c.DB.Create(post).Error; err != nil {
-    return glib.Fail[*Post](
-        errs.B().
-            Code(errs.Internal).
-            Msg("failed to create post").
-            Meta("operation", "database.create").
-            Cause(err).
-            Err(),
-    )
-}
-```
-
-### 3. Use ValidationErrors for Field-Level Errors
-
-```go
-// ✅ Good - Structured validation errors
-validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-    {Field: "email", Messages: []string{"invalid format", "required"}},
-    {Field: "age", Messages: []string{"must be at least 18"}},
-})
-
-err := errs.B().
-    Code(errs.InvalidArgument).
-    Msg("Validation failed").
-    Details(validationErrs).
-    Err()
-
-return glib.Fail[*User](err)
-
-// ❌ Bad - Generic error for validation
-if req.Email == "" {
-    return glib.BadRequest[*User]("email is required")  // No field-level detail
-}
-```
-
-### 4. Don't Expose Internal Details
-
-```go
-// ❌ Bad - Exposes database schema
-return glib.InternalError[*Post]("column 'email' violates unique constraint")
-
-// ✅ Good - User-friendly message
-if isDuplicateKeyError(err) {
-    return glib.Conflict[*Post]("an account with this email already exists")
-}
-```
-
-### 5. Use Meta for Logging, Not Client Response
-
-```go
-// ✅ Good - Meta for internal debugging
-err := errs.B().
-    Code(errs.Internal).
-    Msg("database connection failed").
-    Meta("host", dbHost).
-    Meta("attempt", retryCount).
-    Cause(dbErr).
-    Err()
-
-// Meta fields are NOT sent to client, only logged
-return glib.Fail[*Post](err)
-```
-
-### 6. Wrap Database Errors
-
-```go
-// ❌ Bad - Leaks internal details
-if err := c.DB.Create(post).Error; err != nil {
-    return glib.Fail[*Post](err)  // Exposes GORM error message
-}
-
-// ✅ Good - Wraps with user-friendly message
-if err := c.DB.Create(post).Error; err != nil {
-    return glib.Fail[*Post](
-        errs.B().
-            Code(errs.Internal).
-            Msg("failed to create post").
-            Cause(err).  // Original error preserved for logging
-            Err(),
-    )
-}
-```
-
-### 7. Define Domain Errors as Functions (Not Variables)
-
-```go
-// ✅ Good - Functions prevent mutation and allow parameters
-func ErrPostNotFound(id string) glib.Result[*Post] {
-    err := errs.B().
-        Code(errs.NotFound).
-        Msg("post not found").
-        Meta("id", id).
-        Err()
-    return glib.Fail[*Post](err)
-}
-
-// ⚠️ OK but limited - No parameters
-var ErrUnauthorized = glib.Forbidden[*Post]("unauthorized")
-
-// ❌ Bad - Shared error instance (can cause issues)
-var ErrPostNotFound = errs.B().Code(errs.NotFound).Msg("post not found").Err()
-```
-
-### 8. Match Result[T] Type Parameter
-
-```go
-// ✅ Good - Type matches function signature
-func (c *Controller) Show(ctx context.Context, id int) glib.Result[*Post] {
-    return glib.NotFound[*Post]("post not found")  // Correct type
-}
-
-// ❌ Bad - Type mismatch won't compile
-func (c *Controller) Show(ctx context.Context, id int) glib.Result[*Post] {
-    return glib.NotFound[*User]("post not found")  // Wrong type!
-}
-```
-
----
-
-## Complete Example
-
-```go
-// posts/controller.go
-package posts
-
-import (
-    "context"
-    "errors"
-    
-    "github.com/google/uuid"
-    "github.com/azizndao/glib"
-    "github.com/azizndao/glib/errs"
-    "gorm.io/gorm"
-)
-
-// @Controller /api/v1/posts
-type PostsController struct {
-    DB *gorm.DB
-}
-
-// @Route GET /{id}
-func (c *PostsController) Show(ctx context.Context, id uuid.UUID) glib.Result[*Post] {
-    if id == uuid.Nil {
-        return glib.BadRequest[*Post]("id cannot be empty")
-    }
-    
-    var post Post
-    err := c.DB.Where("id = ?", id).First(&post).Error
-    if errors.Is(err, gorm.ErrRecordNotFound) {
-        return glib.NotFound[*Post]("post not found")
-    }
-    if err != nil {
-        return glib.Fail[*Post](
-            errs.B().
-                Code(errs.Internal).
-                Msg("failed to fetch post").
-                Cause(err).
-                Err(),
-        )
-    }
-    
-    return glib.OK(&post)
-}
-
-// @Route POST /
-func (c *PostsController) Create(ctx context.Context, req CreatePostRequest) glib.Result[*Post] {
-    // Validate request
-    var validationErrs []errs.ValidationError
-    
-    if len(req.Title) < 3 {
-        validationErrs = append(validationErrs, errs.ValidationError{
-            Field:    "title",
-            Messages: []string{"must be at least 3 characters"},
-        })
-    }
-    
-    if req.Content == "" {
-        validationErrs = append(validationErrs, errs.ValidationError{
-            Field:    "content",
-            Messages: []string{"field is required"},
-        })
-    }
-    
-    if len(validationErrs) > 0 {
-        err := errs.B().
-            Code(errs.InvalidArgument).
-            Msg("Validation failed").
-            Details(errs.NewValidationErrors(validationErrs)).
-            Err()
-        return glib.Fail[*Post](err)
-    }
-    
-    // Create post
-    post := &Post{
-        Title:   req.Title,
-        Content: req.Content,
-    }
-    
-    err := c.DB.Create(post).Error
-    if err != nil {
-        return glib.Fail[*Post](
-            errs.B().
-                Code(errs.Internal).
-                Msg("failed to create post").
-                Cause(err).
-                Err(),
-        )
-    }
-    
-    return glib.Created(post)
-}
-
-// @Route DELETE /{id}
-func (c *PostsController) Delete(ctx context.Context, id uuid.UUID) glib.Result[any] {
-    result := c.DB.Delete(&Post{}, "id = ?", id)
-    if result.Error != nil {
-        return glib.Fail[any](
-            errs.B().
-                Code(errs.Internal).
-                Msg("failed to delete post").
-                Cause(result.Error).
-                Err(),
-        )
-    }
-    
-    if result.RowsAffected == 0 {
-        return glib.NotFound[any]("post not found")
-    }
-    
-    return glib.NoContent[any]()
-}
-```
-
-**Generated Error Responses:**
-
-```bash
-# Invalid ID
-GET /api/v1/posts/00000000-0000-0000-0000-000000000000
-HTTP/1.1 400 Bad Request
-{
-  "error": {
-    "code": "invalid_argument",
-    "message": "id cannot be empty"
-  }
-}
-
-# Not Found
-GET /api/v1/posts/123e4567-e89b-12d3-a456-426614174000
-HTTP/1.1 404 Not Found
-{
-  "error": {
-    "code": "not_found",
-    "message": "post not found"
-  }
-}
-
-# Validation Failed
-POST /api/v1/posts
-{"title": "ab", "content": ""}
-HTTP/1.1 400 Bad Request
-{
-  "error": {
-    "code": "invalid_argument",
-    "message": "Validation failed",
-    "details": [
-      {
-        "field": "title",
-        "messages": ["must be at least 3 characters"]
-      },
-      {
-        "field": "content",
-        "messages": ["field is required"]
-      }
-    ]
-  }
-}
-```
-
----
-
-## Summary
-
-### Key Features
-
-1. **Result[T] Integration** - Error handling built into Result[T] type
-2. **Helper Functions** - Quick error responses (BadRequest, NotFound, etc.)
-3. **glib.Fail()** - Auto-extract HTTP status from errs.Error
-4. **Structured Errors** - Type-safe errors with HTTP codes via errs.Builder
-5. **ValidationErrors** - Field-level validation error details
-6. **convertDetails()** - Generated conversion from errs.ErrDetails to JSON
-7. **Type Safety** - Generic Result[T] ensures consistency
-
-### Error Response Format
-
-```json
-{
-  "error": {
-    "code": "error_code",
-    "message": "User-facing message",
-    "details": [
-      {
-        "field": "field_name",
-        "messages": ["error message 1", "error message 2"]
-      }
-    ]
-  }
-}
-```
-
-### Quick Reference
-
-**Result[T] Error Helpers:**
-```go
-glib.BadRequest[T](msg)      // 400
-glib.Unauthorized[T](msg)    // 401
-glib.Forbidden[T](msg)       // 403
-glib.NotFound[T](msg)        // 404
-glib.Conflict[T](msg)        // 409
-glib.InternalError[T](msg)   // 500
-glib.Fail[T](err)            // Auto-map from errs.Error
-```
-
-**Structured Errors:**
-```go
-errs.B().
-    Code(errs.NotFound).
-    Msg("resource not found").
-    Meta("id", id).              // Internal logging only
-    Details(validationErrs).     // Client-facing details
-    Cause(originalErr).          // Wrapped error
-    Err()
-```
-
-**ValidationErrors:**
-```go
-validationErrs := errs.NewValidationErrors([]errs.ValidationError{
-    {Field: "email", Messages: []string{"invalid format"}},
-})
-
-err := errs.B().
-    Code(errs.InvalidArgument).
-    Details(validationErrs).
-    Err()
-
-return glib.Fail[T](err)
-```
-
----
-
-**Next:** `05-CLI.md` - CLI commands and configuration
+1. **Return Errors Directly**: Return `(nil, err)` or `err` from your handlers; Glib's generated wrapper handles serialization.
+2. **Use Structured Codes**: Always use appropriate `errs.ErrCode` values instead of generic `errors.New()`.
+3. **Wrap Causes**: Attach underlying errors using `.Cause(err)` or `errs.Wrap()` to maintain debugging context in server logs without leaking details to clients.
