@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 )
@@ -167,13 +165,9 @@ func (s *Scanner) scanHandlersForControllers(project *Project, fileMap map[strin
 	}
 
 	for filePath, file := range fileMap {
-		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
+		packagePath, err := s.packagePathForFile(filePath)
 		if err != nil {
 			continue
-		}
-		packagePath := s.modulePath
-		if relPath != "." {
-			packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
 		}
 
 		if packageFiles[packagePath] == nil {

@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+func TestScannerPackagePathForFile(t *testing.T) {
+	s := &Scanner{modulePath: "example.com/testapp", projectDir: "/tmp/project"}
+
+	got, err := s.packagePathForFile(filepath.Join("/tmp/project", "controllers", "user.go"))
+	if err != nil {
+		t.Fatalf("packagePathForFile returned error: %v", err)
+	}
+	if got != "example.com/testapp/controllers" {
+		t.Fatalf("expected example.com/testapp/controllers, got %s", got)
+	}
+
+	rootGot, err := s.packagePathForFile(filepath.Join("/tmp/project", "main.go"))
+	if err != nil {
+		t.Fatalf("packagePathForFile root file returned error: %v", err)
+	}
+	if rootGot != "example.com/testapp" {
+		t.Fatalf("expected example.com/testapp, got %s", rootGot)
+	}
+}
+
 // TestScanRealProject tests scanning a realistic project structure
 func TestScanRealProject(t *testing.T) {
 	// Create a temporary project structure

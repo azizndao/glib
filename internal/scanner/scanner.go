@@ -154,14 +154,9 @@ func (s *Scanner) Scan() (*Project, error) {
 			return fmt.Errorf("failed to parse %s: %w", path, err)
 		}
 
-		// Calculate package path
-		relPath, err := filepath.Rel(s.projectDir, filepath.Dir(path))
+		packagePath, err := s.packagePathForFile(path)
 		if err != nil {
 			return err
-		}
-		packagePath := s.modulePath
-		if relPath != "." {
-			packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
 		}
 
 		// Store file info (not AST)
@@ -271,6 +266,17 @@ func (s *Scanner) Scan() (*Project, error) {
 }
 
 // scanFile scans a single file for annotations
+func (s *Scanner) packagePathForFile(filePath string) (string, error) {
+	relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
+	if err != nil {
+		return "", err
+	}
+	if relPath == "." {
+		return s.modulePath, nil
+	}
+	return s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/"), nil
+}
+
 func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) error {
 	// Lock for thread-safe access to mutable scanner state
 	s.mu.Lock()
@@ -281,14 +287,9 @@ func (s *Scanner) scanFile(file *ast.File, filePath string, project *Project) er
 	// Parse imports for type resolution
 	s.parseImports(file)
 
-	// Calculate package path relative to module
-	relPath, err := filepath.Rel(s.projectDir, filepath.Dir(filePath))
+	packagePath, err := s.packagePathForFile(filePath)
 	if err != nil {
 		return err
-	}
-	packagePath := s.modulePath
-	if relPath != "." {
-		packagePath = s.modulePath + "/" + strings.ReplaceAll(relPath, string(os.PathSeparator), "/")
 	}
 
 	// Scan for @Config annotated structs

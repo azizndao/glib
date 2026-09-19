@@ -110,29 +110,30 @@ func (g *Generator) Generate() error {
 	return nil
 }
 
+func formatGeneratedCode(filename, code string) []byte {
+	formatted, err := format.Source([]byte(code))
+	if err != nil {
+		fmt.Printf("Warning: failed to format %s: %v\n", filename, err)
+		return []byte(code)
+	}
+	return formatted
+}
+
+func (g *Generator) writeGeneratedFile(relativePath, code string) error {
+	path := filepath.Join(g.outputDir, relativePath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", relativePath, err)
+	}
+	return os.WriteFile(path, formatGeneratedCode(relativePath, code), 0o644)
+}
+
 // generateFile generates a single file
 func (g *Generator) generateFile(filename string, gen func() (string, error)) error {
-	// Generate code
 	code, err := gen()
 	if err != nil {
 		return err
 	}
-
-	// Format code
-	formatted, err := format.Source([]byte(code))
-	if err != nil {
-		// If formatting fails, write unformatted code for debugging
-		fmt.Printf("Warning: failed to format %s: %v\n", filename, err)
-		formatted = []byte(code)
-	}
-
-	// Write file
-	path := filepath.Join(g.outputDir, filename)
-	if err := os.WriteFile(path, formatted, 0644); err != nil {
-		return err
-	}
-
-	return nil
+	return g.writeGeneratedFile(filename, code)
 }
 
 // generateConfigLoader generates the config loader in the generated package
@@ -207,18 +208,9 @@ func (g *Generator) generateI18nPackage() error {
 		return err
 	}
 
-	// Write each file
 	for filename, code := range files {
-		// Format code
-		formatted, err := format.Source([]byte(code))
-		if err != nil {
-			fmt.Printf("Warning: failed to format %s: %v\n", filename, err)
-			formatted = []byte(code)
-		}
-
-		// Write file
 		path := filepath.Join(i18nDir, filename)
-		if err := os.WriteFile(path, formatted, 0644); err != nil {
+		if err := os.WriteFile(path, formatGeneratedCode(filename, code), 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", filename, err)
 		}
 	}

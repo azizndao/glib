@@ -110,11 +110,7 @@ func executeInit(spec initSpec) initResult {
 	files := buildProjectFiles(spec.module, spec.example, spec.minimal)
 
 	for path, content := range files {
-		fullPath := filepath.Join(spec.absDir, path)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-			return initResult{err: fmt.Errorf("failed to create directory for %s: %w", path, err)}
-		}
-		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+		if err := writeGeneratedFile(spec.absDir, path, content); err != nil {
 			return initResult{err: fmt.Errorf("failed to write %s: %w", path, err)}
 		}
 		createdFiles = append(createdFiles, path)
@@ -208,20 +204,11 @@ func renderMainGo(module string, minimal bool) string {
 	if minimal {
 		tmplName = "main_minimal.go.templ"
 	}
-
-	result, err := executeTemplate(tmplName, map[string]any{"Module": module})
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate(tmplName, map[string]any{"Module": module})
 }
 
 func renderBootstrapGo(module string) string {
-	result, err := executeTemplate("bootstrap.go.templ", map[string]any{"Module": module})
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate("bootstrap.go.templ", map[string]any{"Module": module})
 }
 
 func renderConfigGo(minimal bool) string {
@@ -229,34 +216,17 @@ func renderConfigGo(minimal bool) string {
 	if minimal {
 		tmplName = "config_minimal.go.templ"
 	}
-
-	result, err := executeTemplate(tmplName, nil)
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate(tmplName, nil)
 }
 
 func renderGitignore() string {
-	result, err := executeTemplate("gitignore.templ", nil)
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate("gitignore.templ", nil)
 }
 
 func renderReadme(module string) string {
-	result, err := executeTemplate("readme.md.templ", map[string]any{"Module": module})
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate("readme.md.templ", map[string]any{"Module": module})
 }
 
 func renderHealthController() string {
-	result, err := executeTemplate("health_controller.go.templ", nil)
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
+	return renderTemplate("health_controller.go.templ", nil)
 }

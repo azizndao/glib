@@ -195,25 +195,45 @@ func extractPathParams(path string) []string {
 
 // isValidPathParamType checks if a type is valid for path parameters
 func isValidPathParamType(typeInfo *scanner.TypeInfo) bool {
-	// Primitives
-	if typeInfo.IsPrimitive {
-		validPrimitives := map[string]bool{
-			"string":  true,
-			"int":     true,
-			"int64":   true,
-			"int32":   true,
-			"uint":    true,
-			"uint64":  true,
-			"uint32":  true,
-			"float64": true,
-			"float32": true,
-			"bool":    true,
+	return isSupportedParamType(typeInfo, map[string]bool{
+		"string":  true,
+		"int":     true,
+		"int64":   true,
+		"int32":   true,
+		"uint":    true,
+		"uint64":  true,
+		"uint32":  true,
+		"float64": true,
+		"float32": true,
+		"bool":    true,
+	}, false, false, false, true)
+}
+
+func isSupportedParamType(typeInfo *scanner.TypeInfo, validPrimitives map[string]bool, allowStringSlice bool, allowTime bool, allowPointer bool, allowUUID bool) bool {
+	if typeInfo == nil {
+		return false
+	}
+
+	if typeInfo.IsPointer {
+		if !allowPointer {
+			return false
 		}
+		return validPrimitives[typeInfo.Name] || (allowUUID && typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID")
+	}
+
+	if typeInfo.IsSlice {
+		return allowStringSlice && typeInfo.Name == "string"
+	}
+
+	if typeInfo.IsPrimitive {
 		return validPrimitives[typeInfo.Name]
 	}
 
-	// Special types
-	if typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID" {
+	if allowUUID && typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID" {
+		return true
+	}
+
+	if allowTime && typeInfo.PackageName == "time" && typeInfo.Name == "Time" {
 		return true
 	}
 
@@ -245,45 +265,14 @@ func (v *Validator) validateQueryParams(handler *scanner.Handler, location strin
 
 // isValidQueryParamType checks if a type is valid for query parameters
 func isValidQueryParamType(typeInfo *scanner.TypeInfo) bool {
-	// Handle pointer types
-	actualType := typeInfo
-	if typeInfo.IsPointer {
-		// For pointers, we need to check the underlying type
-		// Just check if it's a primitive or UUID for now
-		// (We don't store underlying type in TypeInfo currently)
-		return typeInfo.IsPrimitive || (typeInfo.PackageName == "uuid" && typeInfo.Name == "UUID")
-	}
-
-	// Handle slice types (e.g., []string)
-	if typeInfo.IsSlice {
-		// For now, only support []string
-		return actualType.Name == "string"
-	}
-
-	// Primitives
-	if actualType.IsPrimitive {
-		validPrimitives := map[string]bool{
-			"string":  true,
-			"int":     true,
-			"int64":   true,
-			"uint64":  true,
-			"float64": true,
-			"bool":    true,
-		}
-		return validPrimitives[actualType.Name]
-	}
-
-	// UUID
-	if actualType.PackageName == "uuid" && actualType.Name == "UUID" {
-		return true
-	}
-
-	// time.Time (future support)
-	if actualType.PackageName == "time" && actualType.Name == "Time" {
-		return true
-	}
-
-	return false
+	return isSupportedParamType(typeInfo, map[string]bool{
+		"string":  true,
+		"int":     true,
+		"int64":   true,
+		"uint64":  true,
+		"float64": true,
+		"bool":    true,
+	}, true, true, true, true)
 }
 
 // validateHeaderParams validates header parameters in handler signature
@@ -311,11 +300,7 @@ func (v *Validator) validateHeaderParams(handler *scanner.Handler, location stri
 
 // isValidHeaderParamType checks if a type is valid for header parameters
 func isValidHeaderParamType(typeInfo *scanner.TypeInfo) bool {
-	// Headers are always strings or *string
-	if typeInfo.IsPointer {
-		return typeInfo.Name == "string"
-	}
-	return typeInfo.IsPrimitive && typeInfo.Name == "string"
+	return isSupportedParamType(typeInfo, map[string]bool{"string": true}, false, false, true, false)
 }
 
 // validateProvider validates a provider

@@ -55,3 +55,19 @@ func TestIsPrimitive(t *testing.T) {
 		})
 	}
 }
+
+func TestFileFilterSupportsRecursiveGlobPatterns(t *testing.T) {
+	filter := NewFileFilter("/repo", nil, []string{"**/*.go"}, []string{"**/*.gen.go"})
+
+	if !filter.ShouldIncludeFile("/repo/app/service.go") {
+		t.Fatal("expected nested Go file to match recursive include pattern")
+	}
+
+	if !filter.ShouldExcludeFile("/repo/app/service.gen.go") {
+		t.Fatal("expected generated Go file to match recursive exclude pattern")
+	}
+
+	if filter.ShouldProcessFile("/repo/app/service.gen.go") {
+		t.Fatal("expected generated Go file to be filtered out of processing")
+	}
+}

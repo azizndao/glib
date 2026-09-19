@@ -151,42 +151,35 @@ func prepareMakeMiddleware(name string, opts *makeOptions, cfg *glibConfig) make
 func executeMake(spec makeSpec) makeResult {
 	files := []string{}
 
-	// Create directory
 	if err := os.MkdirAll(spec.outputDir, 0o755); err != nil {
 		return makeResult{err: fmt.Errorf("failed to create directory: %w", err)}
 	}
 
+	writeFile := func(relPath, content string) error {
+		fullPath := filepath.Join(spec.outputDir, relPath)
+		if err := writeGeneratedFile(spec.outputDir, relPath, content); err != nil {
+			return err
+		}
+		files = append(files, fullPath)
+		return nil
+	}
+
 	switch spec.componentType {
 	case "controller":
-		controllerPath := filepath.Join(spec.outputDir, "controller.go")
-		controllerCode := renderController(spec.pkgName, spec.routePrefix, !spec.noExample)
-		if err := os.WriteFile(controllerPath, []byte(controllerCode), 0o644); err != nil {
+		if err := writeFile("controller.go", renderController(spec.pkgName, spec.routePrefix, !spec.noExample)); err != nil {
 			return makeResult{err: fmt.Errorf("failed to write controller: %w", err)}
 		}
-		files = append(files, controllerPath)
-
-		modelsPath := filepath.Join(spec.outputDir, "models.go")
-		modelsCode := renderModels(spec.pkgName, !spec.noExample)
-		if err := os.WriteFile(modelsPath, []byte(modelsCode), 0o644); err != nil {
+		if err := writeFile("models.go", renderModels(spec.pkgName, !spec.noExample)); err != nil {
 			return makeResult{err: fmt.Errorf("failed to write models: %w", err)}
 		}
-		files = append(files, modelsPath)
-
 	case "provider":
-		providerPath := filepath.Join(spec.outputDir, spec.name+".go")
-		providerCode := renderProvider(spec.name, !spec.noExample)
-		if err := os.WriteFile(providerPath, []byte(providerCode), 0o644); err != nil {
+		if err := writeFile(spec.name+".go", renderProvider(spec.name, !spec.noExample)); err != nil {
 			return makeResult{err: fmt.Errorf("failed to write provider: %w", err)}
 		}
-		files = append(files, providerPath)
-
 	case "middleware":
-		middlewarePath := filepath.Join(spec.outputDir, spec.name+".go")
-		middlewareCode := renderMiddleware(spec.name)
-		if err := os.WriteFile(middlewarePath, []byte(middlewareCode), 0o644); err != nil {
+		if err := writeFile(spec.name+".go", renderMiddleware(spec.name)); err != nil {
 			return makeResult{err: fmt.Errorf("failed to write middleware: %w", err)}
 		}
-		files = append(files, middlewarePath)
 	}
 
 	return makeResult{files: files}
@@ -232,19 +225,14 @@ func renderController(pkgName, routePrefix string, withExample bool) string {
 		tmplName = "controller_minimal.go.templ"
 	}
 
-	// Capitalize first letter for type names
 	caser := cases.Title(language.English)
 	typeName := caser.String(pkgName)
 
-	result, err := executeTemplate(tmplName, map[string]any{
+	return renderTemplate(tmplName, map[string]any{
 		"PkgName":     pkgName,
 		"RoutePrefix": routePrefix,
 		"TypeName":    typeName,
 	})
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
 }
 
 func renderModels(pkgName string, withExample bool) string {
@@ -255,18 +243,13 @@ func renderModels(pkgName string, withExample bool) string {
 `, pkgName)
 	}
 
-	// Capitalize first letter for type names
 	caser := cases.Title(language.English)
 	typeName := caser.String(pkgName)
 
-	result, err := executeTemplate("models.go.templ", map[string]any{
+	return renderTemplate("models.go.templ", map[string]any{
 		"PkgName":  pkgName,
 		"TypeName": typeName,
 	})
-	if err != nil {
-		panic(err) // Should never happen with valid templates
-	}
-	return result
 }
 
 func renderProvider(name string, withExample bool) string {
