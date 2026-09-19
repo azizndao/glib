@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -110,8 +111,8 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 			fmt.Fprintf(&b, "\thandler := http.Handler(http.HandlerFunc(app.controllers.%s.%s))\n\n", ctrlField, handler.Name)
 
 			// Apply middleware chain in reverse order (innermost first)
-			for i := len(middlewareChain) - 1; i >= 0; i-- {
-				mwFieldName := g.middlewareFieldName(middlewareChain[i])
+			for _, m := range slices.Backward(middlewareChain) {
+				mwFieldName := g.middlewareFieldName(m)
 				fmt.Fprintf(&b, "\thandler = app.middleware.%s(handler)\n", mwFieldName)
 			}
 
@@ -139,8 +140,8 @@ func (g *Generator) generateHandlerWrapper(ctrl *scanner.Controller, handler *sc
 		b.WriteString("\t}))\n\n")
 
 		// Apply middleware chain in reverse order (innermost first)
-		for i := len(middlewareChain) - 1; i >= 0; i-- {
-			mwFieldName := g.middlewareFieldName(middlewareChain[i])
+		for _, m := range slices.Backward(middlewareChain) {
+			mwFieldName := g.middlewareFieldName(m)
 			fmt.Fprintf(&b, "\thandler = app.middleware.%s(handler)\n", mwFieldName)
 		}
 

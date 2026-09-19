@@ -67,43 +67,35 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) (*LoginRespons
 	c.Auditor.LogAction("login attempt: " + req.Username)
 
 	// Find user by username
-	users, err := c.UserService.GetUsers()
+	user, err := c.UserService.GetByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
 
-	var foundUser *models.User
-	for _, user := range users {
-		if user.Username == req.Username {
-			foundUser = &user
-			break
-		}
-	}
-
-	if foundUser == nil {
+	if user == nil {
 		return nil, errs.NewUnauthorized().WithMessage("invalid credentials")
 	}
 
 	// Verify password
-	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
 		return nil, errs.NewUnauthorized().WithMessage("invalid credentials")
 	}
 
-	if !foundUser.Active {
+	if !user.Active {
 		return nil, errs.NewForbidden().WithMessage("account is inactive")
 	}
 
 	// Generate JWT token
-	token, err := c.JWTService.GenerateToken(foundUser.ID, foundUser.Username, foundUser.Email)
+	token, err := c.JWTService.GenerateToken(user.ID, user.Username, user.Email)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Auditor.LogAction("user logged in: " + foundUser.Username)
+	c.Auditor.LogAction("user logged in: " + user.Username)
 
 	response := &LoginResponse{
-		User:  toUserResponse(foundUser),
+		User:  toUserResponse(user),
 		Token: token,
 	}
 

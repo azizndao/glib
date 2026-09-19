@@ -1,6 +1,7 @@
 package errs
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -57,7 +58,8 @@ func (b *Builder) Details(det ErrDetails) *Builder {
 // Cause sets the underlying error cause.
 func (b *Builder) Cause(err error) *Builder {
 	b.err = err
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		if !b.codeSet {
 			b.code = e.Code
 		}

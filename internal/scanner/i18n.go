@@ -39,7 +39,7 @@ type TranslationParam struct {
 // FormatVerbRegex matches Go format verbs
 // Supports: %v, %T, %t, %b, %c, %d, %o, %O, %q, %x, %X, %U, %e, %E, %f, %F, %g, %G, %s, %p
 // With optional: [flags] [width] [.precision]
-var FormatVerbRegex = regexp.MustCompile(`%(?:\[\d+\])?(?:[-+# 0])?(?:\*|\d+)?(?:\.(?:\*|\d+))?[vTtbcdoOqxXUeEfFgGsp]`)
+var FormatVerbRegex = regexp.MustCompile(`%(?:\[\d+])?[-+# 0]?(?:\*|\d+)?(?:\.(?:\*|\d+))?[vTtbcdoOqxXUeEfFgGsp]`)
 
 // ScanLocales scans all locale TOML files in a directory
 func ScanLocales(localesDir string) ([]*LocaleFile, error) {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"glib/demo/models"
 
 	"github.com/google/uuid"
@@ -20,6 +21,10 @@ func (s *UserSerivce) GetUser(id uuid.UUID) (*models.User, error) {
 	var user models.User
 	err := s.db.First(&user, "id = ?", id).Error
 	return &user, err
+}
+
+func (s *UserSerivce) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+	return gorm.G[*models.User](s.db).Where(models.User{Username: username}).First(ctx)
 }
 
 func (s *UserSerivce) GetUsers() ([]models.User, error) {

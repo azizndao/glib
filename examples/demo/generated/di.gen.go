@@ -106,7 +106,7 @@ func (c *App) initProviders(ctx context.Context) error {
 	c.AuditorFactory = func() *services.Auditor {
 		return services.NewAuditor(c.UserSerivce)
 	}
-	c.Database, err = services.NewDatabase()
+	c.Database, err = services.NewDatabase(c.Config)
 	if err != nil {
 		return fmt.Errorf("failed to initialize NewDatabase: %w", err)
 	}

@@ -52,6 +52,11 @@ func NewWithValidationAndI18n(project *scanner.Project, outputDir, pkgName strin
 	}
 }
 
+type toBeGenerated struct {
+	name      string
+	generator func() (string, error)
+}
+
 // Generate generates all code files
 func (g *Generator) Generate() error {
 	// Validate field name uniqueness before generating
@@ -65,10 +70,7 @@ func (g *Generator) Generate() error {
 	}
 
 	// Generate files
-	files := []struct {
-		name      string
-		generator func() (string, error)
-	}{
+	files := []toBeGenerated{
 		{"di.gen.go", g.generateDI},
 		{"routes.gen.go", g.generateRoutes},
 		{"parsers.gen.go", g.generateParsers},
@@ -76,18 +78,12 @@ func (g *Generator) Generate() error {
 
 	// Add validator only if validation is enabled
 	if g.validationCfg.Enabled {
-		files = append([]struct {
-			name      string
-			generator func() (string, error)
-		}{{"validator.gen.go", g.generateValidator}}, files...)
+		files = append([]toBeGenerated{{"validator.gen.go", g.generateValidator}}, files...)
 	}
 
 	// Add config loader to generated files if Configs exist
 	if len(g.project.Configs) > 0 {
-		files = append(files, struct {
-			name      string
-			generator func() (string, error)
-		}{"config.gen.go", g.generateConfigLoader})
+		files = append(files, toBeGenerated{"config.gen.go", g.generateConfigLoader})
 	}
 
 	// Add i18n generator if enabled and locale files exist

@@ -19,7 +19,7 @@ include_files = ["*.go", "*.toml"]
 exclude_files = ["*_test.go", "*.gen.go"]
 
 [validation]
-enabled = false
+enabled = true
 languages = ["fr", "en"]
 default_language = "fr"
 

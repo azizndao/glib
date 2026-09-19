@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,19 +16,18 @@ import (
 
 // CodegenOptions holds all options for code generation pipeline
 type CodegenOptions struct {
-	ProjectDir   string   // Project root directory
-	OutputDir    string   // Output directory for generated code
-	PackageName  string   // Package name for generated code
-	Workers      int      // Number of parallel workers (0 = disable parallel)
-	NoCache      bool     // Disable all caching
-	Verbose      bool     // Show detailed statistics
-	ClearCache   bool     // Clear cache before generation
-	ChangedFiles []string // Files that changed (nil = full scan, non-nil = incremental)
-	ShowProgress bool     // Show streaming progress (for verbose generate)
+	ProjectDir   string
+	OutputDir    string
+	PackageName  string
+	Workers      int // Number of parallel workers (0 = disable parallel)
+	NoCache      bool
+	Verbose      bool
+	ClearCache   bool
+	ChangedFiles []string
+	ShowProgress bool
 }
 
 // PerformCodeGeneration runs the complete code generation pipeline
-// Consolidates logic from dev.go performGeneration() and generate.go runGenerateSimple()
 func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 	start := time.Now()
 
@@ -48,7 +48,6 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		pkgName = "generated"
 	}
 
-	// Configure scanner options
 	var scanOpts []scanner.ScannerOption
 
 	// Enable caching unless explicitly disabled
@@ -72,6 +71,7 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 	if len(cfg.Watch.ExcludeDirs) > 0 {
 		scanOpts = append(scanOpts, scanner.WithExcludeDirs(cfg.Watch.ExcludeDirs))
 	}
+
 	// Note: We don't pass include_files to scanner because it always scans *.go files
 	// The watch config's include_files is for file watching (e.g., *.toml for locale changes)
 	if len(cfg.Watch.ExcludeFiles) > 0 {
@@ -144,7 +144,8 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 		cacheDir := filepath.Join(opts.ProjectDir, ".glib", "cache")
 		incVal := validator.NewIncrementalValidator(cacheDir)
 		if err := incVal.ValidateIncremental(project); err != nil {
-			if validationErr, ok := err.(*validator.ValidationErrors); ok {
+			var validationErr *validator.ValidationErrors
+			if errors.As(err, &validationErr) {
 				for _, verr := range validationErr.Errors {
 					fmt.Printf("  %s %s\n", ui.IconBullet, verr.Message)
 				}
@@ -224,7 +225,6 @@ func PerformCodeGeneration(cfg *glibConfig, opts *CodegenOptions) error {
 }
 
 // FormatGeneratedCode runs goimports and gofmt on generated files
-// Moved from generate.go to be shared between commands
 func FormatGeneratedCode(outputDir string, verbose bool) error {
 	// Find all .gen.go files in output directory
 	pattern := filepath.Join(outputDir, "*.gen.go")
@@ -243,11 +243,11 @@ func FormatGeneratedCode(outputDir string, verbose bool) error {
 
 	// Try goimports first (removes unused imports and formats)
 	if err := runGoImports(files, verbose); err != nil {
-		// Fall back to gofmt if goimports is not available
-		if verbose {
-			fmt.Println(ui.Warningf("goimports not found, using gofmt only"))
-		}
-		return runGoFmt(files, verbose)
+		return printInstallationGuide("goimports")
+	}
+
+	if err := runGoFmt(files, verbose); err != nil {
+		return printInstallationGuide("gofmt")
 	}
 
 	return nil
@@ -277,4 +277,10 @@ func runGoFmt(files []string, verbose bool) error {
 	}
 
 	return cmd.Run()
+}
+
+func printInstallationGuide(tool string) error {
+	fmt.Println(ui.Warningf("failed to find %s, please install it first", tool))
+	fmt.Println(ui.Infof("run `go install golang.org/x/tools/cmd/%s@latest` to install", tool))
+	return nil
 }
