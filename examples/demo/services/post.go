@@ -1,10 +1,11 @@
 package services
 
 import (
+	"context"
 	"glib/demo/models"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -18,19 +19,26 @@ func NewPostSerivce(db *gorm.DB, auditor *Auditor) *PostSerivce {
 	return &PostSerivce{db: db, auditor: *auditor}
 }
 
-func (s *PostSerivce) GetPost(id uuid.UUID) (*models.Post, error) {
-	var post models.Post
-	err := s.db.Preload("Author").Preload("Comments").First(&post, "id = ?", id).Error
-	return &post, err
+func (s *PostSerivce) GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
+	return gorm.G[*models.Post](s.db).Preload("Author", nil).Preload("Comments", nil).First(ctx)
 }
 
-func (s *PostSerivce) GetPosts() ([]models.Post, error) {
-	var posts []models.Post
-	err := s.db.Preload("Author").Order("created_at DESC").Find(&posts).Error
-	return posts, err
+type PostPaginationParams struct {
+	Page    int    `query:"page" validate:"required,min=1"`
+	PerPage int    `query:"per_page" validate:"required,min=1,max=100"`
+	Sort    string `query:"sort" validate:"omitempty,oneof=asc desc"`
 }
 
-func (s *PostSerivce) SearchPosts(page, limit int, query *string, tags []string) ([]models.Post, error) {
+func (s *PostSerivce) GetPosts(ctx context.Context, page int, perPage int) ([]models.Post, error) {
+	return gorm.G[models.Post](s.db).
+		Preload("Author", nil).
+		Order("created_at DESC").
+		Limit(perPage).
+		Offset(perPage * (page - 1)).
+		Find(ctx)
+}
+
+func (s *PostSerivce) SearchPosts(ctx context.Context, page, limit int, query *string, tags []string) ([]models.Post, error) {
 	var posts []models.Post
 	db := s.db.Preload("Author")
 
@@ -56,18 +64,18 @@ func (s *PostSerivce) SearchPosts(page, limit int, query *string, tags []string)
 	return posts, err
 }
 
-func (s *PostSerivce) CreatePost(post *models.Post) error {
+func (s *PostSerivce) CreatePost(ctx context.Context, post *models.Post) error {
 	if post.Slug == "" {
 		post.Slug = generateSlug(post.Title)
 	}
 	return s.db.Create(post).Error
 }
 
-func (s *PostSerivce) UpdatePost(post *models.Post) error {
+func (s *PostSerivce) UpdatePost(ctx context.Context, post *models.Post) error {
 	return s.db.Save(post).Error
 }
 
-func (s *PostSerivce) DeletePost(id uuid.UUID) error {
+func (s *PostSerivce) DeletePost(ctx context.Context, id uuid.UUID) error {
 	return s.db.Delete(&models.Post{}, "id = ?", id).Error
 }
 

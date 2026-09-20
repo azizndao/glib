@@ -19,7 +19,6 @@ func Bootstrap(ctx context.Context) (*http.Server, error) {
 
 	// Apply default middleware to app router
 	app.Router.Use(middleware.RequestID)
-	app.Router.Use(middleware.RealIP)
 	app.Router.Use(middleware.Logger)
 	app.Router.Use(middleware.Recoverer)
 	app.Router.Use(middleware.Timeout(60 * time.Second))

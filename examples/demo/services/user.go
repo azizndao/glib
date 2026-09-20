@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 	"glib/demo/models"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -17,14 +17,18 @@ func NewUserSerivce(db *gorm.DB) *UserSerivce {
 	return &UserSerivce{db: db}
 }
 
+func (s *UserSerivce) users() gorm.Interface[models.User] {
+	return gorm.G[models.User](s.db)
+}
+
 func (s *UserSerivce) GetUser(id uuid.UUID) (*models.User, error) {
 	var user models.User
 	err := s.db.First(&user, "id = ?", id).Error
 	return &user, err
 }
 
-func (s *UserSerivce) GetByUsername(ctx context.Context, username string) (*models.User, error) {
-	return gorm.G[*models.User](s.db).Where(models.User{Username: username}).First(ctx)
+func (s *UserSerivce) GetByUsername(ctx context.Context, username string) (models.User, error) {
+	return s.users().Where(models.User{Username: username}).First(ctx)
 }
 
 func (s *UserSerivce) GetUsers() ([]models.User, error) {
@@ -33,32 +37,25 @@ func (s *UserSerivce) GetUsers() ([]models.User, error) {
 	return users, err
 }
 
-func (s *UserSerivce) CreateUser(user *models.User) error {
-	return s.db.Create(user).Error
+func (s *UserSerivce) CreateUser(ctx context.Context, user *models.User) error {
+	return s.users().Create(ctx, user)
 }
 
-func (s *UserSerivce) UpdateUser(id uuid.UUID, user *models.User) (*models.User, error) {
-	// Use Updates with a map to update specific fields
-	updates := map[string]any{
-		"first_name": user.FirstName,
-		"last_name":  user.LastName,
-		"bio":        user.Bio,
-		"active":     user.Active,
-	}
-
-	if err := s.db.Model(&models.User{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+func (s *UserSerivce) UpdateUser(ctx context.Context, id uuid.UUID, user *models.User) (*models.User, error) {
+	if _, err := s.users().Where("id = ?", id).Updates(ctx, *user); err != nil {
 		return nil, err
 	}
 
 	// Fetch the updated user
-	var updated models.User
-	if err := s.db.First(&updated, "id = ?", id).Error; err != nil {
+	updated, err := s.users().Where("id = ?", id).First(ctx)
+	if err != nil {
 		return nil, err
 	}
 
 	return &updated, nil
 }
 
-func (s *UserSerivce) DeleteUser(id uuid.UUID) error {
-	return s.db.Delete(&models.User{}, "id = ?", id).Error
+func (s *UserSerivce) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := s.users().Where("id = ?", id).Delete(ctx)
+	return err
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Test soft-parse functions (used for query/header parameters)
@@ -136,9 +136,9 @@ func TestParseUUIDOrNil(t *testing.T) {
 		want  uuid.UUID
 	}{
 		{"valid uuid", validUUID, parsed},
-		{"invalid uuid returns Nil", "not-a-uuid", uuid.Nil},
-		{"empty string returns Nil", "", uuid.Nil},
-		{"partial uuid returns Nil", "550e8400", uuid.Nil},
+		{"invalid uuid returns Nil", "not-a-uuid", uuid.Nil()},
+		{"empty string returns Nil", "", uuid.Nil()},
+		{"partial uuid returns Nil", "550e8400", uuid.Nil()},
 	}
 
 	for _, tt := range tests {

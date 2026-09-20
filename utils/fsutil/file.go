@@ -11,7 +11,7 @@ import (
 
 	pathutil "path"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // marshalCache temporarily stores files' `*multipart.FileHeader`. This type
@@ -46,10 +46,7 @@ type marshaledFile struct {
 
 // MarshalJSON implementation of `json.Marhsaler`.
 func (file File) MarshalJSON() ([]byte, error) {
-	headerUID, err := uuid.NewUUID()
-	if err != nil {
-		return nil, err
-	}
+	headerUID := uuid.New()
 
 	uidStr := headerUID.String()
 	cacheMu.Lock()

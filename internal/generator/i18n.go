@@ -45,6 +45,27 @@ type I18nMethod struct {
 	Comment  string                      // Generated documentation
 }
 
+type i18nTemplateNode struct {
+	Name       string
+	StructName string
+	Children   []i18nTemplateNode
+}
+
+type i18nTemplateMethod struct {
+	Name       string
+	Key        string
+	Comment    string
+	Params     []*scanner.TranslationParam
+	StructName string
+}
+
+type i18nTemplateSection struct {
+	StructName string
+	PathString string
+	Children   []i18nTemplateNode
+	Methods    []i18nTemplateMethod
+}
+
 // NewI18nGenerator creates a new i18n generator
 func NewI18nGenerator(project *scanner.Project, pkgName string, config I18nConfig) *I18nGenerator {
 	return &I18nGenerator{
@@ -102,40 +123,15 @@ func (g *I18nGenerator) Generate() (map[string]string, error) {
 	return files, nil
 }
 
-// prepareTemplateData prepares data for the i18n template
+// prepareTemplateData prepares data for the i18n template.
+// The payload is intentionally still a map for template execution, but the nested values
+// use concrete structs rather than raw map[string]any whenever possible.
 func (g *I18nGenerator) prepareTemplateData(structure *I18nSection) map[string]any {
-	// Collect all sections (flatten the tree for template)
-	var sections []map[string]any
+	sections := make([]i18nTemplateSection, 0)
 	g.collectSections(structure, &sections)
 
-	// Collect root children and sort alphabetically
-	childNames := make([]string, 0, len(structure.Children))
-	for name := range structure.Children {
-		childNames = append(childNames, name)
-	}
-	sort.Strings(childNames)
-
-	var rootChildren []map[string]any
-	for _, name := range childNames {
-		child := structure.Children[name]
-		rootChildren = append(rootChildren, map[string]any{
-			"Name":       child.Name,
-			"StructName": child.StructName,
-			"Children":   g.getChildrenData(child),
-		})
-	}
-
-	// Check detection sources
-	hasQuery := false
-	hasHeader := false
-	for _, source := range g.config.DetectFrom {
-		if source == "query" {
-			hasQuery = true
-		}
-		if source == "header" {
-			hasHeader = true
-		}
-	}
+	rootChildren := g.rootChildrenData(structure)
+	hasQuery, hasHeader := g.detectFromSources()
 
 	return map[string]any{
 		"RootChildren":       rootChildren,
@@ -150,44 +146,7 @@ func (g *I18nGenerator) prepareTemplateData(structure *I18nSection) map[string]a
 
 // generateMainFile generates the main translator.go file
 func (g *I18nGenerator) generateMainFile(structure *I18nSection) (string, error) {
-	// Collect root children and sort alphabetically
-	childNames := make([]string, 0, len(structure.Children))
-	for name := range structure.Children {
-		childNames = append(childNames, name)
-	}
-	sort.Strings(childNames)
-
-	var rootChildren []map[string]any
-	for _, name := range childNames {
-		child := structure.Children[name]
-		rootChildren = append(rootChildren, map[string]any{
-			"Name":       child.Name,
-			"StructName": child.StructName,
-			"Children":   g.getChildrenData(child),
-		})
-	}
-
-	// Check detection sources
-	hasQuery := false
-	hasHeader := false
-	for _, source := range g.config.DetectFrom {
-		if source == "query" {
-			hasQuery = true
-		}
-		if source == "header" {
-			hasHeader = true
-		}
-	}
-
-	data := map[string]any{
-		"RootChildren":       rootChildren,
-		"HasQueryDetection":  hasQuery,
-		"HasHeaderDetection": hasHeader,
-		"QueryParam":         g.config.QueryParam,
-		"SupportedLocales":   g.config.SupportedLocales,
-		"DefaultLocale":      g.config.DefaultLocale,
-	}
-
+	data := g.prepareTemplateData(structure)
 	gen := &Generator{
 		project: g.project,
 		pkgName: "i18n",
@@ -198,15 +157,14 @@ func (g *I18nGenerator) generateMainFile(structure *I18nSection) (string, error)
 
 // generateSectionFile generates a file for a specific section
 func (g *I18nGenerator) generateSectionFile(section *I18nSection) (string, error) {
-	// Collect all sections in this tree
-	var sections []map[string]any
+	sections := make([]i18nTemplateSection, 0)
 	g.collectSections(section, &sections)
 
 	data := map[string]any{
-		"RootSection": map[string]any{
-			"Name":       section.Name,
-			"StructName": section.StructName,
-			"Children":   g.getChildrenData(section),
+		"RootSection": i18nTemplateNode{
+			Name:       section.Name,
+			StructName: section.StructName,
+			Children:   g.getChildrenData(section),
 		},
 		"Sections": sections,
 	}
@@ -219,86 +177,84 @@ func (g *I18nGenerator) generateSectionFile(section *I18nSection) (string, error
 	return gen.executeTemplate("i18n_section.templ", data)
 }
 
-// getChildrenData extracts children data for template
-func (g *I18nGenerator) getChildrenData(section *I18nSection) []map[string]any {
-	// Sort children alphabetically
-	childNames := make([]string, 0, len(section.Children))
+func (g *I18nGenerator) sortedSectionNames(section *I18nSection) []string {
+	names := make([]string, 0, len(section.Children))
 	for name := range section.Children {
-		childNames = append(childNames, name)
+		names = append(names, name)
 	}
-	sort.Strings(childNames)
+	sort.Strings(names)
+	return names
+}
 
-	var children []map[string]any
-	for _, name := range childNames {
+func (g *I18nGenerator) rootChildrenData(section *I18nSection) []i18nTemplateNode {
+	rootChildren := make([]i18nTemplateNode, 0, len(section.Children))
+	for _, name := range g.sortedSectionNames(section) {
 		child := section.Children[name]
-		children = append(children, map[string]any{
-			"Name":       child.Name,
-			"StructName": child.StructName,
+		rootChildren = append(rootChildren, i18nTemplateNode{
+			Name:       child.Name,
+			StructName: child.StructName,
+			Children:   g.getChildrenData(child),
+		})
+	}
+	return rootChildren
+}
+
+func (g *I18nGenerator) detectFromSources() (bool, bool) {
+	hasQuery := false
+	hasHeader := false
+	for _, source := range g.config.DetectFrom {
+		if source == "query" {
+			hasQuery = true
+		}
+		if source == "header" {
+			hasHeader = true
+		}
+	}
+	return hasQuery, hasHeader
+}
+
+// getChildrenData extracts children data for template
+func (g *I18nGenerator) getChildrenData(section *I18nSection) []i18nTemplateNode {
+	children := make([]i18nTemplateNode, 0, len(section.Children))
+	for _, name := range g.sortedSectionNames(section) {
+		child := section.Children[name]
+		children = append(children, i18nTemplateNode{
+			Name:       child.Name,
+			StructName: child.StructName,
 		})
 	}
 	return children
 }
 
 // collectSections recursively collects all sections for template
-func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]map[string]any) {
+func (g *I18nGenerator) collectSections(section *I18nSection, sections *[]i18nTemplateSection) {
 	// Skip root
 	if section.Parent == nil {
-		// Sort children alphabetically
-		childNames := make([]string, 0, len(section.Children))
-		for name := range section.Children {
-			childNames = append(childNames, name)
-		}
-		sort.Strings(childNames)
-
-		for _, name := range childNames {
+		for _, name := range g.sortedSectionNames(section) {
 			g.collectSections(section.Children[name], sections)
 		}
 		return
 	}
 
-	// Prepare methods data
-	var methods []map[string]any
+	methods := make([]i18nTemplateMethod, 0, len(section.Methods))
 	for _, method := range section.Methods {
-		methods = append(methods, map[string]any{
-			"Name":       method.Name,
-			"Key":        method.Key,
-			"Comment":    method.Comment,
-			"Params":     method.Params,
-			"StructName": section.StructName, // Add struct name to each method
+		methods = append(methods, i18nTemplateMethod{
+			Name:       method.Name,
+			Key:        method.Key,
+			Comment:    method.Comment,
+			Params:     method.Params,
+			StructName: section.StructName,
 		})
 	}
 
-	// Prepare children data - sort alphabetically
-	childNames2 := make([]string, 0, len(section.Children))
-	for name := range section.Children {
-		childNames2 = append(childNames2, name)
-	}
-	sort.Strings(childNames2)
-
-	var children []map[string]any
-	for _, name := range childNames2 {
-		child := section.Children[name]
-		children = append(children, map[string]any{
-			"Name":       child.Name,
-			"StructName": child.StructName,
-		})
-	}
-
-	*sections = append(*sections, map[string]any{
-		"StructName": section.StructName,
-		"PathString": strings.Join(section.Path, "."),
-		"Children":   children,
-		"Methods":    methods,
+	*sections = append(*sections, i18nTemplateSection{
+		StructName: section.StructName,
+		PathString: strings.Join(section.Path, "."),
+		Children:   g.getChildrenData(section),
+		Methods:    methods,
 	})
 
-	// Recursively collect children (sorted)
-	childNames := make([]string, 0, len(section.Children))
-	for name := range section.Children {
-		childNames = append(childNames, name)
-	}
-	sort.Strings(childNames)
-
-	for _, name := range childNames {
+	for _, name := range g.sortedSectionNames(section) {
 		g.collectSections(section.Children[name], sections)
 	}
 }

@@ -28,7 +28,7 @@ import (
     "context"
     "errors"
 
-    "github.com/google/uuid"
+    "uuid"
     "gorm.io/gorm"
 
     "github.com/azizndao/glib/errs"
@@ -241,7 +241,7 @@ package orders
 
 import (
     "context"
-    "github.com/google/uuid"
+    "uuid"
 )
 
 type OrderCreatedResponse struct {
@@ -332,7 +332,7 @@ import (
     "context"
     "glib/demo/generated/i18n"
     "github.com/azizndao/glib/errs"
-    "github.com/google/uuid"
+    "uuid"
 )
 
 // @Controller path=/api/v1/users

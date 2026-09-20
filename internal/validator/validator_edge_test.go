@@ -100,7 +100,7 @@ func TestValidator_EdgeCases(t *testing.T) {
 		valid := isValidPathParamType(&scanner.TypeInfo{
 			Name:        "UUID",
 			PackageName: "uuid",
-			FullName:    "github.com/google/uuid.UUID",
+			FullName:    "uuid.UUID",
 		})
 		if !valid {
 			t.Error("UUID should be valid path parameter type")

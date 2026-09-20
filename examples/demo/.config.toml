@@ -21,7 +21,7 @@ exclude_files = ["*_test.go", "*.gen.go"]
 [validation]
 enabled = true
 languages = ["fr", "en"]
-default_language = "fr"
+default_language = "en"
 
 [i18n]
 enabled = true

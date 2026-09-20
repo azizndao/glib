@@ -185,9 +185,10 @@ func (g *Generator) generateValidator() (string, error) {
 
 	// Prepare template data
 	data := map[string]any{
-		"PackageName":     g.pkgName,
-		"Languages":       languages,
-		"DefaultLanguage": defaultLang,
+		"PackageName":         g.pkgName,
+		"Languages":           languages,
+		"DefaultLanguage":     defaultLang,
+		"LocaleQueryParamKey": g.i18nCfg.QueryParam,
 	}
 
 	return g.executeTemplate("validator.templ", data)

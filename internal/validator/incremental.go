@@ -36,16 +36,10 @@ func NewIncrementalValidator(cacheDir string) *IncrementalValidator {
 
 // ValidateIncremental validates the project, using cached results when possible
 func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) error {
-	// Track which components need validation
-	needsValidation := make(map[string]bool)
-	componentMap := make(map[string]any)
-
 	// Check all providers
 	for _, provider := range project.Providers {
 		id := componentID("provider", provider.PackagePath, provider.Name)
 		hash, deps := computeComponentHash(provider, project)
-
-		componentMap[id] = provider
 
 		// Check cache
 		iv.stats.ComponentsValidated++
@@ -57,7 +51,6 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		} else {
 			// Needs validation
 			iv.stats.CacheMisses++
-			needsValidation[id] = true
 
 			// If dependency changed, invalidate cache
 			iv.cache.Invalidate(id)
@@ -82,8 +75,6 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		id := componentID("controller", controller.PackagePath, controller.Name)
 		hash, deps := computeComponentHash(controller, project)
 
-		componentMap[id] = controller
-
 		iv.stats.ComponentsValidated++
 		if cached, ok := iv.cache.Get(id, hash); ok {
 			// Use cached validation
@@ -92,7 +83,6 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 			iv.validator.warnings = append(iv.validator.warnings, cached.Warnings...)
 		} else {
 			iv.stats.CacheMisses++
-			needsValidation[id] = true
 			iv.cache.Invalidate(id)
 
 			// Validate this controller
@@ -115,8 +105,6 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 		id := componentID("middleware", middleware.PackagePath, middleware.Name)
 		hash, deps := computeComponentHash(middleware, project)
 
-		componentMap[id] = middleware
-
 		iv.stats.ComponentsValidated++
 		if cached, ok := iv.cache.Get(id, hash); ok {
 			// Use cached validation
@@ -125,7 +113,6 @@ func (iv *IncrementalValidator) ValidateIncremental(project *scanner.Project) er
 			iv.validator.warnings = append(iv.validator.warnings, cached.Warnings...)
 		} else {
 			iv.stats.CacheMisses++
-			needsValidation[id] = true
 			iv.cache.Invalidate(id)
 
 			// Validate this middleware

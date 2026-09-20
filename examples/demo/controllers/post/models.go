@@ -1,6 +1,6 @@
 package post
 
-import "github.com/google/uuid"
+import "uuid"
 
 type CreatePostRequest struct {
 	Title     string    `json:"title" validate:"required,min=3,max=200"`

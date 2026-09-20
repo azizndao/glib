@@ -9,6 +9,26 @@ import (
 	"github.com/azizndao/glib/internal/scanner"
 )
 
+type configFieldTemplateData struct {
+	Name         string
+	ParentPath   string
+	Type         *scanner.TypeInfo
+	EnvName      string
+	DefaultValue string
+	Required     bool
+	IsNested     bool
+	Fields       []configFieldTemplateData
+}
+
+type configTemplateData struct {
+	ConfigPackageName string
+	ConfigName        string
+	FunctionName      string
+	Fields            []configFieldTemplateData
+	NeedsErrorVar     bool
+	HasRequiredFields bool
+}
+
 // ConfigGenerator generates configuration loader code
 type ConfigGenerator struct {
 	project       *scanner.Project
@@ -28,17 +48,7 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 		return "", nil
 	}
 
-	// Collect all configs with their processed data
-	type configData struct {
-		ConfigPackageName string
-		ConfigName        string
-		FunctionName      string
-		Fields            []map[string]any
-		NeedsErrorVar     bool
-		HasRequiredFields bool
-	}
-
-	var configs []configData
+	var configs []configTemplateData
 	needsTime := false
 	needsURL := false
 
@@ -58,7 +68,10 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 		hasRequiredFields := false
 
 		for _, field := range fields {
-			typeInfo := field["Type"].(*scanner.TypeInfo)
+			typeInfo := field.Type
+			if typeInfo == nil {
+				continue
+			}
 
 			// Check for special imports
 			if typeInfo.FullName == "time.Duration" {
@@ -73,13 +86,12 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 				needsErrorVar = true
 			}
 
-			// Check if any field is required
-			if required, ok := field["Required"].(bool); ok && required {
+			if field.Required {
 				hasRequiredFields = true
 			}
 		}
 
-		configs = append(configs, configData{
+		configs = append(configs, configTemplateData{
 			ConfigPackageName: cfg.PackageName,
 			ConfigName:        cfg.Name,
 			FunctionName:      "load" + cfg.Name,
@@ -106,25 +118,27 @@ func (g *ConfigGenerator) GenerateConfigLoaderForPackage(configPackagePath strin
 }
 
 // flattenFields recursively flattens nested config fields
-func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPath string) []map[string]any {
-	var result []map[string]any
+func (g *ConfigGenerator) flattenFields(fields []*scanner.ConfigField, parentPath string) []configFieldTemplateData {
+	result := make([]configFieldTemplateData, 0, len(fields))
 
 	for _, field := range fields {
 		if field.IsNested && len(field.Fields) > 0 {
 			// Recursively flatten nested fields
 			nestedPath := parentPath + field.Name + "."
 			result = append(result, g.flattenFields(field.Fields, nestedPath)...)
-		} else {
-			// Add leaf field
-			result = append(result, map[string]any{
-				"Name":         field.Name,
-				"ParentPath":   parentPath,
-				"Type":         field.Type,
-				"EnvName":      field.EnvName,
-				"DefaultValue": field.DefaultValue,
-				"Required":     field.Required,
-			})
+			continue
 		}
+
+		result = append(result, configFieldTemplateData{
+			Name:         field.Name,
+			ParentPath:   parentPath,
+			Type:         field.Type,
+			EnvName:      field.EnvName,
+			DefaultValue: field.DefaultValue,
+			Required:     field.Required,
+			IsNested:     field.IsNested,
+			Fields:       nil,
+		})
 	}
 
 	return result

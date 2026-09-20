@@ -4,8 +4,7 @@
 {{- if not .Handler.Signature.RequestType}}
 
 		// Validate query/header parameters with language detection and section "query"
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
 			glib.WriteError(w, err)
 			return

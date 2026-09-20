@@ -25,7 +25,7 @@ var SupportedLocales = []string{"en", "fr"}
 // contextKey is the type for context keys to avoid collisions
 type contextKey string
 
-const localeContextKey contextKey = "locale"
+const LocaleContextKey contextKey = "locale"
 
 // Locale represents a loaded translation locale
 type Locale struct {
@@ -141,7 +141,7 @@ func flattenMap(m map[string]any, prefix string) map[string]string {
 
 // detectLocaleFromContext extracts locale from request context
 func detectLocaleFromContext(ctx context.Context, defaultLocale string) string {
-	if locale, ok := ctx.Value(localeContextKey).(string); ok {
+	if locale, ok := ctx.Value(LocaleContextKey).(string); ok {
 		return locale
 	}
 	return defaultLocale
@@ -149,7 +149,7 @@ func detectLocaleFromContext(ctx context.Context, defaultLocale string) string {
 
 // WithLocale returns a new context with the specified locale
 func WithLocale(ctx context.Context, locale string) context.Context {
-	return context.WithValue(ctx, localeContextKey, locale)
+	return context.WithValue(ctx, LocaleContextKey, locale)
 }
 
 // Middleware returns a middleware that detects locale from request and adds to context
@@ -157,43 +157,17 @@ func (t *Translator) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			locale := t.defaultLocale
-			// Try query parameter (?lng=fr)
+			// try to get first Accept-Language header
+			if detected := parsers.DetectLanguage(r.Header.Get("Accept-Language"), t.defaultLocale); slices.Contains(t.supportedLocales, detected) {
+				locale = detected
+			}
+			// And then query parameter (?lng=fr) because the query param lng is priotory
 			if lang := r.URL.Query().Get("lng"); lang != "" && slices.Contains(t.supportedLocales, lang) {
 				locale = lang
 			}
-			// Fallback to Accept-Language header
-			if locale == t.defaultLocale {
-				if detected := parsers.DetectLanguage(r.Header.Get("Accept-Language"), t.defaultLocale); slices.Contains(t.supportedLocales, detected) {
-					locale = detected
-				}
-			}
 
 			// Add locale to context
-			ctx := context.WithValue(r.Context(), localeContextKey, locale)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-// LocaleDetectorMiddleware extracts locale from request and adds to context
-// Deprecated: Use translator.Middleware() instead
-func LocaleDetectorMiddleware(defaultLocale string, supported []string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			locale := defaultLocale
-			// Try query parameter (?lng=fr)
-			if lang := r.URL.Query().Get("lng"); lang != "" && slices.Contains(supported, lang) {
-				locale = lang
-			}
-			// Fallback to Accept-Language header
-			if locale == defaultLocale {
-				if detected := parsers.DetectLanguage(r.Header.Get("Accept-Language"), defaultLocale); slices.Contains(supported, detected) {
-					locale = detected
-				}
-			}
-
-			// Add locale to context
-			ctx := context.WithValue(r.Context(), localeContextKey, locale)
+			ctx := context.WithValue(r.Context(), LocaleContextKey, locale)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

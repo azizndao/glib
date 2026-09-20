@@ -20,7 +20,7 @@ A complete reference implementation demonstrating Glib's annotation-based code g
 
 ## 📋 Prerequisites
 
-- **Go 1.22+**
+- **Go 1.27+**
 - **Glib CLI** (built from the repository root)
 
 ---

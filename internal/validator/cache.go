@@ -18,12 +18,12 @@ type ValidationCache struct {
 
 // CachedValidation stores validation results for a component
 type CachedValidation struct {
-	ComponentID   string             // Unique ID for this component
-	ComponentType string             // "provider", "controller", "middleware"
-	Hash          string             // Hash of component + dependencies
-	Errors        []*ValidationError // Validation errors found
-	Warnings      []*ValidationError // Validation warnings found
-	Dependencies  []string           // IDs of components this depends on
+	ComponentID   string // Unique ID for this component
+	ComponentType string // "provider", "controller", "middleware"
+	Hash          string // Hash of component + dependencies
+	Errors        []*ValidationError
+	Warnings      []*ValidationError
+	Dependencies  []string // IDs of components this depends on
 }
 
 // NewValidationCache creates a new validation cache

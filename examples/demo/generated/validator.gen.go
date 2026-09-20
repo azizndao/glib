@@ -3,6 +3,9 @@
 package generated
 
 import (
+	"net/http"
+	"slices"
+
 	"github.com/azizndao/glib/utils/parsers"
 	glib "github.com/azizndao/glib/validator"
 	locales_en "github.com/go-playground/locales/en"
@@ -13,6 +16,13 @@ import (
 	trans_fr "github.com/go-playground/validator/v10/translations/fr"
 )
 
+var suportedLocales = []string{
+	"fr",
+	"en",
+}
+
+var defaultLocale = "en"
+
 // initValidator initializes the validator with configured locales
 func initValidator() *glib.Validator {
 	v := validator.New()
@@ -21,8 +31,8 @@ func initValidator() *glib.Validator {
 	locale_fr := locales_fr.New()
 	locale_en := locales_en.New()
 
-	// Initialize UniversalTranslator with fr as fallback
-	uni := ut.New(locale_fr, locale_fr, locale_en)
+	// Initialize UniversalTranslator with en as fallback
+	uni := ut.New(locale_en, locale_fr, locale_en)
 
 	// Register translations for each language
 	if trans, _ := uni.GetTranslator("fr"); trans != nil {
@@ -32,21 +42,23 @@ func initValidator() *glib.Validator {
 		_ = trans_en.RegisterDefaultTranslations(v, trans)
 	}
 
-	return glib.NewValidatorWithTranslator(v, uni, "fr")
+	return glib.NewValidatorWithTranslator(v, uni, defaultLocale)
 }
 
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
-// Falls back to "fr" if no language specified or no match found
-func DetectLanguageOrDefault(acceptLanguage string) string {
-	lang := parsers.DetectLanguage(acceptLanguage, "fr")
+// Falls back to "en" if no language specified or no match found
+func DetectLanguageOrDefault(req *http.Request) string {
+	acceptLanguage := req.Header.Get("Accept-Language")
+	lang := parsers.DetectLanguage(acceptLanguage, defaultLocale)
+
+	if locale := req.URL.Query().Get("lng"); locale != "" {
+		lang = locale
+	}
 
 	// Validate that the detected language is in our supported list
-	switch lang {
-	case "fr":
-		return lang
-	case "en":
+	if slices.Contains(suportedLocales, lang) {
 		return lang
 	}
 
-	return "fr" // Fallback to configured default
+	return defaultLocale // Fallback to configured default
 }

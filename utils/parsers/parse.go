@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // ParseInt converts a string to int with error context.
@@ -58,7 +58,7 @@ func ParseBool(value, fieldName string) (bool, error) {
 func ParseUUID(value, fieldName string) (uuid.UUID, error) {
 	result, err := uuid.Parse(value)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("%s: invalid UUID: %w", fieldName, err)
+		return uuid.Nil(), fmt.Errorf("%s: invalid UUID: %w", fieldName, err)
 	}
 	return result, nil
 }
@@ -136,7 +136,7 @@ func ParseBoolOrFalse(value string) bool {
 func ParseUUIDOrNil(value string) uuid.UUID {
 	result, err := uuid.Parse(value)
 	if err != nil {
-		return uuid.Nil
+		return uuid.Nil()
 	}
 	return result
 }

@@ -3,7 +3,7 @@ package comment
 import (
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type Comment struct {

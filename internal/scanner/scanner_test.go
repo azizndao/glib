@@ -37,7 +37,7 @@ func TestScanRealProject(t *testing.T) {
 go 1.21
 
 require (
-	github.com/google/uuid v1.6.0
+	uuid v1.6.0
 	gorm.io/gorm v1.25.0
 )
 `
@@ -98,8 +98,8 @@ func NewLogger() *Logger {
 import (
 	"context"
 	"testproject/services"
-	
-	"github.com/google/uuid"
+
+	"uuid"
 )
 
 type User struct {

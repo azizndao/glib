@@ -7,13 +7,15 @@ import (
 	"glib/demo/models"
 	"log"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
+// NewDatabase create a single database instance for the app
 // @Provider singleton
 func NewDatabase(conf *configs.Config) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(conf.Database.Filename), &gorm.Config{

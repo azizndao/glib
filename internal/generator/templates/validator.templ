@@ -4,6 +4,7 @@
 package {{.PackageName}}
 
 import (
+    "slices"
 	"github.com/azizndao/glib/utils/parsers"
 	glib "github.com/azizndao/glib/validator"
 {{- range .Languages}}
@@ -13,6 +14,14 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 )
+
+var suportedLocales = []string{
+	{{- range .Languages}}
+	    "{{.}}",
+	{{- end}}
+}
+
+var defaultLocale = "{{.DefaultLanguage}}"
 
 // initValidator initializes the validator with configured locales
 func initValidator() *glib.Validator {
@@ -33,21 +42,25 @@ func initValidator() *glib.Validator {
 	}
 {{- end}}
 
-	return glib.NewValidatorWithTranslator(v, uni, "{{.DefaultLanguage}}")
+	return glib.NewValidatorWithTranslator(v, uni, defaultLocale)
 }
+
 
 // DetectLanguageOrDefault parses Accept-Language header and returns the best matching language
 // Falls back to "{{.DefaultLanguage}}" if no language specified or no match found
-func DetectLanguageOrDefault(acceptLanguage string) string {
-	lang := parsers.DetectLanguage(acceptLanguage, "{{.DefaultLanguage}}")
+func DetectLanguageOrDefault(req *http.Request) string {
+	acceptLanguage := req.Header.Get("Accept-Language")
+	lang := parsers.DetectLanguage(acceptLanguage, defaultLocale)
 
-	// Validate that the detected language is in our supported list
-	switch lang {
-	{{- range .Languages}}
-	case "{{.}}":
-		return lang
-	{{- end}}
+
+	if locale := req.URL.Query().Get("{{.LocaleQueryParamKey}}"); locale != "" {
+		lang = locale
 	}
 
-	return "{{.DefaultLanguage}}" // Fallback to configured default
+	// Validate that the detected language is in our supported list
+	if slices.Contains(suportedLocales, lang) {
+		return lang
+	}
+
+	return defaultLocale // Fallback to configured default
 }

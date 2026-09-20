@@ -78,7 +78,7 @@ import (
     "context"
     "errors"
 
-    "github.com/google/uuid"
+    "uuid"
     "gorm.io/gorm"
 
     "github.com/azizndao/glib/errs"

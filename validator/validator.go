@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/azizndao/glib/errs"
@@ -66,7 +67,8 @@ func (v *Validator) ValidateWithLangAndSection(s any, lang string, section strin
 	}
 
 	// Convert validator errors to glib errors
-	validationErrs, ok := err.(validator.ValidationErrors)
+	var validationErrs validator.ValidationErrors
+	ok := errors.As(err, &validationErrs)
 	if !ok {
 		return err
 	}

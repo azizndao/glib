@@ -23,8 +23,7 @@
 {{- if $.ValidationEnabled}}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return

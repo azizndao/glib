@@ -28,8 +28,7 @@ func handleAuthControllerRegister(app *App) http.HandlerFunc {
 		}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return
@@ -59,8 +58,7 @@ func handleAuthControllerLogin(app *App) http.HandlerFunc {
 		}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return
@@ -225,8 +223,7 @@ func handleCommentControllerCreate(app *App) http.HandlerFunc {
 		}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return
@@ -335,8 +332,7 @@ func handlePostControllerIndex(app *App) http.HandlerFunc {
 		}
 
 		// Validate query/header parameters with language detection and section "query"
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLangAndSection(req, lang, "query"); err != nil {
 			glib.WriteError(w, err)
 			return
@@ -397,8 +393,7 @@ func handlePostControllerCreate(app *App) http.HandlerFunc {
 		}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return
@@ -441,8 +436,7 @@ func handlePostControllerUpdate(app *App) http.HandlerFunc {
 		}
 
 		// Validate request with language detection
-		acceptLang := r.Header.Get("Accept-Language")
-		lang := DetectLanguageOrDefault(acceptLang)
+		lang := DetectLanguageOrDefault(r)
 		if err := app.Validator.ValidateWithLang(req, lang); err != nil {
 			glib.WriteError(w, err)
 			return

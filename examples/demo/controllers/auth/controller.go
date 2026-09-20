@@ -4,9 +4,9 @@ import (
 	"context"
 	"glib/demo/models"
 	"glib/demo/services"
+	"uuid"
 
 	"github.com/azizndao/glib/errs"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,7 +53,7 @@ func (c *Controller) Register(ctx context.Context, req RegisterRequest) (*UserRe
 		Active:       true,
 	}
 
-	err = c.UserService.CreateUser(newUser)
+	err = c.UserService.CreateUser(ctx, newUser)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +69,7 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) (*LoginRespons
 	// Find user by username
 	user, err := c.UserService.GetByUsername(ctx, req.Username)
 	if err != nil {
-		return nil, err
-	}
-
-	if user == nil {
-		return nil, errs.NewUnauthorized().WithMessage("invalid credentials")
+		return nil, errs.NewUnauthorized().Cause(err).WithMessage("invalid credentials")
 	}
 
 	// Verify password
@@ -95,7 +91,7 @@ func (c *Controller) Login(ctx context.Context, req LoginRequest) (*LoginRespons
 	c.Auditor.LogAction("user logged in: " + user.Username)
 
 	response := &LoginResponse{
-		User:  toUserResponse(user),
+		User:  toUserResponse(&user),
 		Token: token,
 	}
 
@@ -147,7 +143,7 @@ func (c *Controller) UpdateProfile(ctx context.Context, req UpdateProfileRequest
 		user.Bio = *req.Bio
 	}
 
-	updatedUser, err := c.UserService.UpdateUser(user.ID, &user)
+	updatedUser, err := c.UserService.UpdateUser(ctx, user.ID, &user)
 	if err != nil {
 		return nil, err
 	}

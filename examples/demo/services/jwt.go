@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"uuid"
+
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 // JWTService handles JWT token generation and validation

@@ -44,7 +44,7 @@ package posts
 
 import (
     "context"
-    "github.com/google/uuid"
+    "uuid:wq"
     "gorm.io/gorm"
     "my-app/models"
     "my-app/services"

@@ -9,9 +9,9 @@ import (
 	"glib/demo/services"
 	"net/http"
 	"time"
+	"uuid"
 
 	"github.com/azizndao/glib/errs"
-	"github.com/google/uuid"
 )
 
 // @Controller path=/api/v1/post tags=api
@@ -24,8 +24,7 @@ type Controller struct {
 
 // @Route method=GET path=/
 func (c *Controller) Index(ctx context.Context, params PostPaginationParams) ([]models.Post, error) {
-	fmt.Println(c.I18n.Success.PostCreated(ctx, "My First Post"))
-	posts, err := c.PostSerivce.GetPosts()
+	posts, err := c.PostSerivce.GetPosts(ctx, params.Page, params.PerPage)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +33,7 @@ func (c *Controller) Index(ctx context.Context, params PostPaginationParams) ([]
 
 // @Route method=GET path=/{id}
 func (c *Controller) Show(ctx context.Context, id uuid.UUID) (*models.Post, error) {
-	post, err := c.PostSerivce.GetPost(id)
+	post, err := c.PostSerivce.GetPost(ctx, id)
 	if err != nil {
 		// Use localized error message
 		msg := c.I18n.Errors.Posts.NotFound(ctx, id.String())
@@ -54,7 +53,7 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) (*models
 		Tags:      req.Tags,
 	}
 
-	if err := c.PostSerivce.CreatePost(post); err != nil {
+	if err := c.PostSerivce.CreatePost(ctx, post); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +66,7 @@ func (c *Controller) Create(ctx context.Context, req CreatePostRequest) (*models
 
 // @Route method=PUT path=/{id} tags=protected
 func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostRequest) (*models.Post, error) {
-	post, err := c.PostSerivce.GetPost(id)
+	post, err := c.PostSerivce.GetPost(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +87,7 @@ func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostReq
 		post.Tags = req.Tags
 	}
 
-	if err := c.PostSerivce.UpdatePost(post); err != nil {
+	if err := c.PostSerivce.UpdatePost(ctx, post); err != nil {
 		return nil, err
 	}
 
@@ -97,7 +96,7 @@ func (c *Controller) Update(ctx context.Context, id uuid.UUID, req UpdatePostReq
 
 // @Route method=DELETE path=/{id} tags=protected
 func (c *Controller) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := c.PostSerivce.DeletePost(id); err != nil {
+	if err := c.PostSerivce.DeletePost(ctx, id); err != nil {
 		return err
 	}
 	return nil
@@ -116,7 +115,7 @@ func (c *Controller) Export(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintln(w, "id,title,slug,created_at")
 
 	// Fetch real posts from database
-	posts, err := c.PostSerivce.GetPosts()
+	posts, err := c.PostSerivce.GetPosts(r.Context(), 1, 20)
 	if err != nil {
 		_, _ = fmt.Fprintf(w, "# Error: %v\n", err)
 		return
@@ -147,7 +146,7 @@ func (c *Controller) Stream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch posts
-	posts, err := c.PostSerivce.GetPosts()
+	posts, err := c.PostSerivce.GetPosts(r.Context(), 1, 20)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
