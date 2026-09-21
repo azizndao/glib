@@ -8,7 +8,7 @@ import (
 	"github.com/azizndao/glib/internal/cli"
 )
 
-var version = "0.3.5"
+var version = "0.3.6"
 
 func main() {
 	if err := cli.Execute(version); err != nil {
