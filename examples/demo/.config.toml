@@ -2,6 +2,7 @@ version = "2"
 verbose = false
 
 [generate]
+cmd = "./cmd/api"
 output = "generated"
 package = "generated"
 workers = 4

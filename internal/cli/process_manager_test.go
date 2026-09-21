@@ -17,7 +17,7 @@ sleep 30
 	pm := &ProcessManager{quiet: true}
 
 	// Start the process
-	if err := pm.Start(tmpScript, 8080); err != nil {
+	if err := pm.Start(tmpScript); err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
 
@@ -53,14 +53,14 @@ sleep 30
 	pm := &ProcessManager{quiet: true}
 
 	// Start
-	if err := pm.Start(tmpScript, 8080); err != nil {
+	if err := pm.Start(tmpScript); err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
 	// Restart
-	if err := pm.Restart(tmpScript, 8080); err != nil {
+	if err := pm.Restart(tmpScript); err != nil {
 		t.Fatalf("Failed to restart process: %v", err)
 	}
 
@@ -95,7 +95,7 @@ sleep 30
 	pm := &ProcessManager{}
 
 	// Start
-	if err := pm.Start(tmpScript, 8080); err != nil {
+	if err := pm.Start(tmpScript); err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
 
@@ -153,14 +153,14 @@ sleep 30
 	pm := &ProcessManager{quiet: true}
 
 	// Start
-	if err := pm.Start(tmpScript, 8080); err != nil {
+	if err := pm.Start(tmpScript); err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
 
 	// Do multiple restarts
 	for i := 0; i < 3; i++ {
 		time.Sleep(100 * time.Millisecond)
-		if err := pm.Restart(tmpScript, 8080); err != nil {
+		if err := pm.Restart(tmpScript); err != nil {
 			t.Fatalf("Restart %d failed: %v", i+1, err)
 		}
 
@@ -183,7 +183,7 @@ exit 1
 	pm := &ProcessManager{quiet: true}
 
 	// Start
-	if err := pm.Start(tmpScript, 8080); err != nil {
+	if err := pm.Start(tmpScript); err != nil {
 		t.Fatalf("Failed to start process: %v", err)
 	}
 

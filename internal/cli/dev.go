@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -21,6 +22,11 @@ const (
 	ShutdownTimeout        = 5 * time.Second
 )
 
+var (
+	cacheDir   = filepath.Join(".glib", "cache")
+	binaryPath = filepath.Join(".glib", "app")
+)
+
 // ProcessManager manages the running server process
 type ProcessManager struct {
 	cmd     *exec.Cmd
@@ -31,7 +37,7 @@ type ProcessManager struct {
 }
 
 // Start launches the server process
-func (pm *ProcessManager) Start(binaryPath string, port int) error {
+func (pm *ProcessManager) Start(binaryPath string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -40,7 +46,6 @@ func (pm *ProcessManager) Start(binaryPath string, port int) error {
 	}
 
 	pm.cmd = exec.Command(binaryPath)
-	pm.cmd.Env = append(os.Environ(), fmt.Sprintf("APP_PORT=%d", port))
 
 	if !pm.quiet {
 		pm.cmd.Stdout = os.Stdout
@@ -109,7 +114,7 @@ func (pm *ProcessManager) Stop() error {
 }
 
 // Restart stops the old process and starts a new one
-func (pm *ProcessManager) Restart(binaryPath string, port int) error {
+func (pm *ProcessManager) Restart(binaryPath string) error {
 	if err := pm.Stop(); err != nil {
 		return fmt.Errorf("failed to stop old process: %w", err)
 	}
@@ -117,7 +122,7 @@ func (pm *ProcessManager) Restart(binaryPath string, port int) error {
 	// Give the OS a moment to release the port
 	time.Sleep(PortReleaseDelay)
 
-	return pm.Start(binaryPath, port)
+	return pm.Start(binaryPath)
 }
 
 // IsRunning returns whether the server is running
@@ -128,7 +133,6 @@ func (pm *ProcessManager) IsRunning() bool {
 }
 
 func newDevCmd() *cobra.Command {
-	var port int
 	var verbose bool
 	var workers int
 	var noCache bool
@@ -137,7 +141,7 @@ func newDevCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "dev",
-		Aliases: []string{"serve"},
+		Aliases: []string{"serve", "up"},
 		Short:   "Start development server with hot reload",
 		Long: `Start development server with automatic code generation and hot reload.
 
@@ -149,12 +153,11 @@ Features:
   - Press Ctrl+C to stop`,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDev(cmdFolder, port, verbose, workers, noCache, time.Duration(debounce)*time.Millisecond)
+			return runDev(cmdFolder, verbose, workers, noCache, time.Duration(debounce)*time.Millisecond)
 		},
 	}
 
 	cmd.Flags().StringVar(&cmdFolder, "cmd", "", "Command folder to watch for changes (default: current directory)")
-	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from .config.toml or false)")
 	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: from .config.toml or 4)")
 	cmd.Flags().BoolVar(&noCache, "no-cache", false, "Disable incremental caching (default: cache enabled from .config.toml)")
@@ -163,7 +166,7 @@ Features:
 	return cmd
 }
 
-func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
+func runDev(cmdFolder string, verbose bool, workers int, noCache bool, debounce time.Duration) error {
 	// Load config from environment variables and defaults
 	cfg, err := loadConfigs()
 	if err != nil {
@@ -194,11 +197,6 @@ func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool,
 		debounce = time.Duration(cfg.Watch.Debounce) * time.Millisecond
 	}
 
-	// Port: CLI flag OR default (port is managed via .env, not config)
-	if port == 0 {
-		port = 8080
-	}
-
 	// Cmd folder: CLI flag OR config value
 	if cmdFolder == "" {
 		cmdFolder = cfg.Generate.CmdFolder
@@ -210,21 +208,14 @@ func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool,
 		outputDir = "generated"
 	}
 
-	// Ensure tmp directory exists
-	if err := os.MkdirAll("tmp", 0o755); err != nil {
-		return fmt.Errorf("failed to create tmp directory: %w", err)
-	}
-
 	// Ensure cache directory exists
-	cacheDir := filepath.Join(".glib", "cache")
 	if err := ensureCacheDir(cacheDir); err != nil {
 		return err
 	}
 
-	binaryPath := "./tmp/main"
-
-	fmt.Println(ui.Infof("Starting Glib dev server on port %d", port))
-	fmt.Println()
+	if runtime.GOOS == "windows" {
+		binaryPath += ".exe"
+	}
 
 	// Initial generation
 	fmt.Println(ui.Infof("Initial generation..."))
@@ -243,13 +234,11 @@ func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool,
 	fmt.Println(ui.Successf("Build complete"))
 
 	// Start server
-	fmt.Println()
 	pm := &ProcessManager{}
-	if err := pm.Start(binaryPath, port); err != nil {
+	if err := pm.Start(binaryPath); err != nil {
 		fmt.Println(ui.Errorf("Failed to start server: %v", err))
 		return err
 	}
-	fmt.Println(ui.Successf("Server started on http://localhost:%d", port))
 
 	// Create file watcher
 	watchCfg := &WatchConfig{
@@ -317,7 +306,7 @@ func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool,
 			}
 			fmt.Println()
 
-			if err := handleReload(pm, cmdFolder, binaryPath, port, ".", outputDir, cfg, workers, noCache, verbose, changedFiles); err != nil {
+			if err := handleReload(pm, cmdFolder, binaryPath, ".", outputDir, cfg, workers, noCache, verbose, changedFiles); err != nil {
 				fmt.Println(ui.Errorf("Reload failed: %v", err))
 				if pm.IsRunning() {
 					fmt.Println(ui.Warningf("Previous server still running"))
@@ -331,7 +320,7 @@ func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool,
 }
 
 // handleReload performs incremental generation, build, and restart
-func handleReload(pm *ProcessManager, cmdFolder, binaryPath string, port int, projectDir, outputDir string, cfg *glibConfig, workers int, noCache bool, verbose bool, changedFiles []string) error {
+func handleReload(pm *ProcessManager, cmdFolder, binaryPath string, projectDir, outputDir string, cfg *glibConfig, workers int, noCache bool, verbose bool, changedFiles []string) error {
 	start := time.Now()
 
 	// Generate code
@@ -349,7 +338,7 @@ func handleReload(pm *ProcessManager, cmdFolder, binaryPath string, port int, pr
 	fmt.Printf("  %s Build complete (%dms)\n", ui.IconCheck, buildDuration.Milliseconds())
 
 	// Restart server
-	if err := pm.Restart(binaryPath, port); err != nil {
+	if err := pm.Restart(binaryPath); err != nil {
 		return fmt.Errorf("failed to restart server: %w", err)
 	}
 
