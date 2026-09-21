@@ -133,6 +133,7 @@ func newDevCmd() *cobra.Command {
 	var workers int
 	var noCache bool
 	var debounce int
+	var cmdFolder string
 
 	cmd := &cobra.Command{
 		Use:     "dev",
@@ -148,10 +149,11 @@ Features:
   - Press Ctrl+C to stop`,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDev(port, verbose, workers, noCache, time.Duration(debounce)*time.Millisecond)
+			return runDev(cmdFolder, port, verbose, workers, noCache, time.Duration(debounce)*time.Millisecond)
 		},
 	}
 
+	cmd.Flags().StringVar(&cmdFolder, "cmd", "", "Command folder to watch for changes (default: current directory)")
 	cmd.Flags().IntVar(&port, "port", 0, "Server port (default: from .env or 8080)")
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed statistics (default: from .config.toml or false)")
 	cmd.Flags().IntVar(&workers, "workers", 0, "Number of parallel workers (default: from .config.toml or 4)")
@@ -161,7 +163,7 @@ Features:
 	return cmd
 }
 
-func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
+func runDev(cmdFolder string, port int, verbose bool, workers int, noCache bool, debounce time.Duration) error {
 	// Load config from environment variables and defaults
 	cfg, err := loadConfigs()
 	if err != nil {
@@ -197,6 +199,11 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 		port = 8080
 	}
 
+	// Cmd folder: CLI flag OR config value
+	if cmdFolder == "" {
+		cmdFolder = cfg.Generate.CmdFolder
+	}
+
 	// Determine output directory
 	outputDir := cfg.Generate.Output
 	if outputDir == "" {
@@ -229,7 +236,7 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 	// Initial build
 	fmt.Println()
 	fmt.Println(ui.Infof("Building application..."))
-	if err := buildApp(binaryPath, verbose); err != nil {
+	if err := buildApp(cmdFolder, binaryPath, verbose); err != nil {
 		fmt.Println(ui.Errorf("Build failed: %v", err))
 		return err
 	}
@@ -310,7 +317,7 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 			}
 			fmt.Println()
 
-			if err := handleReload(pm, binaryPath, port, ".", outputDir, cfg, workers, noCache, verbose, changedFiles); err != nil {
+			if err := handleReload(pm, cmdFolder, binaryPath, port, ".", outputDir, cfg, workers, noCache, verbose, changedFiles); err != nil {
 				fmt.Println(ui.Errorf("Reload failed: %v", err))
 				if pm.IsRunning() {
 					fmt.Println(ui.Warningf("Previous server still running"))
@@ -324,7 +331,7 @@ func runDev(port int, verbose bool, workers int, noCache bool, debounce time.Dur
 }
 
 // handleReload performs incremental generation, build, and restart
-func handleReload(pm *ProcessManager, binaryPath string, port int, projectDir, outputDir string, cfg *glibConfig, workers int, noCache bool, verbose bool, changedFiles []string) error {
+func handleReload(pm *ProcessManager, cmdFolder, binaryPath string, port int, projectDir, outputDir string, cfg *glibConfig, workers int, noCache bool, verbose bool, changedFiles []string) error {
 	start := time.Now()
 
 	// Generate code
@@ -335,7 +342,7 @@ func handleReload(pm *ProcessManager, binaryPath string, port int, projectDir, o
 	// Build
 	fmt.Println(ui.Infof("Building..."))
 	buildStart := time.Now()
-	if err := buildApp(binaryPath, verbose); err != nil {
+	if err := buildApp(cmdFolder, binaryPath, verbose); err != nil {
 		return fmt.Errorf("build failed: %w", err)
 	}
 	buildDuration := time.Since(buildStart)
@@ -374,8 +381,8 @@ func performGeneration(projectDir, outputDir string, cfg *glibConfig, workers in
 }
 
 // buildApp builds the application
-func buildApp(outputPath string, verbose bool) error {
-	cmd := exec.Command("go", "build", "-o", outputPath, ".")
+func buildApp(cmdFolder, outputPath string, verbose bool) error {
+	cmd := exec.Command("go", "build", "-o", outputPath, cmdFolder)
 	if verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

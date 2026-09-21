@@ -16,10 +16,11 @@ type glibConfig struct {
 	Version  string `toml:"version"`
 	Verbose  bool   `toml:"verbose"`
 	Generate struct {
-		Output  string `toml:"output"`
-		Package string `toml:"package"`
-		Workers int    `toml:"workers"`
-		Cache   bool   `toml:"cache"`
+		CmdFolder string `toml:"cmd"`
+		Output    string `toml:"output"`
+		Package   string `toml:"package"`
+		Workers   int    `toml:"workers"`
+		Cache     bool   `toml:"cache"`
 	} `toml:"generate"`
 	Make struct {
 		Controllers string `toml:"controllers"`
@@ -53,6 +54,7 @@ func getDefaultConfig() *glibConfig {
 	cfg := &glibConfig{Version: "2", Verbose: false}
 
 	// Generate defaults
+	cfg.Generate.CmdFolder = "."
 	cfg.Generate.Output = "generated"
 	cfg.Generate.Package = "generated"
 	cfg.Generate.Workers = 4
