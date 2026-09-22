@@ -19,7 +19,7 @@ func loadConfig() (*configs.Config, error) {
 
 	cfg.Server.Env = parsers.GetEnvOr("APP_ENV", "development")
 
-	if cfg.Server.Timeout, err = parsers.GetEnvDuration("ROUTER_TIMEOUT", 60); err != nil {
+	if cfg.Server.Timeout, err = parsers.GetEnvDuration("ROUTER_TIMEOUT", "60s"); err != nil {
 		return nil, err
 	}
 

@@ -105,10 +105,10 @@ func GetEnvBool(key string, fallback bool) (bool, error) {
 // GetEnvDuration retrieves an environment variable as a time.Duration.
 // Returns the fallback value if the variable doesn't exist.
 // Returns an error if parsing fails.
-func GetEnvDuration(key string, fallback time.Duration) (time.Duration, error) {
+func GetEnvDuration(key string, fallback string) (time.Duration, error) {
 	v, ok := GetEnv(key)
 	if !ok {
-		return fallback, nil
+		v = fallback
 	}
 	return ParseDuration(v, key)
 }

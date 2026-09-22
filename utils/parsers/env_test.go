@@ -157,7 +157,7 @@ func TestGetEnvDuration(t *testing.T) {
 	os.Setenv(key, "5s")
 	defer os.Unsetenv(key)
 
-	value, err := GetEnvDuration(key, 0)
+	value, err := GetEnvDuration(key, "0")
 	if err != nil {
 		t.Errorf("GetEnvDuration(%q, 0) unexpected error: %v", key, err)
 	}
@@ -166,7 +166,7 @@ func TestGetEnvDuration(t *testing.T) {
 	}
 
 	// Test fallback
-	value, err = GetEnvDuration("MISSING_DURATION", 10*time.Second)
+	value, err = GetEnvDuration("MISSING_DURATION", "10s")
 	if err != nil {
 		t.Errorf("GetEnvDuration(MISSING_DURATION, 10s) unexpected error: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestGetEnvDuration(t *testing.T) {
 
 	// Invalid duration
 	os.Setenv(key, "invalid")
-	_, err = GetEnvDuration(key, 0)
+	_, err = GetEnvDuration(key, "0s")
 	if err == nil {
 		t.Errorf("GetEnvDuration(%q, 0) expected error for invalid duration", key)
 	}

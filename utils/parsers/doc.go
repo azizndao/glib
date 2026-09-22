@@ -27,7 +27,7 @@
 // Parse environment variables with defaults:
 //
 //	port, err := parsers.GetEnvInt("PORT", 8080)
-//	timeout, err := parsers.GetEnvDuration("TIMEOUT", 30*time.Second)
+//	timeout, err := parsers.GetEnvDuration("TIMEOUT", "30s")
 //	dbURL := parsers.GetEnvOr("DATABASE_URL", "localhost:5432")
 //
 // # Body Parsing

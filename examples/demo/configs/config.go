@@ -11,7 +11,7 @@ type Config struct {
 		Host    string        `env:"APP_HOST" default:"0.0.0.0"`
 		Port    int           `env:"APP_PORT" default:"8080"`
 		Env     string        `env:"APP_ENV" default:"development"`
-		Timeout time.Duration `env:"ROUTER_TIMEOUT" default:"60"` // seconds, 0 = no timeout
+		Timeout time.Duration `env:"ROUTER_TIMEOUT" default:"60s"` // seconds, 0 = no timeout
 	}
 
 	Database struct {

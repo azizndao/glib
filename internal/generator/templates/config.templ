@@ -71,7 +71,7 @@ func {{ .FunctionName }}() (*{{ .ConfigPackageName }}.{{ .ConfigName }}, error) 
 		return nil, err
 	}
 	{{- else if eq .Type.FullName "time.Duration" }}
-	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvDuration("{{ .EnvName }}", {{ .DefaultValue }}); err != nil {
+	if cfg.{{ .ParentPath }}{{ .Name }}, err = parsers.GetEnvDuration("{{ .EnvName }}", "{{ .DefaultValue }}"); err != nil {
 		return nil, err
 	}
 	{{- else if or (eq .Type.FullName "url.URL") (eq .Type.FullName "*url.URL") }}
